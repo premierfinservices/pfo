@@ -787,10 +787,10 @@ function Overview({
           </dl>
         </Card>
 
-        <Card title="Where this data lives">
+        <Card title="Shared across the office">
           <p className="text-xs text-ink-600">
-            This case is a row in PostgreSQL, shared by every PC in the office. Two people looking
-            at it see the same thing, and it survives a browser or a server restart.
+            Saved on the office server. Two people looking at this case see the same thing, and it
+            survives a browser or a server restart.
           </p>
         </Card>
       </div>

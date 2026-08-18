@@ -25,6 +25,7 @@
  */
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { api, onUnauthorized, storeToken, storedToken } from "../api/client.js";
 import type { ApiSessionUser } from "../api/types.js";
@@ -46,7 +47,13 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
   // distinct from `LoginScreen`'s own error state, which is about a wrong
   // password, not why the form is here at all.
   const [notice, setNotice] = useState<string | null>(null);
+  const navigate = useNavigate();
 
+  // Adopts an identity without touching the route. Used both by a fresh
+  // sign-in and by restoring an already-valid session on page load — the
+  // latter must land back on whatever route the address bar already had
+  // (HashRouter survives a refresh), or a reload while reading a case would
+  // bounce the employee back to their workspace home.
   const adopt = useCallback((user: ApiSessionUser) => {
     // The prototype half of the app still authorises through `fake/store.ts`,
     // which looks the actor up in its own user list. See the function's
@@ -57,6 +64,21 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
     setState({ status: "authenticated", user });
   }, []);
 
+  // A genuine login event — the form was just submitted. Unlike `adopt`
+  // above, this always resets the route to "/", which is every role's home
+  // (`WorkspaceHome` picks the Founders Dashboard or a workspace queue from
+  // the session it was just handed). Without this, HashRouter simply keeps
+  // whatever route the previous employee on this browser left behind — a
+  // case, Documents, Master Data — and the new employee lands there instead
+  // of their own home.
+  const login = useCallback(
+    (user: ApiSessionUser) => {
+      adopt(user);
+      navigate("/", { replace: true });
+    },
+    [adopt, navigate],
+  );
+
   // Fires when `IdleSessionMonitor`'s local clock reaches the idle timeout
   // with no "Continue session" click. The server would refuse the next
   // request anyway (Backend/api-server.ts's `loadActor`) — this just gets
@@ -66,7 +88,8 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
     forgetAuthenticatedUser();
     setNotice("You were signed out after 5 minutes of inactivity.");
     setState({ status: "anonymous" });
-  }, []);
+    navigate("/", { replace: true });
+  }, [navigate]);
 
   // Restore on load, and re-validate rather than trusting the stored token.
   useEffect(() => {
@@ -120,8 +143,12 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
       storeToken(null);
       forgetAuthenticatedUser();
       setState({ status: "anonymous" });
+      // Clears whatever deep route was on screen, so the next employee to
+      // sign in on this shared PC never inherits it, even for the instant
+      // before their own login resets it again.
+      navigate("/", { replace: true });
     })();
-  }, []);
+  }, [navigate]);
 
   if (state.status === "checking") {
     // Deliberately not the login form. Flashing "sign in" at somebody who IS
@@ -135,7 +162,7 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
   }
 
   if (state.status === "anonymous") {
-    return <LoginScreen onAuthenticated={adopt} notice={notice} />;
+    return <LoginScreen onAuthenticated={login} notice={notice} />;
   }
 
   return (

@@ -114,6 +114,10 @@ const LIVE_SUBMISSION_STATUSES = new Set<SubmissionStatus>([
   "eligibility_received",
 ]);
 
+/** "New leads" window, shared by the stat's own filter and its "View all"
+ * link to `/cases?createdWithinDays=…` — one number, so they cannot drift. */
+const NEW_LEAD_WINDOW_DAYS = 7;
+
 // ---------------------------------------------------------------------------
 // Derived data — pure, shared by more than one section
 // ---------------------------------------------------------------------------
@@ -459,6 +463,12 @@ function MoreMenu({ onSelect }: { onSelect: (next: Section) => void }): ReactNod
  * `primary` is for the two or three numbers a founder actually opens this
  * screen to check — everything else is `secondary`. The difference is size,
  * padding and elevation, not colour: colour still belongs to `warn` alone.
+ *
+ * Every stat here is a count of real records, so every stat is a link to
+ * them: `to` for an actual route (a filtered `/cases`), `onClick` for a
+ * dashboard section that already shows the same derivation in place. Never
+ * both, and a tile gets neither only when it has nothing behind it to open
+ * (e.g. "With a bank" while `submission.read` is refused).
  */
 function StatTile({
   label,
@@ -466,20 +476,24 @@ function StatTile({
   hint,
   warn,
   primary = false,
+  to,
+  onClick,
 }: {
   label: string;
   value: string;
   hint?: string;
   warn?: boolean;
   primary?: boolean;
+  to?: string;
+  onClick?: (() => void) | undefined;
 }): ReactNode {
-  return (
-    <div
-      className={cx(
-        "rounded-lg bg-white ring-1 transition-shadow duration-200",
-        primary ? "p-5 shadow-elevated ring-ink-150" : "p-4 ring-ink-100 hover:shadow-soft",
-      )}
-    >
+  const classes = cx(
+    "block w-full rounded-lg bg-white text-left ring-1 transition-shadow duration-200",
+    primary ? "p-5 shadow-elevated ring-ink-150" : "p-4 ring-ink-100 hover:shadow-soft",
+    (to || onClick) && "cursor-pointer hover:shadow-soft hover:ring-brand-200",
+  );
+  const content = (
+    <>
       <p className="text-xs font-medium text-ink-500">{label}</p>
       <p
         className={cx(
@@ -491,8 +505,24 @@ function StatTile({
         {value}
       </p>
       {hint && <p className="mt-1 text-xs text-ink-400">{hint}</p>}
-    </div>
+    </>
   );
+
+  if (to) {
+    return (
+      <Link to={to} className={classes}>
+        {content}
+      </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={classes}>
+        {content}
+      </button>
+    );
+  }
+  return <div className={classes}>{content}</div>;
 }
 
 function CaseMiniRow({
@@ -591,7 +621,11 @@ function PipelineChart({ all }: { all: readonly ApiCase[] }): ReactNode {
           const count = counts.get(stage) ?? 0;
           const isBottleneck = stage === bottleneck;
           return (
-            <div key={stage} className="relative flex items-center gap-3 pl-6">
+            <Link
+              key={stage}
+              to={`/cases?stage=${stage}`}
+              className="relative flex items-center gap-3 rounded-md pl-6 transition-colors hover:bg-ink-50"
+            >
               <span
                 aria-hidden
                 className={cx(
@@ -617,7 +651,7 @@ function PipelineChart({ all }: { all: readonly ApiCase[] }): ReactNode {
               >
                 {count}
               </span>
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -697,7 +731,7 @@ function OverviewSection({
   onNavigate: (section: Section) => void;
 }): ReactNode {
   const newLeads = active.filter(
-    (c) => Date.now() - new Date(c.createdAt).getTime() <= 7 * 86400000,
+    (c) => Date.now() - new Date(c.createdAt).getTime() <= NEW_LEAD_WINDOW_DAYS * 86400000,
   ).length;
   const pendingDocs = active.filter(
     (c) => c.progress && c.progress.applicableCount > 0 && c.progress.percentComplete < 100,
@@ -715,21 +749,28 @@ function OverviewSection({
             room to breathe, with the rest of the count as a quieter second
             row rather than five equal tiles competing for the same glance. */}
         <div className="grid gap-3 sm:grid-cols-2">
-          <StatTile label="Active cases" value={String(active.length)} primary />
+          <StatTile label="Active cases" value={String(active.length)} primary to="/cases?stage=active" />
           <StatTile
             label="Needs attention"
             value={String(attention.length)}
             warn={attention.length > 0}
             primary
+            onClick={() => onNavigate("tasks")}
           />
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          <StatTile label="New leads" value={String(newLeads)} hint="Last 7 days" />
-          <StatTile label="Pending documents" value={String(pendingDocs)} />
+          <StatTile
+            label="New leads"
+            value={String(newLeads)}
+            hint={`Last ${NEW_LEAD_WINDOW_DAYS} days`}
+            to={`/cases?stage=active&createdWithinDays=${NEW_LEAD_WINDOW_DAYS}`}
+          />
+          <StatTile label="Pending documents" value={String(pendingDocs)} onClick={() => onNavigate("documents")} />
           <StatTile
             label="With a bank"
             value={submissionsAllowed ? String(liveApplications) : "—"}
             hint="Live applications"
+            onClick={submissionsAllowed ? () => onNavigate("banks") : undefined}
           />
         </div>
       </div>
@@ -767,12 +808,17 @@ function OverviewSection({
           ) : (
             <ul className="divide-y divide-ink-100">
               {teamRows.map((row) => (
-                <li key={row.user.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                  <span className="text-sm font-medium text-ink-900">{row.user.fullName}</span>
-                  <span className="flex items-center gap-3 text-xs text-ink-500">
-                    <span className="tnum">{row.activeCases} active</span>
-                    {row.attentionCount > 0 && <Badge tone="warn">{row.attentionCount} attention</Badge>}
-                  </span>
+                <li key={row.user.id} className="py-2.5 first:pt-0 last:pb-0">
+                  <Link
+                    to={`/cases?owner=${row.user.id}&stage=active`}
+                    className="-mx-2 flex items-center justify-between rounded-md px-2 py-0.5 transition-colors hover:bg-ink-50"
+                  >
+                    <span className="text-sm font-medium text-ink-900">{row.user.fullName}</span>
+                    <span className="flex items-center gap-3 text-xs text-ink-500">
+                      <span className="tnum">{row.activeCases} active</span>
+                      {row.attentionCount > 0 && <Badge tone="warn">{row.attentionCount} attention</Badge>}
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -792,10 +838,15 @@ function OverviewSection({
             <ul className="divide-y divide-ink-100">
               {events.slice(0, 6).map((event) => (
                 <li key={event.id} className="py-2 first:pt-0 last:pb-0">
-                  <p className="text-sm text-ink-700">
-                    <span className="tnum font-medium text-ink-900">{event.caseNumber}</span> · {event.label}
-                  </p>
-                  <p className="text-xs text-ink-400">{when(event.occurredAt)}</p>
+                  <Link
+                    to={`/cases/${event.caseId}`}
+                    className="-mx-2 block rounded-md px-2 py-0.5 transition-colors hover:bg-ink-50"
+                  >
+                    <p className="text-sm text-ink-700">
+                      <span className="tnum font-medium text-ink-900">{event.caseNumber}</span> · {event.label}
+                    </p>
+                    <p className="text-xs text-ink-400">{when(event.occurredAt)}</p>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -830,10 +881,16 @@ function OverviewSection({
           subtitle="Cases waiting on paperwork"
           actions={<ViewAllButton onClick={() => onNavigate("documents")} />}
         >
-          <p className="font-display tnum text-3xl font-semibold text-ink-900">{pendingDocs}</p>
-          <p className="mt-1 text-xs text-ink-500">
-            active case{pendingDocs === 1 ? "" : "s"} with outstanding requirements
-          </p>
+          <button
+            type="button"
+            onClick={() => onNavigate("documents")}
+            className="-m-1 block rounded-md p-1 text-left transition-colors hover:bg-ink-50"
+          >
+            <p className="font-display tnum text-3xl font-semibold text-ink-900">{pendingDocs}</p>
+            <p className="mt-1 text-xs text-ink-500">
+              active case{pendingDocs === 1 ? "" : "s"} with outstanding requirements
+            </p>
+          </button>
         </Card>
 
         <OperationalHealthCard health={health} />
@@ -966,7 +1023,11 @@ function TeamSection({ rows, loading }: { rows: readonly TeamRow[]; loading: boo
           <tbody>
             {rows.map((row) => (
               <tr key={row.user.id} className={TABLE_ROW}>
-                <Td className="font-medium whitespace-nowrap text-ink-900">{row.user.fullName}</Td>
+                <Td className="font-medium whitespace-nowrap text-ink-900">
+                  <Link to={`/cases?owner=${row.user.id}&stage=active`} className="hover:underline">
+                    {row.user.fullName}
+                  </Link>
+                </Td>
                 <Td muted className="whitespace-nowrap">
                   {row.user.roles.map((role) => ROLE_LABELS[role]).join(", ")}
                 </Td>
@@ -1343,6 +1404,18 @@ function SettingsSection(): ReactNode {
             .
           </p>
         )}
+      </Card>
+
+      <Card title="System information" subtitle="Where AOS data lives — founder-level, not ordinary employees' concern">
+        <p className="text-xs text-ink-500">
+          Cases, customers, users, documents, requirements, document rules, document types,
+          rejection reasons and thresholds are saved on the office server — shared by every PC,
+          and safe across a refresh. Products, Lenders and the rest of Master Data's fixed
+          vocabulary are still local to this browser, pending their own migration. Stages,
+          transitions, progress and permissions all run the real domain layer from{" "}
+          <code>src/domain/</code>; if something is refused here, it is refused for the same
+          reason in every other screen.
+        </p>
       </Card>
     </div>
   );

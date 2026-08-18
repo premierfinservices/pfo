@@ -15,10 +15,12 @@
  * `own` always meant this — it is the first time the rule is actually applied
  * to this screen, which used to read every case in the store.
  *
- * SECOND, employment, documents and conversations are gone from this screen
- * for now. They were the prototype store's, they have not migrated, and
- * showing a person's document count from a store that no longer describes
- * these cases would be a confident lie. Each returns with its own slice.
+ * SECOND, this screen does not aggregate documents or employment across a
+ * person's cases — both are real, server-backed and per-case (open a case
+ * above to see them), but there is no cross-case rollup here yet. Logged
+ * conversations have no backend at all yet (the `communication` table exists,
+ * nothing writes to it), so that card is a genuine, permanent empty state
+ * rather than a stand-in for a later migration.
  */
 
 import { useState, type ReactNode } from "react";
@@ -167,15 +169,16 @@ export function PersonProfile(): ReactNode {
             )}
           </Card>
 
-          <Card title="Documents, employment and conversations">
-            <div className="max-w-prose space-y-3">
-              <p className="text-sm font-medium text-ink-900">Not yet migrated.</p>
-              <p className="text-sm text-ink-700">
-                This customer lives in PostgreSQL. Their documents, employment record and logged
-                conversations have not moved to the server yet, so they are not shown here rather
-                than shown from a store that no longer describes these cases.
-              </p>
-            </div>
+          <Card title="Documents and employment">
+            <p className="max-w-prose text-sm text-ink-700">
+              {theirCases.length === 0
+                ? "No documents or employment details yet — they are recorded once this person is on a case."
+                : "Recorded per case, not aggregated here yet — open a case above to see its documents and employment details."}
+            </p>
+          </Card>
+
+          <Card title="Conversations">
+            <Empty>No conversations recorded.</Empty>
           </Card>
         </div>
 
@@ -204,9 +207,9 @@ export function PersonProfile(): ReactNode {
             )}
           </Card>
 
-          <Card title="Where this data lives">
+          <Card title="Shared across the office">
             <p className="text-xs text-ink-600">
-              This customer is a row in PostgreSQL. Anyone in the office searching their name or
+              Saved on the office server. Anyone in the office searching this customer's name or
               number finds this same record — which is what stops the same person being created
               twice on two PCs.
             </p>

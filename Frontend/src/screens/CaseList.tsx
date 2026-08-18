@@ -20,7 +20,7 @@
  */
 
 import { useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { CASE_STAGES, CASE_STAGE_LABELS, type CaseStage } from "@domain/case/stages.js";
 
@@ -44,26 +44,55 @@ import {
   cx,
 } from "../ui/index.js";
 
+/** Recognises a `?stage=` value from a dashboard link as a real `CaseStage`,
+ * so an unrecognised or missing value falls back to the screen's own default
+ * rather than silently matching nothing. */
+function isCaseStage(value: string): value is CaseStage {
+  return (CASE_STAGES as readonly string[]).includes(value);
+}
+
 export function CaseList(): ReactNode {
   const session = useSession();
   const cases = useApiQuery<readonly ApiCase[]>("/cases");
   const reference = useReference();
   const users = useUsers();
+  const [searchParams] = useSearchParams();
 
-  const [stage, setStage] = useState<CaseStage | "all" | "active">("active");
-  const [owner, setOwner] = useState<string>("all");
+  // Initial values only — read once from a dashboard link (Active cases,
+  // Pipeline, Team), same as CaseDetail's own `?tab=`. The <Select> controls
+  // below remain the everyday way to change them; this just makes the
+  // screen's existing stage/owner filters addressable by URL instead of
+  // adding a second, parallel filtering system.
+  const [stage, setStage] = useState<CaseStage | "all" | "active">(() => {
+    const requested = searchParams.get("stage");
+    if (requested === "all" || requested === "active") return requested;
+    if (requested && isCaseStage(requested)) return requested;
+    return "active";
+  });
+  const [owner, setOwner] = useState<string>(() => searchParams.get("owner") ?? "all");
+
+  // "New leads" on the Founders Dashboard means "created within N days" —
+  // cross-stage, so it is not one of the CaseStage values above. Read once,
+  // same as stage/owner; there is no <Select> for it because nothing on this
+  // screen offers to change it after arrival.
+  const createdWithinDays = useMemo(() => {
+    const raw = Number(searchParams.get("createdWithinDays"));
+    return Number.isFinite(raw) && raw > 0 ? raw : null;
+  }, [searchParams]);
 
   const seesEverything = session.can("case.read", "all");
 
   const filtered = useMemo(() => {
+    const createdCutoff = createdWithinDays !== null ? Date.now() - createdWithinDays * 86400000 : null;
     return (cases.data ?? [])
       .filter((c) => {
         if (stage === "active") return c.stage !== "closed" && c.stage !== "lost";
         if (stage === "all") return true;
         return c.stage === stage;
       })
-      .filter((c) => owner === "all" || c.ownerUserId === owner);
-  }, [cases.data, stage, owner]);
+      .filter((c) => owner === "all" || c.ownerUserId === owner)
+      .filter((c) => createdCutoff === null || new Date(c.createdAt).getTime() >= createdCutoff);
+  }, [cases.data, stage, owner, createdWithinDays]);
 
   return (
     <div className="space-y-4">
@@ -74,6 +103,7 @@ export function CaseList(): ReactNode {
             {seesEverything
               ? "Every case."
               : "Cases you own. A colleague's cases are not yours to browse."}
+            {createdWithinDays !== null && ` Created in the last ${createdWithinDays} days.`}
           </p>
         </div>
 

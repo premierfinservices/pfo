@@ -51,7 +51,6 @@ export function App(): ReactNode {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      <PrototypeFooter />
     </div>
   );
 }
@@ -68,8 +67,30 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
   );
 }
 
+/**
+ * Only Manager and Managing Partner land on the Founders Dashboard
+ * (`session.tsx`'s `DEFAULT_WORKSPACE`/`WORKSPACE_ROLES`, `WorkspaceHome`'s own
+ * `workspace === "management"` branch) — everyone else's home is their
+ * workspace queue, "My Work". The nav's first link names whichever one this
+ * session will actually land on.
+ */
+function isFounder(session: ReturnType<typeof useSession>): boolean {
+  return session.roles.includes("manager") || session.roles.includes("managing_partner");
+}
+
+/**
+ * A case list scoped to "own" reads as "My Cases"; Manager and Managing
+ * Partner see every case, so "All Cases" is the honest word for the same
+ * link. Telecaller and Login Executive get "My Cases" — the two roles ordinary
+ * navigation was cluttering before this pass.
+ */
+function casesLabel(session: ReturnType<typeof useSession>): string {
+  return isFounder(session) ? "All Cases" : "My Cases";
+}
+
 function TopBar(): ReactNode {
   const session = useSession();
+  const founder = isFounder(session);
 
   return (
     <header className="sticky top-0 z-40 border-b border-ink-150 bg-white">
@@ -84,41 +105,35 @@ function TopBar(): ReactNode {
         <GlobalSearch />
 
         <nav className="ml-auto flex shrink-0 items-center gap-1">
-          {/* Distinct from "All Cases" below: this is the work queue, scoped to
-              what this role/session should be looking at right now. Before
+          {/* Distinct from the cases link below: this is the work queue, scoped
+              to what this role/session should be looking at right now. Before
               this label existed, the logo was the only way to it, and nothing
-              distinguished "your work" from "every case" (audit finding 11.1). */}
+              distinguished "your work" from "every case" (audit finding 11.1).
+              Founders get "Dashboard" plus a home glyph — their landing screen
+              is a command centre, not a call queue, and it is the one nav item
+              that earns an icon (item 2: restrained, not everywhere). */}
           <NavLink to="/" end className={navLinkClass}>
-            My Work
+            {founder && (
+              <svg
+                aria-hidden
+                viewBox="0 0 16 16"
+                className="mr-1 inline h-3.5 w-3.5 -translate-y-px"
+                fill="none"
+              >
+                <path
+                  d="M2 7.5 8 2l6 5.5M3.5 6.5V13a.5.5 0 0 0 .5.5h3v-4h2v4h3a.5.5 0 0 0 .5-.5V6.5"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+            {founder ? "Dashboard" : "My Work"}
           </NavLink>
           <NavLink to="/cases" className={navLinkClass}>
-            All Cases
+            {casesLabel(session)}
           </NavLink>
-          {session.can("master_data.manage", "all") && (
-            <NavLink to="/admin/lending-products" className={navLinkClass}>
-              Products
-            </NavLink>
-          )}
-          {session.can("master_data.manage", "all") && (
-            <NavLink to="/admin/lenders" className={navLinkClass}>
-              Lenders
-            </NavLink>
-          )}
-          {session.can("master_data.manage", "all") && (
-            <NavLink to="/admin/document-rules" className={navLinkClass}>
-              Document Rules
-            </NavLink>
-          )}
-          {session.can("master_data.manage", "all") && (
-            <NavLink to="/admin/master-data" className={navLinkClass}>
-              Master Data
-            </NavLink>
-          )}
-          {session.can("user.manage", "all") && (
-            <NavLink to="/admin/users" className={navLinkClass}>
-              Users
-            </NavLink>
-          )}
           {session.can("case.create", "all") && (
             <Link to="/cases/new">
               <Button variant="primary">New case</Button>
@@ -132,6 +147,26 @@ function TopBar(): ReactNode {
       <WorkspaceTabs />
     </header>
   );
+}
+
+/**
+ * Founder-level administrative screens. These are not a top-level nav item —
+ * an ordinary employee's primary nav is Dashboard/My Work, Cases, New Case
+ * and nothing else — they live inside the identity dropdown's "Settings"
+ * section instead, gated the same way they always were: on the underlying
+ * permission (`src/domain/permissions/roles.ts`), not on role or workspace.
+ * An employee who holds none of these permissions sees no Settings section
+ * at all.
+ */
+function useSettingsLinks(): readonly { to: string; label: string }[] {
+  const session = useSession();
+  return [
+    { to: "/admin/lending-products", label: "Products", show: session.can("master_data.manage", "all") },
+    { to: "/admin/lenders", label: "Lenders", show: session.can("master_data.manage", "all") },
+    { to: "/admin/document-rules", label: "Document Rules", show: session.can("master_data.manage", "all") },
+    { to: "/admin/master-data", label: "Master Data", show: session.can("master_data.manage", "all") },
+    { to: "/admin/users", label: "Users", show: session.can("user.manage", "all") },
+  ].filter((link) => link.show);
 }
 
 /**
@@ -316,6 +351,7 @@ function WorkspaceTabs(): ReactNode {
  */
 function IdentityMenu(): ReactNode {
   const session = useSession();
+  const settingsLinks = useSettingsLinks();
   const [open, setOpen] = useState(false);
   const container = useRef<HTMLDivElement>(null);
 
@@ -354,6 +390,29 @@ function IdentityMenu(): ReactNode {
               {session.roles.map((role) => ROLE_LABELS[role as Role]).join(" + ")}
             </p>
           </div>
+          {settingsLinks.length > 0 && (
+            <>
+              <hr className="my-2 border-ink-100" />
+              <p className="px-2 pb-1 text-xs font-semibold tracking-wide text-ink-400 uppercase">
+                Settings
+              </p>
+              {settingsLinks.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setOpen(false)}
+                  className={({ isActive }) =>
+                    cx(
+                      "block rounded px-2 py-1.5 text-sm",
+                      isActive ? "bg-brand-50 text-brand-700" : "text-ink-700 hover:bg-ink-50",
+                    )
+                  }
+                >
+                  {link.label}
+                </NavLink>
+              ))}
+            </>
+          )}
           <hr className="my-2 border-ink-100" />
           <button
             onClick={() => {
@@ -389,24 +448,6 @@ function IdentityMenu(): ReactNode {
         </div>
       )}
     </div>
-  );
-}
-
-function PrototypeFooter(): ReactNode {
-  return (
-    <footer className="border-t border-ink-150 bg-white">
-      <div className="mx-auto w-full max-w-7xl px-4 py-3">
-        <p className="text-xs text-ink-500">
-          Cases, customers, users, documents, requirements, document rules, document types,
-          rejection reasons and thresholds are saved on the office server — shared by every PC,
-          and safe across a refresh. Products, Lenders and the rest of Master Data's fixed
-          vocabulary are still local to this browser, pending their own migration. Stages,
-          transitions, progress and permissions all run the real domain layer from{" "}
-          <code>src/domain/</code>; if something is refused here, it is refused for the same
-          reason in every other screen.
-        </p>
-      </div>
-    </footer>
   );
 }
 
