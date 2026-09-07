@@ -62,7 +62,7 @@ export function IdleSessionMonitor({ onExpire }: { onExpire: () => void }): Reac
   return (
     <Modal open={secondsLeft !== null} title="Still there?" onClose={continueSession}>
       <p className="text-sm text-ink-700">
-        You have been idle for a while. For your security, AOS will sign you out in{" "}
+        You have been idle for a while. For your security, Premier Finserv One will sign you out in{" "}
         <strong>
           {secondsLeft ?? 0} second{secondsLeft === 1 ? "" : "s"}
         </strong>{" "}

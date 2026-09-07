@@ -222,7 +222,7 @@ async function readBinaryBody(req: IncomingMessage): Promise<Buffer> {
   let size = 0;
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > MAX_UPLOAD_BYTES) throw new HttpError(413, "That file is larger than AOS currently accepts (25 MB).");
+    if (size > MAX_UPLOAD_BYTES) throw new HttpError(413, "That file is larger than Premier Finserv One currently accepts (25 MB).");
     chunks.push(chunk as Buffer);
   }
   return Buffer.concat(chunks);

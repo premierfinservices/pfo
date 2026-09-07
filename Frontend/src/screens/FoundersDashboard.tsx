@@ -681,7 +681,7 @@ function HealthChip({ label, state }: { label: string; state: "up" | "down" | "u
 
 function OperationalHealthCard({ health }: { health: ApiHealthDetail | undefined }): ReactNode {
   return (
-    <Card title="System health" subtitle="What AOS itself depends on">
+    <Card title="System health" subtitle="What Premier Finserv One itself depends on">
       {!health ? (
         <Empty>Checking…</Empty>
       ) : (
@@ -1071,7 +1071,7 @@ function TasksSection({
     <div className="space-y-6">
       <p className="text-xs text-ink-500">
         Derived from real case activity — hold follow-ups past their date, and cases sitting longer than
-        their stage's configured pace (Settings → Operational thresholds). AOS has no separate task list
+        their stage's configured pace (Settings → Operational thresholds). Premier Finserv One has no separate task list
         yet; this is the strongest signal on file for "what needs a founder's attention."
       </p>
 
@@ -1336,7 +1336,7 @@ function SettingsSection(): ReactNode {
     {
       to: "/admin/lending-products",
       label: "Lending products",
-      hint: "The loan products AOS offers",
+      hint: "The loan products Premier Finserv One offers",
       show: session.can("master_data.manage", "all"),
     },
     {
@@ -1406,7 +1406,7 @@ function SettingsSection(): ReactNode {
         )}
       </Card>
 
-      <Card title="System information" subtitle="Where AOS data lives — founder-level, not ordinary employees' concern">
+      <Card title="System information" subtitle="Where Premier Finserv One data lives — founder-level, not ordinary employees' concern">
         <p className="text-xs text-ink-500">
           Cases, customers, users, documents, requirements, document rules, document types,
           rejection reasons and thresholds are saved on the office server — shared by every PC,

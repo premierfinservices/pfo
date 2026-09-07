@@ -96,10 +96,10 @@ function TopBar(): ReactNode {
     <header className="sticky top-0 z-40 border-b border-ink-150 bg-white">
       <div className="mx-auto flex w-full max-w-7xl items-center gap-4 px-4 py-2.5">
         <Link to="/" className="flex shrink-0 items-center gap-2">
-          <span className="grid h-7 w-7 place-items-center rounded-md bg-brand-600 text-xs font-bold text-white">
-            AL
+          <span className="grid h-7 w-auto shrink-0 place-items-center rounded-md bg-brand-600 px-1.5 text-xs font-bold text-white">
+            PFONE
           </span>
-          <span className="font-display text-sm font-semibold tracking-tight">AOS</span>
+          <span className="font-display text-sm font-semibold tracking-tight">Premier Finserv One</span>
         </Link>
 
         <GlobalSearch />
@@ -430,7 +430,7 @@ function IdentityMenu(): ReactNode {
                   confirm(
                     "Clear this browser's local copy of Products, Lenders and the remaining " +
                       "preview sections of Master Data back to their starting values?\n\n" +
-                      "This does NOT reset AOS. It has no effect on real cases, customers, " +
+                      "This does NOT reset Premier Finserv One. It has no effect on real cases, customers, " +
                       "documents, users, document rules, document types, rejection reasons or " +
                       "thresholds — those live on the office server. It only clears the " +
                       "not-yet-connected preview screens, in this browser only.",
@@ -442,7 +442,7 @@ function IdentityMenu(): ReactNode {
               }}
               className="w-full rounded px-2 py-1.5 text-left text-sm text-red-700 hover:bg-red-50"
             >
-              Clear local preview data (not AOS data)
+              Clear local preview data (not Premier Finserv One data)
             </button>
           )}
         </div>

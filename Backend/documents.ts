@@ -387,7 +387,7 @@ export async function uploadDocument(
 
   if (file.bytes.byteLength === 0) throw new ApiError(400, "The file is empty.");
   if (file.bytes.byteLength > MAX_UPLOAD_BYTES) {
-    throw new ApiError(413, "That file is larger than AOS currently accepts (25 MB).");
+    throw new ApiError(413, "That file is larger than Premier Finserv One currently accepts (25 MB).");
   }
 
   const subject = await loadRequirementSubject(client, caseId, requirementId);

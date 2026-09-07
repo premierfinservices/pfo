@@ -279,7 +279,7 @@ export function NewCase(): ReactNode {
           onNameChange={setName}
           onPhoneChange={setPhone}
           onChoose={setChosen}
-          chosenHint="Their details carry over. This case opens against the record AOS already holds."
+          chosenHint="Their details carry over. This case opens against the record Premier Finserv One already holds."
         />
       </Card>
 

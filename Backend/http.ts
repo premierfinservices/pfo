@@ -60,6 +60,6 @@ export function isDatabaseUnavailable(error: unknown): boolean {
  * server rather than the driver: the action is "tell whoever looks after the
  * office server PC", and no table, column or connection string appears. */
 export const DATABASE_UNAVAILABLE_MESSAGE =
-  "AOS cannot reach its database right now, so nothing was saved. This is a problem " +
+  "Premier Finserv One cannot reach its database right now, so nothing was saved. This is a problem " +
   "with the office server, not with what you did. Wait a moment and try again — if it " +
-  "keeps happening, the AOS server PC needs attention.";
+  "keeps happening, the Premier Finserv One server PC needs attention.";

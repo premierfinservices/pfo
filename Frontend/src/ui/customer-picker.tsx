@@ -151,7 +151,7 @@ export function CustomerSearchField({
       {candidates.length > 0 && (
         <div className="rounded-md ring-1 ring-amber-200" data-testid="duplicate-warning">
           <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            AOS may already know them. A missed duplicate is a permanent data wound; a false
+            Premier Finserv One may already know them. A missed duplicate is a permanent data wound; a false
             warning costs two seconds.
           </p>
           <ul className="divide-y divide-ink-100">
@@ -182,7 +182,7 @@ export function CustomerSearchField({
       )}
 
       {searching && candidates.length === 0 && (
-        <p className="text-xs text-ink-400">Checking whether AOS already knows them…</p>
+        <p className="text-xs text-ink-400">Checking whether Premier Finserv One already knows them…</p>
       )}
     </div>
   );

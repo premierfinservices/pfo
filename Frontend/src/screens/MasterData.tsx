@@ -120,7 +120,7 @@ type Section = SimpleSection | DocumentTypeSection | RejectionReasonSection | Th
 
 const SECTIONS: Section[] = [
   // System — rarely changes, administrator-level reference data.
-  { kind: "documentType", label: "Document Types", hint: "The kinds of document AOS recognises. Requirement templates key off these.", category: "system" },
+  { kind: "documentType", label: "Document Types", hint: "The kinds of document Premier Finserv One recognises. Requirement templates key off these.", category: "system" },
   { kind: "simple", key: "employmentTypes", label: "Employment Types", hint: "A person's income-source classification. Drives which income documents a case asks for.", category: "system" },
   { kind: "simple", key: "businessConstitutions", label: "Business Constitutions", hint: "How a borrowing firm is legally constituted — proprietorship, partnership, private limited.", category: "system" },
   { kind: "simple", key: "propertyTypes", label: "Property Types", hint: "Apartment, independent house, plot, villa, commercial, agricultural.", category: "system" },
@@ -203,7 +203,7 @@ export function MasterData(): ReactNode {
       <div className="space-y-2">
         <h1 className="text-xl font-semibold tracking-tight">Master Data</h1>
         <p className="mt-1 text-sm text-ink-500">
-          AOS's operational vocabulary.
+          Premier Finserv One's operational vocabulary.
           {section?.kind === "simple"
             ? " Read-only reference — see the note below."
             : !canManage && " This user can view but not edit — hold master_data.manage to change values."}

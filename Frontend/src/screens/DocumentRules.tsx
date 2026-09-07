@@ -121,7 +121,7 @@ export function DocumentRules(): ReactNode {
     return (
       <Card title="Document rules are not visible to this user">
         <p className="text-sm text-ink-700">
-          This role holds no <code>master_data.read</code>. What AOS asks a customer for is a
+          This role holds no <code>master_data.read</code>. What Premier Finserv One asks a customer for is a
           business policy, and changing it is a business decision with consequences on every open
           case.
         </p>
@@ -159,7 +159,7 @@ export function DocumentRules(): ReactNode {
     <div className="space-y-6">
       <Card
         title="Document rules"
-        subtitle={`${active} rules in service — reads and writes AOS's office database.`}
+        subtitle={`${active} rules in service — reads and writes Premier Finserv One's office database.`}
       >
         <div className="flex flex-wrap items-center gap-3">
           <input

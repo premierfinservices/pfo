@@ -155,8 +155,8 @@ function proxyToApi(req, res) {
     }
     const body = JSON.stringify({
       message:
-        "AOS is running but its API is not responding. Nothing was saved. " +
-        "The AOS server PC needs attention — the API service may have stopped.",
+        "Premier Finserv One is running but its API is not responding. Nothing was saved. " +
+        "The Premier Finserv One server PC needs attention — the API service may have stopped.",
     });
     res.writeHead(503, {
       "Content-Type": "application/json; charset=utf-8",

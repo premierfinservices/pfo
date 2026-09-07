@@ -181,7 +181,7 @@ export function describeIneligibility(reason: IneligibilityReason): string {
       return (
         `${megabytes(reason.fileSizeBytes)} — over the ${megabytes(reason.limitBytes)} limit for one email. ` +
         "Ask the customer for a smaller scan, or split the document and upload the parts as separate " +
-        "requirements. AOS will not shrink it for you: a compressed bank statement is not the document " +
+        "requirements. Premier Finserv One will not shrink it for you: a compressed bank statement is not the document " +
         "the customer signed."
       );
   }

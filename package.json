@@ -2,7 +2,7 @@
   "name": "aos",
   "version": "0.0.0",
   "private": true,
-  "description": "Amaze Operating System — internal operating system for Amaze Loans Pvt Ltd",
+  "description": "Premier Finserv One — internal operating system for Amaze Loans Pvt Ltd",
   "type": "module",
   "engines": {
     "node": ">=20"

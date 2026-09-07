@@ -121,7 +121,7 @@ export function describeEmailFailure(failure: EmailSendFailure): string {
       return `The address was refused: ${failure.message}`;
     case "not_configured":
       return (
-        "AOS is not connected to a mailbox yet, so nothing was sent. " +
+        "Premier Finserv One is not connected to a mailbox yet, so nothing was sent. " +
         "An administrator needs to connect the Amaze Loans mailbox — see Docs/Email and WhatsApp Integration.md."
       );
     case "authentication":
@@ -158,7 +158,7 @@ export const unconfiguredEmailProvider: EmailProvider = {
       submissionPackageEmailId: email.submissionPackageEmailId,
       failure: {
         kind: "not_configured",
-        message: "No email provider is configured for this installation of AOS.",
+        message: "No email provider is configured for this installation of Premier Finserv One.",
       },
     };
   },

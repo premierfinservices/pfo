@@ -448,7 +448,7 @@ async function handleSend(req, res) {
       failureResult(
         message.submissionPackageEmailId,
         "not_configured",
-        "No email provider is configured for this installation of AOS. Set AOS_MAIL_PROVIDER=gmail " +
+        "No email provider is configured for this installation of Premier Finserv One. Set AOS_MAIL_PROVIDER=gmail " +
           `and provide ${missing.join(", ")} — see .env.example and Docs/Email and WhatsApp Integration.md. Nothing was sent.`,
       ),
     );

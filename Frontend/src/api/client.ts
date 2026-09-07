@@ -189,7 +189,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   } catch {
     // The API process is down or the network dropped. Said plainly, because
     // "Failed to fetch" tells an employee in Coimbatore nothing actionable.
-    throw new ApiError(0, "Cannot reach the AOS server. Check that it is running.");
+    throw new ApiError(0, "Cannot reach the Premier Finserv One server. Check that it is running.");
   }
 
   if (response.status === 401 && !options.anonymous) {
@@ -230,7 +230,7 @@ export async function apiUpload<T>(path: string, file: File): Promise<T> {
   try {
     response = await fetch(`/api${path}`, { method: "POST", headers, body: file });
   } catch {
-    throw new ApiError(0, "Cannot reach the AOS server. Check that it is running.");
+    throw new ApiError(0, "Cannot reach the Premier Finserv One server. Check that it is running.");
   }
 
   if (response.status === 401) {
@@ -264,7 +264,7 @@ export async function apiDownload(
   try {
     response = await fetch(`/api${path}`, { headers });
   } catch {
-    throw new ApiError(0, "Cannot reach the AOS server. Check that it is running.");
+    throw new ApiError(0, "Cannot reach the Premier Finserv One server. Check that it is running.");
   }
 
   if (response.status === 401) {

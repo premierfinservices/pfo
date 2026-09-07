@@ -309,7 +309,7 @@ export function LenderCatalogue(): ReactNode {
 
       <Card
         title="What this screen is, and what it is not"
-        subtitle="Worth being explicit, because the difference decides what AOS may do with it later."
+        subtitle="Worth being explicit, because the difference decides what Premier Finserv One may do with it later."
       >
         <ul className="space-y-2 text-sm text-ink-700">
           <li>
@@ -319,13 +319,13 @@ export function LenderCatalogue(): ReactNode {
           </li>
           <li>
             <span className="font-medium">What we know</span> — the office's own experience, in the
-            words of whoever learned it. Guidance, never a rule. Nothing in AOS decides anything
+            words of whoever learned it. Guidance, never a rule. Nothing in Premier Finserv One decides anything
             from it, and when the assistant arrives it will quote these as something the team
             observed, not as a condition it checked.
           </li>
           <li>
             <span className="font-medium">Not here yet</span> — maintaining this catalogue from
-            AOS. The data on this screen is a per-browser preview, not the office database; adding
+            Premier Finserv One. The data on this screen is a per-browser preview, not the office database; adding
             or editing a lender's details is not available here (see the banner above). Choosing a
             lender for a case, eligibility, submitting a file, turnaround reporting are separate,
             later milestones.
@@ -534,7 +534,7 @@ function AboutPanel({ db, organisation }: { db: Database; organisation: Organisa
       <p className="text-xs text-ink-500">
         Everything in the second block is the office's own view of this lender. It is written down
         so it stops living in two people's heads — it is not an eligibility rule, and nothing in
-        AOS decides anything from it.
+        Premier Finserv One decides anything from it.
       </p>
     </div>
   );
@@ -684,7 +684,7 @@ function SubmissionPanel({
   return (
     <div className="space-y-3">
       <p className="text-xs text-ink-500">
-        How a file goes in, and what to have ready. Notes for the person lodging it — AOS does not
+        How a file goes in, and what to have ready. Notes for the person lodging it — Premier Finserv One does not
         act on any of this.
       </p>
 
@@ -749,7 +749,7 @@ function KnowledgePanel({
     <div className="space-y-3">
       <p className="text-xs text-ink-500">
         What the office has learned about working with this lender. Written by people, for people.
-        Not a rule — nothing in AOS decides anything from it, and it never overrides what a lender
+        Not a rule — nothing in Premier Finserv One decides anything from it, and it never overrides what a lender
         actually says.
       </p>
 

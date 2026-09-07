@@ -82,7 +82,7 @@ export function NotConnectedBanner(): ReactNode {
       <strong className="font-semibold">Not connected to the office database.</strong> What's shown
       here is a per-browser preview, not production configuration — it is not shared with any
       other PC and has no effect on real cases or document requirements. Read-only: there is no
-      way to change this data from AOS yet.
+      way to change this data from Premier Finserv One yet.
     </div>
   );
 }

@@ -94,7 +94,7 @@ export function PersonSearchField({
       {candidates.length > 0 && (
         <div className="rounded-md ring-1 ring-amber-200">
           <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            AOS may already know them. A missed duplicate is a permanent data wound; a false
+            Premier Finserv One may already know them. A missed duplicate is a permanent data wound; a false
             warning costs two seconds.
           </p>
           <ul className="divide-y divide-ink-100">
@@ -167,7 +167,7 @@ export function OrganisationSearchField({
     <div className="space-y-3">
       <Field
         label="Firm name"
-        hint="Type it however it's known. AOS resolves it in the background — this is never a list of every organisation on file."
+        hint="Type it however it's known. Premier Finserv One resolves it in the background — this is never a list of every organisation on file."
       >
         <Input
           value={name}
@@ -179,7 +179,7 @@ export function OrganisationSearchField({
       {candidates.length > 0 && (
         <div className="rounded-md ring-1 ring-amber-200">
           <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            AOS may already know this firm.
+            Premier Finserv One may already know this firm.
           </p>
           <ul className="divide-y divide-ink-100">
             {candidates.map(({ organisation, tier }) => (

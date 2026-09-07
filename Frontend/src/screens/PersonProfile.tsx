@@ -129,7 +129,7 @@ export function PersonProfile(): ReactNode {
             title={`${theirCases.length} case${theirCases.length === 1 ? "" : "s"}`}
             subtitle={
               session.can("case.read", "all")
-                ? "Every role, every year. This is the question AOS exists to answer."
+                ? "Every role, every year. This is the question Premier Finserv One exists to answer."
                 : "Cases you own. A colleague's case on this customer is not yours to browse."
             }
           >
