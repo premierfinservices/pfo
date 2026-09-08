@@ -57,6 +57,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "aos-lan-address.ps1")
 $Supervisor = Join-Path $RepoRoot "Backend\supervisor.mjs"
 $LogFile = Join-Path $RepoRoot "Backend\supervisor.log"
 
@@ -81,10 +82,12 @@ if (-not (Test-Path $Dist)) {
 $apiHost = "127.0.0.1"
 $webHost = "127.0.0.1"
 $webPort = "4300"
+$lanIp = ""
 foreach ($line in Get-Content $EnvFile) {
     if ($line -match '^\s*AOS_API_HOST\s*=\s*(.+?)\s*$') { $apiHost = $Matches[1].Trim('"').Trim("'") }
     if ($line -match '^\s*AOS_WEB_HOST\s*=\s*(.+?)\s*$') { $webHost = $Matches[1].Trim('"').Trim("'") }
     if ($line -match '^\s*AOS_WEB_PORT\s*=\s*(.+?)\s*$') { $webPort = $Matches[1].Trim('"').Trim("'") }
+    if ($line -match '^\s*AOS_LAN_IP\s*=\s*(.+?)\s*$') { $lanIp = $Matches[1].Trim('"').Trim("'") }
 }
 
 $node = (Get-Command node -ErrorAction SilentlyContinue).Source
@@ -107,13 +110,28 @@ if ($webHost -eq "127.0.0.1" -or $webHost -eq "localhost") {
     Write-Warning "On the office server set AOS_WEB_HOST=0.0.0.0 in .env, then re-run this script."
     Write-Host ""
 } else {
-    $ip = (Get-NetIPAddress -AddressFamily IPv4 |
-           Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } |
-           Select-Object -First 1).IPAddress
-    Write-Host "  Employees will reach AOS at:  http://$ip`:$webPort"
-    Write-Host "  Make sure that address is static or DHCP-reserved, and record it in"
-    Write-Host "  Docs/Deployment Topology.md. A server whose IP changes on reboot breaks"
-    Write-Host "  every bookmark in the office silently."
+    $lan = Get-AosLanAddress -Override $lanIp
+    if ($lan.Address) {
+        $via = ""
+        if ($lan.Source -eq "override") { $via = "   (from AOS_LAN_IP)" }
+        Write-Host "  Employees will reach AOS at:  http://$($lan.Address)`:$webPort$via"
+        Write-Host "  Make sure that address is static or DHCP-reserved, and record it in"
+        Write-Host "  Docs/Deployment Topology.md. A server whose IP changes on reboot breaks"
+        Write-Host "  every bookmark in the office silently."
+    } else {
+        Write-Warning "Could not tell which address employees will reach this machine on."
+        if ($lan.Candidates.Count -gt 0) {
+            Write-Host "  More than one connected physical interface qualifies:"
+            foreach ($c in $lan.Candidates) {
+                Write-Host "    $($c.Address) on $($c.Adapter) [$($c.Description)]"
+            }
+        } else {
+            Write-Host "  No connected physical interface has a usable IPv4 address."
+        }
+        Write-Host "  Set AOS_LAN_IP in .env to the address employees should use, record"
+        Write-Host "  it in Docs/Deployment Topology.md, and re-run this script. Do not"
+        Write-Host "  guess: a wrong address is bookmarked office-wide and fails silently."
+    }
     Write-Host ""
     Write-Host "  Firewall: allow inbound TCP $webPort. Nothing else needs opening  - "
     Write-Host "  storage (4319) and mail (4320) are loopback-only by design, and the"

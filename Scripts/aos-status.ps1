@@ -31,6 +31,8 @@ $ErrorActionPreference = "Continue"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $EnvFile = Join-Path $RepoRoot ".env"
 
+. (Join-Path $PSScriptRoot "aos-lan-address.ps1")
+
 $settings = @{
     AOS_WEB_PORT      = "4300"
     AOS_API_PORT      = "4321"
@@ -39,6 +41,7 @@ $settings = @{
     AOS_DB_PORT       = "5432"
     AOS_DB_NAME       = "aos"
     AOS_WEB_HOST      = "127.0.0.1"
+    AOS_LAN_IP        = ""
     AOS_STORAGE_ROOT  = "C:\AOS\Data"
     AOS_BACKUP_ROOT   = "C:\AOS\Backups"
     AOS_MAIL_PROVIDER = "unconfigured"
@@ -121,10 +124,18 @@ if ($loopbackOnly) {
     Show-Line "Employee access" $false "AOS_WEB_HOST=$($settings.AOS_WEB_HOST) - no other PC can reach this machine"
     Write-Host "        Correct for a development checkout. On the office server set AOS_WEB_HOST=0.0.0.0." -ForegroundColor Yellow
 } else {
-    $ip = (Get-NetIPAddress -AddressFamily IPv4 |
-           Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } |
-           Select-Object -First 1).IPAddress
-    Show-Line "Employee access" $true "http://$ip`:$($settings.AOS_WEB_PORT)"
+    $lan = Get-AosLanAddress -Override $settings.AOS_LAN_IP
+    if ($lan.Address) {
+        $via = "detected"
+        if ($lan.Source -eq "override") { $via = "from AOS_LAN_IP" }
+        Show-Line "Employee access" $true "http://$($lan.Address)`:$($settings.AOS_WEB_PORT)  ($via)"
+    } else {
+        Show-Line "Employee access" $false "cannot tell which address employees reach this machine on"
+        foreach ($c in $lan.Candidates) {
+            Write-Host "        candidate: $($c.Address) on $($c.Adapter) [$($c.Description)]" -ForegroundColor Yellow
+        }
+        Write-Host "        Set AOS_LAN_IP in .env to the address employees should use." -ForegroundColor Yellow
+    }
 
     $rule = Get-NetFirewallRule -DisplayName "AOS*" -ErrorAction SilentlyContinue
     if ($rule) {
