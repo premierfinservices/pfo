@@ -69,6 +69,14 @@ export interface ApiCase {
   readonly applicantName: string | null;
   readonly applicantPhone: string | null;
   /**
+   * Set once at creation and never editable afterward (Backend/cases.ts's
+   * WRITABLE map has no entry for it). All Cases and search still show a
+   * practice case inline with a badge; every dashboard/report aggregate
+   * excludes it (WorkspaceHome.tsx's `all`, Backend/events.ts's
+   * listOrgEvents, Backend/submissions.ts's listAllSubmissions).
+   */
+  readonly isPractice: boolean;
+  /**
    * Present on `/api/cases` (the All Cases list) only, from Stage 3C —
    * `Backend/requirements.ts`'s `caseListProgress`, computed from real
    * `document_requirement` rows. Absent on a single case fetched by id: the

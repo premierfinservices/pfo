@@ -146,6 +146,7 @@ export function NewCase(): ReactNode {
   const [itrFiled, setItrFiled] = useDraft("new-case:itr");
   const [existingObligations, setExistingObligations] = useDraft("new-case:obligations");
   const [chosen, setChosen] = useState<ApiCustomer | null>(null);
+  const [isPractice, setIsPractice] = useState(false);
 
   // A drafted id the catalogue no longer offers is ignored rather than
   // selected — a deactivated product must not be revived by an old draft.
@@ -237,6 +238,7 @@ export function NewCase(): ReactNode {
           ...(gst === undefined ? {} : { isGstRegistered: gst }),
           ...(itr === undefined ? {} : { itrFiled: itr }),
           ...(obligations === undefined ? {} : { hasExistingObligations: obligations }),
+          ...(isPractice ? { isPractice: true } : {}),
         },
       });
     });
@@ -438,6 +440,15 @@ export function NewCase(): ReactNode {
           </div>
         </Card>
       )}
+
+      <label className="flex items-center gap-2 text-sm text-ink-700">
+        <input
+          type="checkbox"
+          checked={isPractice}
+          onChange={(event) => setIsPractice(event.target.checked)}
+        />
+        Practice case (for testing/training — never shows up in real reports)
+      </label>
 
       {mutation.error && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">

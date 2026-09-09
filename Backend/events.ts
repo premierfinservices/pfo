@@ -912,6 +912,7 @@ export async function listOrgEvents(
        left join app_user u on u.id = e.actor_user_id
        left join person p on p.id = u.person_id
       where e.case_id is not null
+        and not c.is_practice
       order by e.occurred_at desc, e.id desc
       limit $1`,
     [limit],

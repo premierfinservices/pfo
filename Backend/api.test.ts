@@ -324,6 +324,150 @@ describe("cases", () => {
     expect(moved.status).toBe(200);
     expect(moved.body.stage).toBe("contacted");
   });
+
+  it("creates a practice case with its own numbering, excluded from real numbering", async () => {
+    const session = await signIn(await createEmployee("manager"));
+    const customer = await api("/api/customers", {
+      method: "POST",
+      token: session.token,
+      body: { fullName: `Practice Applicant ${randomUUID().slice(0, 8)}` },
+    });
+
+    const created = await api("/api/cases", {
+      method: "POST",
+      token: session.token,
+      body: {
+        applicantId: customer.body.id,
+        loanProductId: await anyLoanProductId(),
+        isPractice: true,
+      },
+    });
+
+    expect(created.status, JSON.stringify(created.body)).toBe(200);
+    expect(created.body.caseNumber).toMatch(/^PRACTICE-\d{5,}$/);
+    expect(created.body.isPractice).toBe(true);
+  });
+
+  it("still numbers a normal case AL-YYYY-##### when isPractice is omitted", async () => {
+    const session = await signIn(await createEmployee("manager"));
+    const customer = await api("/api/customers", {
+      method: "POST",
+      token: session.token,
+      body: { fullName: `Real Applicant ${randomUUID().slice(0, 8)}` },
+    });
+
+    const created = await api("/api/cases", {
+      method: "POST",
+      token: session.token,
+      body: { applicantId: customer.body.id, loanProductId: await anyLoanProductId() },
+    });
+
+    expect(created.status, JSON.stringify(created.body)).toBe(200);
+    expect(created.body.caseNumber).toMatch(/^AL-\d{4}-\d{5}$/);
+    expect(created.body.isPractice).toBe(false);
+  });
+
+  it("never lets isPractice change after creation", async () => {
+    const session = await signIn(await createEmployee("manager"));
+    const customer = await api("/api/customers", {
+      method: "POST",
+      token: session.token,
+      body: { fullName: `Immutable Practice ${randomUUID().slice(0, 8)}` },
+    });
+    const created = await api("/api/cases", {
+      method: "POST",
+      token: session.token,
+      body: { applicantId: customer.body.id, loanProductId: await anyLoanProductId(), isPractice: true },
+    });
+    expect(created.body.isPractice).toBe(true);
+
+    // isPractice is not in WRITABLE, so PATCH silently ignores it — sending
+    // it alongside a real field change proves the real field lands and
+    // isPractice does not move.
+    const patched = await api(`/api/cases/${created.body.id}`, {
+      method: "PATCH",
+      token: session.token,
+      body: { isPractice: false, requestedAmount: 500000 },
+    });
+    expect(patched.status, JSON.stringify(patched.body)).toBe(200);
+    expect(patched.body.requestedAmount).toBe(500000);
+    expect(patched.body.isPractice).toBe(true);
+  });
+
+  it("keeps a practice case visible in the case list alongside real ones", async () => {
+    const session = await signIn(await createEmployee("manager"));
+    const customer = await api("/api/customers", {
+      method: "POST",
+      token: session.token,
+      body: { fullName: `Listed Practice ${randomUUID().slice(0, 8)}` },
+    });
+    const created = await api("/api/cases", {
+      method: "POST",
+      token: session.token,
+      body: { applicantId: customer.body.id, loanProductId: await anyLoanProductId(), isPractice: true },
+    });
+
+    const listed = await api("/api/cases", { token: session.token });
+    expect(listed.status).toBe(200);
+    const row = listed.body.find((c: { id: string }) => c.id === created.body.id);
+    expect(row).toBeDefined();
+    expect(row.isPractice).toBe(true);
+  });
+});
+
+describe("practice cases are excluded from organisation-wide aggregates", () => {
+  it("does not appear in the org activity feed", async () => {
+    const session = await signIn(await createEmployee("manager"));
+    const customer = await api("/api/customers", {
+      method: "POST",
+      token: session.token,
+      body: { fullName: `Activity Practice ${randomUUID().slice(0, 8)}` },
+    });
+    const created = await api("/api/cases", {
+      method: "POST",
+      token: session.token,
+      body: { applicantId: customer.body.id, loanProductId: await anyLoanProductId(), isPractice: true },
+    });
+
+    const events = await api("/api/events?limit=500", { token: session.token });
+    expect(events.status, JSON.stringify(events.body)).toBe(200);
+    const leaked = events.body.filter((e: { caseId: string }) => e.caseId === created.body.id);
+    expect(leaked).toHaveLength(0);
+  });
+
+  it("does not appear on the organisation submissions board", async () => {
+    const session = await signIn(await createEmployee("manager"));
+    const customer = await api("/api/customers", {
+      method: "POST",
+      token: session.token,
+      body: { fullName: `Board Practice ${randomUUID().slice(0, 8)}` },
+    });
+    const created = await api("/api/cases", {
+      method: "POST",
+      token: session.token,
+      body: { applicantId: customer.body.id, loanProductId: await anyLoanProductId(), isPractice: true },
+    });
+
+    const lenders = await api("/api/lenders", { token: session.token });
+    expect(lenders.status, JSON.stringify(lenders.body)).toBe(200);
+    const branchId = lenders.body[0]?.branches?.[0]?.id;
+    expect(branchId, "at least one bank branch must exist in the reference data for this test to run").toBeDefined();
+
+    const submission = await api(`/api/cases/${created.body.id}/submissions`, {
+      method: "POST",
+      token: session.token,
+      body: {
+        branchOrganisationId: branchId,
+        recipients: [{ email: "practice-board-test@example.com", name: "Test", isPrimary: true }],
+      },
+    });
+    expect(submission.status, JSON.stringify(submission.body)).toBe(200);
+
+    const board = await api("/api/submissions?limit=500", { token: session.token });
+    expect(board.status, JSON.stringify(board.body)).toBe(200);
+    const leaked = board.body.filter((s: { caseId: string }) => s.caseId === created.body.id);
+    expect(leaked).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

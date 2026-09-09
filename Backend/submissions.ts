@@ -283,10 +283,12 @@ export async function listAllSubmissions(
       | "bank_reason_text"
     >
   >(
-    `select id, case_id, bank_name_at_submission, branch_name_at_submission, status,
-            submitted_at::text, created_at::text, rejection_reason_id, bank_reason_text
-       from submission
-      order by created_at desc
+    `select s.id, s.case_id, s.bank_name_at_submission, s.branch_name_at_submission, s.status,
+            s.submitted_at::text, s.created_at::text, s.rejection_reason_id, s.bank_reason_text
+       from submission s
+       join loan_case c on c.id = s.case_id
+      where not c.is_practice
+      order by s.created_at desc
       limit $1`,
     [limit],
   );

@@ -179,6 +179,13 @@ export function CaseList(): ReactNode {
                     <Link to={`/cases/${loanCase.id}`} className="tnum font-medium text-ink-900 hover:underline">
                       {loanCase.caseNumber}
                     </Link>
+                    {loanCase.isPractice && (
+                      <span className="ml-2">
+                        <Badge tone="neutral" title="For testing/training only — excluded from every report and dashboard tile">
+                          Practice
+                        </Badge>
+                      </span>
+                    )}
                     {loanCase.isOnHold && (
                       <span className="ml-2">
                         <Badge tone="warn">Hold</Badge>

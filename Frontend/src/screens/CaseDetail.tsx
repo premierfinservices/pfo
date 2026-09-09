@@ -201,6 +201,11 @@ function CaseHeader({
             {loanCase.caseNumber}
           </h1>
           <StageBadge stage={loanCase.stage} label={CASE_STAGE_LABELS[loanCase.stage]} />
+          {loanCase.isPractice && (
+            <Badge tone="neutral" title="For testing/training only — excluded from every report and dashboard tile">
+              Practice
+            </Badge>
+          )}
           {loanCase.isOnHold && <Badge tone="warn">On hold</Badge>}
         </div>
 

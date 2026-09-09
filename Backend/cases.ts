@@ -40,7 +40,8 @@ const COLUMNS = `c.id, c.case_number, c.loan_product_id, c.requested_amount, c.s
                  c.owner_user_id, c.created_by, c.source, c.referral_source_id,
                  c.is_on_hold, c.hold_reason, c.hold_until,
                  c.lost_reason, c.lost_note, c.lost_at, c.stage_before_lost,
-                 c.is_invoice_raised, c.closed_at, c.created_at, c.updated_at`;
+                 c.is_invoice_raised, c.closed_at, c.created_at, c.updated_at,
+                 c.is_practice`;
 
 /**
  * The primary applicant travels with every case row.
@@ -91,6 +92,7 @@ export function caseFromRow(
     closedAt: row.closed_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    isPractice: row.is_practice,
     applicantId: row.applicant_id ?? null,
     applicantName: row.applicant_name ?? null,
     applicantPhone: row.applicant_phone ?? null,
@@ -367,19 +369,29 @@ export async function createCase(client: Queryable, actor: Actor, body: Record<s
     throw new ApiError(400, `Unknown construction stage: ${constructionStage}.`);
   }
 
+  // Set once, here, and nowhere else — see WRITABLE below, which has no
+  // entry for it. A practice case never becomes real, and a real case never
+  // becomes practice.
+  const isPractice = body.isPractice === true;
+
   // ADR-024: the number comes from the sequence function, never from the
   // application. Two PCs creating a case at the same moment is exactly the
-  // case the row lock in there exists for.
+  // case the row lock in there exists for. A practice case draws from its
+  // own allocator (0037) so it can never consume or collide with a real
+  // AL-YYYY-##### number.
   const numbered = await client.query<{ case_number: string }>(
-    `select app.allocate_case_number() as case_number`,
+    isPractice
+      ? `select app.allocate_practice_case_number() as case_number`
+      : `select app.allocate_case_number() as case_number`,
   );
 
   // A case is owned by whoever created it. Reassignment is `case.assign`.
   const inserted = await client.query(
     `insert into loan_case (case_number, loan_product_id, requested_amount, stage,
                             owner_user_id, source, referral_source_id, created_by,
-                            is_gst_registered, has_existing_obligations, construction_stage)
-     values ($1, $2, $3, 'new', $4, $5, $6, $4, $7, $8, $9)
+                            is_gst_registered, has_existing_obligations, construction_stage,
+                            is_practice)
+     values ($1, $2, $3, 'new', $4, $5, $6, $4, $7, $8, $9, $10)
      returning id`,
     [
       numbered.rows[0]!.case_number,
@@ -391,6 +403,7 @@ export async function createCase(client: Queryable, actor: Actor, body: Record<s
       isGstRegistered,
       hasExistingObligations,
       constructionStage,
+      isPractice,
     ],
   );
   const caseId = inserted.rows[0]!.id;
