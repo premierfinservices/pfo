@@ -146,7 +146,15 @@ page text. No further action.
 
 ## PHASE 2 — Outbound mail sender identity
 
-**STATUS: NOT STARTED.** Depends on: confirmed new sender display name.
+**STATUS: COMPLETE** (2026-09-09). `AOS_MAIL_SENDER_NAME=Premier Finserv`
+live in production `.env` on Unfold PC, `AOS Server` task restarted after
+the edit, code fallback in `Backend/mail-server.mjs:95` updated from
+`"Amaze Loans"` to `"Premier Finserv"`, and a real verification send to
+tarunrameshphotography@gmail.com confirmed via the live `/send` endpoint
+(`providerMessageId: 1a0855b3354ca4a7`) with From identity
+`Premier Finserv <premierfinservices.cbe@gmail.com>`. Remaining stale
+`SENDER_ADDRESS` fallback and log/comment text ("Amaze Loans mailbox")
+deferred to Phase 3 — cosmetic only, doesn't affect the live sender identity.
 **Complexity: Low — Model: Sonnet 5 — Effort: Low**
 
 - Set `AOS_MAIL_SENDER_NAME` in the production `.env` on Unfold PC to the

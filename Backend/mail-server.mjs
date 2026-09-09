@@ -92,7 +92,7 @@ const PROVIDER = (process.env.AOS_MAIL_PROVIDER ?? "unconfigured").trim().toLowe
  * rewritten by them, not by us.
  */
 const SENDER_ADDRESS = process.env.AOS_MAIL_SENDER_ADDRESS ?? "amazeloans@gmail.com";
-const SENDER_NAME = process.env.AOS_MAIL_SENDER_NAME ?? "Amaze Loans";
+const SENDER_NAME = process.env.AOS_MAIL_SENDER_NAME ?? "Premier Finserv";
 
 const SEND_TIMEOUT_MS = Number(process.env.AOS_MAIL_TIMEOUT_MS ?? 60_000);
 
