@@ -218,8 +218,9 @@ deferred to Phase 3 — cosmetic only, doesn't affect the live sender identity.
 
 ## PHASE 4 — Env var prefix rename (`AOS_*` → `<SLUG>_*`)
 
-**STATUS: CODE SIDE COMPLETE, CUTOVER NOT YET DONE** (2026-09-09). Slug
-confirmed: `pfo`. Ran on Unfold Media Corp PC (the production server).
+**STATUS: UNFOLD PC SIDE COMPLETE. HOME PC `.env` STILL OUTSTANDING**
+(2026-09-09). Slug confirmed: `pfo`. Ran on Unfold Media Corp PC (the
+production server).
 **Complexity: Medium-High — Model: Sonnet 5 — Effort: High**
 
 - Renamed every `AOS_*` env var identifier to `PFO_*` across 48 files:
@@ -245,28 +246,37 @@ confirmed: `pfo`. Ran on Unfold Media Corp PC (the production server).
 - **Unfold PC `.env` cutover: DONE.** All 19 `AOS_*` keys mirrored to
   `PFO_*` (same values), then the old `AOS_*` lines removed — `.env` is
   now `PFO_*`-only.
-- **Task restart: BLOCKED on elevation, same limitation as Phase 7.** The
-  running supervisor (PID 8960 at the time, spawned by the `AOS Server`
-  task under its own service-account context) refused a second instance
-  via its own single-instance lock (`Backend/supervisor.mjs`'s
-  `claimSingleInstance()` — by design, see its own comment about two
-  supervisors fighting over ports). `Stop-ScheduledTask` from this
-  non-elevated session did not actually kill it — no error, just a no-op —
-  and a direct `taskkill /PID 8960 /T /F` returned "Access is denied" on
-  every process in the tree. **The old (pre-rename) process is still
-  running right now, healthy, on its original in-memory config —
-  confirmed via `http://127.0.0.1:4321/api/health/detail` returning
-  `{"ok":true,"database":"up","storage":"up","mail":"up"}`. No outage, but
-  the rename has not actually gone live yet.** To finish: from an
-  ELEVATED PowerShell prompt on Unfold PC, run
-  `Stop-ScheduledTask -TaskName "AOS Server"` (add
-  `taskkill /PID <pid in Backend/supervisor.pid> /T /F` if that alone
-  doesn't clear it), then `Start-ScheduledTask -TaskName "AOS Server"`,
-  then verify `Backend/supervisor.log` shows a fresh startup sequence and
-  `http://<LAN IP>:4300` still logs in.
-- Home PC's `.env` was not reachable from this session at all — needs the
-  same `AOS_*` → `PFO_*` update done there separately before its own dev
-  stack matches this commit.
+- **Task restart: DONE** (2026-09-09, from an elevated session on Unfold
+  PC). `Stop-ScheduledTask` alone was confirmed to be a no-op as predicted;
+  `taskkill /PID <old PID> /T /F` (PID read from `Backend/supervisor.pid`)
+  cleared the stale single-instance lock, then `Start-ScheduledTask`
+  brought the full tree back. `Backend/supervisor.log` shows a clean
+  fresh-start sequence (storage → mail → api → web, all "healthy"),
+  reading the real `aos` database and `C:\AOS\Data` under the new `PFO_*`
+  var names with no missing-config errors. Verified live:
+  `http://127.0.0.1:4321/api/health/detail` →
+  `{"ok":true,"database":"up","storage":"up","mail":"up"}`,
+  `http://127.0.0.1:4300` → HTTP 200. Grep confirms zero `AOS_[A-Z_]+`
+  references left in `Backend/`, `Frontend/`, `src/`, `Scripts/`, or
+  `.env.example`.
+- **Home PC's `.env`: STILL OUTSTANDING.** Not reachable from any session
+  running on Unfold PC — needs to be done from home PC directly. The
+  rename is a pure 1:1 key-prefix swap (no value changes), all 20 keys
+  listed in `.env.example`'s diff at commit `b1a0384`
+  (`AOS_API_HOST`, `AOS_API_PORT`, `AOS_BACKUP_RETENTION`,
+  `AOS_BACKUP_ROOT`, `AOS_DB_HOST`, `AOS_DB_NAME`, `AOS_DB_PASSWORD`,
+  `AOS_DB_PORT`, `AOS_DB_USER`, `AOS_GMAIL_CLIENT_ID`,
+  `AOS_GMAIL_CLIENT_SECRET`, `AOS_GMAIL_REFRESH_TOKEN`, `AOS_MAIL_PORT`,
+  `AOS_MAIL_PROVIDER`, `AOS_MAIL_SENDER_ADDRESS`, `AOS_MAIL_SENDER_NAME`,
+  `AOS_MAIL_TIMEOUT_MS`, `AOS_STORAGE_PORT`, `AOS_STORAGE_ROOT`,
+  `AOS_WEB_HOST`, `AOS_WEB_PORT`) each become their `PFO_*` counterpart,
+  same value. `git pull` on home PC brings the renamed code and the
+  updated `.env.example` (both tracked); `.env` itself is git-ignored and
+  per-machine, so it will NOT update itself from a pull — someone with
+  access to home PC must edit its `.env` by hand (or via a small
+  find-replace script) before running `npm run dev` there again, or the
+  new code will read unset `PFO_*` vars against an `.env` that still only
+  defines the old `AOS_*` names.
 - **Coordination requirement**: `.env` is git-ignored and per-machine. Both
   the home PC's `.env` and Unfold PC's production `.env` must be updated
   to the new var names in the same maintenance window the code ships,
