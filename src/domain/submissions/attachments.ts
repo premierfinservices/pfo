@@ -27,7 +27,7 @@
 // ---------------------------------------------------------------------------
 
 /**
- * The AOS rule: no individual outgoing email may carry more than ten
+ * The PFO rule: no individual outgoing email may carry more than ten
  * megabytes of attachments.
  *
  * Binary megabytes, matching how `bytes()` renders a file size on screen — a
@@ -39,7 +39,7 @@ export const MAX_ATTACHMENT_BYTES_PER_EMAIL = 10 * 1024 * 1024;
 /**
  * Gmail's own limit on a single message, attachments included.
  *
- * Recorded here because the AOS rule has to be provably BELOW it rather than
+ * Recorded here because the PFO rule has to be provably BELOW it rather than
  * hopefully below it. Gmail rejects a message above this at the API, which
  * would surface as a provider rejection on a send the user had already
  * confirmed — the worst moment to discover a size problem.
@@ -51,7 +51,7 @@ export const GMAIL_MAX_MESSAGE_BYTES = 25 * 1024 * 1024;
  * per-attachment `Content-Disposition` lines.
  *
  * Generous on purpose. It is a margin, not a measurement, and the only way it
- * can hurt is by making AOS slightly more cautious than it strictly needs to
+ * can hurt is by making PFO slightly more cautious than it strictly needs to
  * be about a limit it is nowhere near.
  */
 export const MIME_OVERHEAD_BYTES = 64 * 1024;

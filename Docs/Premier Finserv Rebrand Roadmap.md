@@ -674,22 +674,114 @@ What was done (Unfold PC):
 
 ## PHASE 9 — Final verification / rebrand-complete gate
 
-**STATUS: NOT STARTED.**
+**STATUS: COMPLETE (2026-09-09, Unfold Media Corp PC). REBRAND COMPLETE.**
 **Complexity: Medium-High — Model: Opus 5 — Effort: High**
 
-- Re-run the grep inventory from Phase 0; confirm zero remaining
-  "AOS"/"Amaze Loans" hits outside anything deliberately kept (e.g. if a
-  historical ADR number or ADR-018/BR-051 style codes are judged fine to
-  keep as-is — that's a call to make explicitly here, not silently).
-- Full `Scripts/aos-status.ps1` (or its renamed equivalent) green.
-- `npm run typecheck`, unit + integration suites green under the renamed
-  database.
-- `npm run backup:verify` green under the renamed paths.
-- A real employee login and one real document upload/download, post-move.
-- Update `AOS Production Readiness Master Roadmap.txt` and
-  `Docs/Deployment Topology.md` to reflect the new names throughout (they
-  still say `aos`/`AOS`/`C:\AOS\...` even after Phases 4–8 land, until this
-  phase touches them).
+### Gates — all green
+
+- `npm run typecheck`, `npm test`, `npm run test:integration`,
+  `npm run backup:verify` — all PASS, run twice: once before this phase's
+  text sweep and again after it, so the sweep is proven not to have broken
+  anything.
+- `Scripts/pfo-status.ps1` (renamed this phase) — every line UP: Postgres
+  service and port on database `pfo`, web 4300, API 4321, storage 4319,
+  mail 4320 able to send, employee access `http://192.168.0.101:4300`,
+  firewall rule, `PFO Server` Running, `PFO Nightly Backup` Ready (result
+  0), document store `C:\PFO\Data` 110 files / 27.5 MB, last backup 0.2h
+  old with 14 runs retained.
+- `/api/health/detail` → `{"ok":true,"database":"up","storage":"up","mail":"up"}`;
+  web root HTTP 200 over the LAN address.
+- **Real document upload/download round trip**: PUT then GET of
+  `case/_phase9-verification/probe.txt` through the live storage server —
+  content byte-identical on return. Probe and its `.meta.json` sidecar
+  deleted afterward; store back to exactly **110 files / 28,881,771 bytes**,
+  identical to the Phase 6 figure.
+- **Real employee login**: confirmed working in the browser by the user
+  (not automated — no session here uses a real employee's password).
+
+### Changes made this phase
+
+- **Old `...\Amaze Loans Pvt Ltd\AOS` folder deleted** by the user, closing
+  Phase 8's outstanding item. Confirmed gone from disk.
+- **npm package name** `"aos"` → `"pfo"` (`package.json`, `package-lock.json`).
+- **Prose sweep, whole-word `AOS` → `PFO`, 45 code files + every live doc**
+  (`CLAUDE.md`, `README.md`, `Database/README.md`, `Frontend/README.md`,
+  `Docs/Installation.md`, `Docs/Disaster Recovery.md`,
+  `Docs/Email and WhatsApp Integration.md`,
+  `Docs/Document Requirement Engine.md`, `Docs/Deployment Topology.md`,
+  `PRD/*.md`, `.env.example`). This is the cleanup Phase 3 deliberately
+  deferred: comments calling the system "AOS" were left alone then because
+  the package, database, paths, tasks and repo were still literally `AOS`.
+  Phases 4–8 have now landed, so the comments are correct again.
+- **Script filenames renamed** (`git mv`, references updated repo-wide):
+  `aos-status.ps1` → `pfo-status.ps1`,
+  `register-aos-services.ps1` → `register-pfo-services.ps1`,
+  `aos-lan-address.ps1` → `pfo-lan-address.ps1`. Safe: the scheduled tasks
+  invoke `node`/`supervisor.mjs` directly, not these scripts.
+- **Windows firewall rule renamed** `AOS web (4300)` → `PFO web (4300)`,
+  in step with `pfo-status.ps1` now looking for a `PFO*` rule. Verified
+  live by the status script.
+- **`Docs/Deployment Topology.md`** rewritten to the new names throughout,
+  including the two "Amaze Loans" prose references (the office, and the
+  mail-server warning about who email is sent as).
+- **`AOS Production Readiness Master Roadmap.txt` renamed to
+  `PFO Production Readiness Master Roadmap.txt`** and its contents updated;
+  the reference to it in `Milestones.txt` updated to match.
+- **`aos_recovery`** (the disposable restore-drill database named in
+  `Docs/Disaster Recovery.md`) → `pfo_recovery`; **`aos.office.local`** →
+  `pfo.office.local`.
+
+### Deliberately kept — explicit decisions, not oversights
+
+The gate asks for these calls to be made out loud rather than silently:
+
+1. **`aos_app` — the live Postgres role.** 24 references across
+   `.env.example`, `.env`, `Backend/db.ts`, `db-config.mjs`,
+   `bootstrap-production.ts`, `seed-users.ts`, the security test suites,
+   `vitest.integration.config.ts` and `Docs/Installation.md`. Renaming a
+   role that owns grants, column masks and RLS policies across migrations
+   0002/0033/0034/0036/0037 is a Phase-5-class production database
+   operation with real downtime risk, and it buys nothing a user or a bank
+   ever sees. **Deferred as its own future task, not folded into a
+   verification gate.**
+2. **`aos.dump` — the filename inside every backup run.** `backup.mjs`
+   writes it, `backup-verify.mjs` and `restore.mjs` read it, and it is
+   recorded in the manifest of all 14 retained runs. Renaming it would make
+   existing verified backups unverifiable without a compatibility shim.
+   Kept so the disaster-recovery path stays simple and proven.
+3. **`aos.token` — the browser sessionStorage key.** Changing it silently
+   signs out every employee mid-day for no functional gain.
+4. **`aos-fade-up` / `aos-animate-in` / `aos-pop-in` — CSS animation
+   identifiers** in `Frontend/src/index.css` and `Frontend/src/ui/index.tsx`.
+   Invisible to users, and changing them requires a frontend rebuild and a
+   production web-server restart — downtime for a cosmetic rename.
+5. **`aos`, `aos_production`, `aos_prod` in `tests/support/e2e-environment.ts`'s
+   forbidden-database list.** Retained on purpose, as that file's own
+   comment explains: a backup restored under the old name is still real
+   customer data. Verified that `pfo`, `pfo_production`, `pfo_prod` are
+   listed alongside them.
+6. **History, left as written**: `Database/migrations/*.sql` (applied,
+   immutable), `Backend/supervisor.log` (a record of what was true when it
+   ran — also locked by the running supervisor), `DECISIONS.md`,
+   `Milestones.txt`, `Docs/Session Checkpoint.md`,
+   `Docs/superpowers/plans|specs/*`, `playwright-report/*` (generated),
+   `future unseen potential.txt`, and this roadmap's own Phase 0–8
+   narrative.
+
+### Outstanding (not blocking the gate)
+
+- **Home PC** still needs its own pass: `.env` `PFO_STORAGE_ROOT` repoint
+  (Phase 6), folder rename `AOS` → `PFO` and `git remote set-url` (Phase 8).
+  Dev-only machine, no real customer data — see Phase 8's step list.
+- **`C:\WORK FILES\Amaze Loans Pvt Ltd\`** — the parent folder still carries
+  the dissolved entity's name. Renaming it moves the working directory both
+  PCs use and the `PFO Server` / `PFO Nightly Backup` task actions, so it is
+  a deliberate separate operation, not part of this gate.
+- **The e2e suite remains stale** — 26 failures on the `All Cases` /
+  `My Cases` nav assertion, pre-dating the rebrand by three weeks (see
+  Phase 5). Test maintenance, unrelated to any rebrand phase.
+- `aos_app` role rename (decision 1 above), if it is ever judged worth a
+  downtime window.
 
 ---
 

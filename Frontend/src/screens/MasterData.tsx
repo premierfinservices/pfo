@@ -1,7 +1,7 @@
 /**
  * Master Data administration (Milestone 5, refined in Milestone 6).
  *
- * One consistent experience for every controlled-vocabulary table in AOS —
+ * One consistent experience for every controlled-vocabulary table in PFO —
  * searchable, fast, and built for office staff rather than engineers. Every
  * section shares the same shape (code, name, description, active, order,
  * notes) because that consistency is what makes the screen learnable in one

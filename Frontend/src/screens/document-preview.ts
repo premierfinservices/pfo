@@ -9,7 +9,7 @@
  * about React, so it lives here where it can be tested without a DOM. The
  * screen renders whatever this returns.
  *
- * The vocabulary is deliberately small. AOS receives PAN cards, Aadhaars,
+ * The vocabulary is deliberately small. PFO receives PAN cards, Aadhaars,
  * salary slips and bank statements — in practice PDFs and phone photographs.
  * Anything else is honestly reported as "not viewable here" with a download
  * offered, rather than being silently downloaded as if that were the same

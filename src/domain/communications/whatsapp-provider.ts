@@ -1,5 +1,5 @@
 /**
- * The seam between AOS and WhatsApp Business.
+ * The seam between PFO and WhatsApp Business.
  *
  * Source of truth: ADR-039.
  *
@@ -94,7 +94,7 @@ export interface WhatsAppProvider {
  *
  * Written down here rather than in a ticket because the honest answer to "why
  * is WhatsApp not working?" is this list, and it should be readable from the
- * code that would consume it. None of it is a credential AOS can create for
+ * code that would consume it. None of it is a credential PFO can create for
  * itself; all of it requires a person with access to a Meta Business account.
  */
 export const WHATSAPP_REQUIRED_CONFIGURATION: readonly {
@@ -123,11 +123,11 @@ export const WHATSAPP_REQUIRED_CONFIGURATION: readonly {
   },
   {
     key: "Webhook endpoint",
-    what: "A public HTTPS callback for delivery receipts and customer replies. AOS has no public endpoint today — the local backend is bound to 127.0.0.1.",
+    what: "A public HTTPS callback for delivery receipts and customer replies. PFO has no public endpoint today — the local backend is bound to 127.0.0.1.",
   },
   {
     key: "Customer consent record",
-    what: "Opt-in, captured and stored per customer. Meta requires it and Indian data-protection practice expects it. AOS has no field for this yet.",
+    what: "Opt-in, captured and stored per customer. Meta requires it and Indian data-protection practice expects it. PFO has no field for this yet.",
   },
 ];
 
@@ -144,7 +144,7 @@ export const WHATSAPP_UNSUITABLE_WORKFLOWS: readonly string[] = [
 ];
 
 /**
- * The provider AOS uses until the configuration above exists. It refuses, for
+ * The provider PFO uses until the configuration above exists. It refuses, for
  * the same reason `unconfiguredEmailProvider` refuses: a recorded send that
  * did not happen is worse than an obvious failure.
  */

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The AOS application API.
+ * The PFO application API.
  *
  * Stage 2 of the Persistence milestone: ONE vertical slice — customers and
  * cases — proved end to end against PostgreSQL, so the architecture is
@@ -133,14 +133,14 @@ const PORT = Number(process.env.PFO_API_PORT ?? 4321);
  *
  * DEFAULTS TO LOOPBACK, AND THAT DEFAULT IS THE SAFE ONE. A developer's
  * checkout, a test run and an employee's PC all want 127.0.0.1: nothing
- * outside the machine should be able to reach an AOS API that is not the
+ * outside the machine should be able to reach an PFO API that is not the
  * office's.
  *
  * THE OFFICE SERVER SETS `PFO_API_HOST=0.0.0.0` (Docs/Installation.md). Until
  * Stage 4 there was no way to do that at all — this process bound 127.0.0.1
  * unconditionally, which meant the topology every document described (one
  * server PC, every other PC pointing a browser at it) was not achievable with
- * the code as written. Employees could only have used AOS by running the whole
+ * the code as written. Employees could only have used PFO by running the whole
  * backend on their own machines, which `Docs/Deployment Topology.md` forbids
  * precisely because it silently creates a second, disconnected document store.
  *
@@ -215,7 +215,7 @@ const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 /** Raw bytes for a document upload — never JSON, and capped far higher than
  * an ordinary form body. Mirrors `storage-server.mjs`'s `readBody`: a
- * multipart parser buys nothing here, since AOS never sends more than one
+ * multipart parser buys nothing here, since PFO never sends more than one
  * file per request and the requirement it belongs to is already in the URL. */
 async function readBinaryBody(req: IncomingMessage): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -279,14 +279,14 @@ async function readJsonBody(req: IncomingMessage): Promise<Record<string, unknow
  * office server binds 0.0.0.0, so "you have to be on the LAN" was the only
  * control, and this handed that out to any web page an employee opened.
  *
- * Now: an allowlist. AOS is served to employees from ONE address —
+ * Now: an allowlist. PFO is served to employees from ONE address —
  * `http://<server LAN IP>:<PFO_WEB_PORT>` — and developed against Vite on
  * 5173. An origin not on the list gets no `Access-Control-Allow-Origin` header
  * at all, which is the correct refusal: the browser blocks the read, and no
  * header is a clearer statement than an echoed one.
  *
  * PFO_ALLOWED_ORIGINS (comma-separated) exists for the installation that
- * fronts AOS with a reverse proxy or a hostname, since this process cannot
+ * fronts PFO with a reverse proxy or a hostname, since this process cannot
  * guess either. Set it and it replaces the derived list entirely.
  *
  * NONE OF THIS IS THE AUTHORIZATION BOUNDARY. CORS is enforced by the browser
@@ -443,7 +443,7 @@ function requirePermission(
  * THE HOLE THIS CLOSES (Stage 4 Item 3). `POST /api/auth/login` accepted
  * unlimited attempts. The only brake was PBKDF2 at 100,000 iterations, which
  * costs an attacker ~50-100ms per guess — slow for a human, an afternoon for a
- * script. AOS enforces an eight-character minimum (MIN_PASSWORD_LENGTH in
+ * script. PFO enforces an eight-character minimum (MIN_PASSWORD_LENGTH in
  * users.ts), the office server binds 0.0.0.0, and the accounts on the other
  * side of that form hold every customer's documents.
  *
@@ -453,13 +453,13 @@ function requirePermission(
  * service with no credentials at all.
  *
  * IN PROCESS, NOT IN THE DATABASE, and that is a deliberate limit rather than
- * an oversight. A table would survive a restart and would be shared if AOS ever
+ * an oversight. A table would survive a restart and would be shared if PFO ever
  * ran more than one API process; it would also mean an unauthenticated request
  * can make the office database write, which is the thing being defended
- * against. AOS runs exactly one API process on one PC (Docs/Deployment
+ * against. PFO runs exactly one API process on one PC (Docs/Deployment
  * Topology.md), so a Map is honest about the deployment. What it costs: a
  * restart clears the counters. Twelve failed attempts then a restart is not a
- * plausible attack, and if AOS ever grows a second process this comment is the
+ * plausible attack, and if PFO ever grows a second process this comment is the
  * thing to come back to.
  *
  * Keyed on username AND client address together, so one employee mistyping
@@ -476,7 +476,7 @@ const LOGIN_WINDOW_MS = 30 * 60 * 1000;
 const loginAttempts = new Map<string, { failures: number; first: number; lockedUntil: number }>();
 
 function throttleKey(username: string, req: IncomingMessage): string {
-  // The socket address, not X-Forwarded-For: nothing in the AOS topology sets
+  // The socket address, not X-Forwarded-For: nothing in the PFO topology sets
   // that header, so trusting it would let a caller choose their own bucket.
   // Length-prefixed rather than delimited: no separator character can be
   // smuggled in through a username, and unlike the NUL byte that did the
@@ -669,11 +669,11 @@ async function route(
   }
 
   /**
-   * The operator's view: is each part of AOS actually working?
+   * The operator's view: is each part of PFO actually working?
    *
    * Unauthenticated on purpose — a monitoring check that needs a login is a
    * monitoring check that stops working the day the password changes, and
-   * `Scripts/aos-status.ps1` runs before anyone has signed in. It therefore
+   * `Scripts/pfo-status.ps1` runs before anyone has signed in. It therefore
    * says only whether each component answers, never a version, a path, a
    * connection string or a count. "Postgres is up" is not information an
    * attacker on the office LAN gains anything from; the reason it is worth
@@ -1211,7 +1211,7 @@ export function createApiServer() {
           return;
         }
 
-        // A stopped or unreachable PostgreSQL is not a bug in AOS, and telling
+        // A stopped or unreachable PostgreSQL is not a bug in PFO, and telling
         // an employee "something went wrong, please try again" sends them
         // round a loop that cannot succeed. 503 with an actionable sentence,
         // and the driver detail stays in the server log where it belongs
@@ -1249,16 +1249,16 @@ async function withActorIdentity<T>(
 // Started directly (`npm run api-server`) rather than imported by a test.
 if (process.env.PFO_API_NO_LISTEN !== "1") {
   createApiServer().listen(PORT, HOST, () => {
-    console.log(`AOS API listening on http://${HOST}:${PORT}`);
+    console.log(`PFO API listening on http://${HOST}:${PORT}`);
     if (HOST === "127.0.0.1" || HOST === "localhost") {
       console.log("  Loopback only — no other PC can reach this. Set PFO_API_HOST=0.0.0.0 on the office server.");
     } else {
-      // Said loudly, because this is the one setting that puts AOS on the
+      // Said loudly, because this is the one setting that puts PFO on the
       // office network. If it is set on a machine that is NOT the designated
       // server, two backends are now serving two different document stores
       // and nothing else in the system will notice.
       console.log(`  *** REACHABLE FROM THE OFFICE NETWORK on port ${PORT} ***`);
-      console.log("  Only the designated AOS server PC should be doing this — see Docs/Deployment Topology.md.");
+      console.log("  Only the designated PFO server PC should be doing this — see Docs/Deployment Topology.md.");
     }
   });
 }

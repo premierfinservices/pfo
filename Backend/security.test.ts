@@ -3,10 +3,10 @@
  *
  * Everything here runs against real PostgreSQL. Two of the four groups run
  * against a real API server process connected as `aos_app`, spawned for this
- * file, because the question "does AOS still work when it is not a superuser"
+ * file, because the question "does PFO still work when it is not a superuser"
  * cannot be answered by a test that is itself a superuser.
  *
- * WHY THIS FILE EXISTS AT ALL. The audit found that RLS in AOS protected
+ * WHY THIS FILE EXISTS AT ALL. The audit found that RLS in PFO protected
  * nothing: the application connected as `postgres` (`rolsuper`, `rolbypassrls`),
  * and `select count(*) from pg_policies` returned zero. Both halves were
  * invisible from the code — `Database/README.md` said the policies were "the
@@ -67,7 +67,7 @@ let baseUrl: string;
 let server: ReturnType<typeof createApiServer>;
 
 /** A SEPARATE, out-of-process API server connected as `aos_app`. This is the
- * one that answers "can AOS actually run without superuser". */
+ * one that answers "can PFO actually run without superuser". */
 let appRoleServer: ChildProcess;
 let appRoleBaseUrl: string;
 
@@ -382,7 +382,7 @@ describe("row level security", () => {
 
     // THE PROPERTY THIS BUYS: someone holding the aos_app password — a leaked
     // .env, a psql session from another PC on the office LAN — is not inside
-    // an authenticated AOS transaction, and sees no customer, case, document
+    // an authenticated PFO transaction, and sees no customer, case, document
     // or submission.
     for (const table of ["person_identifier", "loan_case", "document", "submission", "event", "note"]) {
       const { rows } = await appRole.query(`select count(*)::int as n from ${table}`);
@@ -440,7 +440,7 @@ describe("row level security", () => {
   it("still lets the login path read what it must, before any identity exists", async () => {
     // Tier A. Login is how an identity comes to exist, so RLS cannot constrain
     // the tables login reads — and this asserts the policies say so, rather
-    // than AOS discovering it as a 500 at the office.
+    // than PFO discovering it as a 500 at the office.
     await appRole.query(`select set_config('app.auth_identity_id', '', false)`);
     for (const table of ["app_user", "api_session", "person", "user_role", "user_permission_override"]) {
       await expect(
@@ -700,7 +700,7 @@ describe("the full authentication lifecycle, served by an API running as aos_app
 // the permission catalog and was checked by nothing. These assertions run
 // against the aos_app-backed server for the same reason the rest of this file
 // does: a claim about what a normal employee can extract is worth exactly as
-// much as the query that checks it against the role AOS actually runs as.
+// much as the query that checks it against the role PFO actually runs as.
 // ---------------------------------------------------------------------------
 
 describe("column masking", () => {
@@ -945,7 +945,7 @@ describe("cross-origin access", () => {
     expect(response.headers.get("vary")).toBe("Origin");
   });
 
-  it("allows the origins AOS is actually served from", async () => {
+  it("allows the origins PFO is actually served from", async () => {
     for (const origin of ["http://localhost:5173", "http://127.0.0.1:4300"]) {
       const response = await fetch(`${baseUrl}/api/health`, { headers: { Origin: origin } });
       expect(response.headers.get("access-control-allow-origin"), origin).toBe(origin);

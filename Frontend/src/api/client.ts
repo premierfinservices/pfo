@@ -1,5 +1,5 @@
 /**
- * The browser's client for the AOS API.
+ * The browser's client for the PFO API.
  *
  * Stage 3B of the Persistence milestone. Until now `Frontend/src/fake/store.ts`
  * WAS the database: an object graph in memory, persisted to one profile's
@@ -31,7 +31,7 @@ const TOKEN_KEY = "aos.token";
  *
  * sessionStorage keeps the property that made localStorage the choice
  * originally — a refresh does NOT return an employee to the login form, which
- * is what makes AOS usable — and drops the one that was never wanted: it is
+ * is what makes PFO usable — and drops the one that was never wanted: it is
  * cleared when the browsing context ends. Closing the browser now ends the
  * session in the browser, and the server-side inactivity timeout
  * (`PFO_SESSION_IDLE_MS`, Backend/api-server.ts) ends it on the server whether
@@ -40,7 +40,7 @@ const TOKEN_KEY = "aos.token";
  * security mechanism.
  *
  * THE TRADE-OFF, stated rather than hidden: sessionStorage is per-tab, so
- * opening AOS in a second tab asks for a sign-in. That is the correct default
+ * opening PFO in a second tab asks for a sign-in. That is the correct default
  * for a shared machine holding customer records, and the alternative — a token
  * that outlives the browser — is what this replaces.
  *
@@ -213,7 +213,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
 
 /**
  * Upload a document's bytes — the one request this file sends that is not
- * JSON. Raw body, never multipart: AOS never sends more than one file at a
+ * JSON. Raw body, never multipart: PFO never sends more than one file at a
  * time, and the requirement it belongs to is already in the URL. Mirrors the
  * server's own reading of the request (`Backend/api-server.ts`'s
  * `readBinaryBody`).

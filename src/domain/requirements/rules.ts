@@ -9,7 +9,7 @@
  * A pure evaluator. It takes (a) a set of structured rules and (b) a flat
  * description of one case, and returns the list of document requirements that
  * case genuinely has. It reads no database, knows no ids, and branches on no
- * product code of its own — every product-specific decision in AOS now lives
+ * product code of its own — every product-specific decision in PFO now lives
  * in a rule row, which is the whole point of the milestone.
  *
  * Before this existed, "a home loan for a salaried applicant needs Form 16"

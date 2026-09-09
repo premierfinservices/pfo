@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Migration runner for the AOS schema.
+ * Migration runner for the PFO schema.
  *
  * WHY THIS EXISTS NOW: `Database/README.md` has said from the beginning that
  * "nothing here has been executed" — thirty migrations written, checked by

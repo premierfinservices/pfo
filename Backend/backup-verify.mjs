@@ -19,7 +19,7 @@
  *   2. The dump's SHA-256 matches what was recorded when it was written, so
  *      bit rot or a partial copy to a network drive is caught.
  *   3. Every document file listed in the manifest is present, the right size,
- *      and hashes to the recorded SHA-256. Document bytes are the half of AOS
+ *      and hashes to the recorded SHA-256. Document bytes are the half of PFO
  *      that Postgres cannot vouch for (`document.file_path` is a pointer, not
  *      the bytes), so they get the same treatment as the dump.
  *

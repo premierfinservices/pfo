@@ -68,7 +68,7 @@ function bigFixture(name: string, megabytes: number): string {
   const filePath = path.join(bigFixtureDir, name);
   // A valid-enough PDF header followed by padding — the size is what matters,
   // and the storage backend stores bytes without inspecting them.
-  const header = Buffer.from("%PDF-1.4\n% AOS QA large fixture\n", "latin1");
+  const header = Buffer.from("%PDF-1.4\n% PFO QA large fixture\n", "latin1");
   const padding = Buffer.alloc(Math.round(megabytes * MB) - header.length, 0x20);
   writeFileSync(filePath, Buffer.concat([header, padding]));
   return filePath;

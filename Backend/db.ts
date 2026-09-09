@@ -1,5 +1,5 @@
 /**
- * The database connection for the AOS backend.
+ * The database connection for the PFO backend.
  *
  * One pool for the process. Connection settings come from the environment
  * only (`.env`, git-ignored) and nothing here is prefixed VITE_, so no

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Frees AOS's own dev ports before `npm run dev` starts.
+ * Frees PFO's own dev ports before `npm run dev` starts.
  *
  * On Windows, killing the top-level `concurrently` process (closing the
  * terminal, ending the shell) does not cascade to its children: each dev
@@ -10,7 +10,7 @@
  * ports, and the next `npm run dev` fails with EADDRINUSE.
  *
  * This is a startup safety net, not a substitute for clean shutdown: it only
- * ever touches the four ports AOS's own dev stack listens on, and only kills
+ * ever touches the four ports PFO's own dev stack listens on, and only kills
  * a PID after confirming it's a `node.exe` process — never a blind sweep.
  *
  * Stage 4 made `freePorts` exportable, because the office server needs exactly
@@ -18,7 +18,7 @@
  * calls it before starting anything. A Windows PC that lost power, or a
  * supervisor that was force-killed rather than asked to stop, leaves the same
  * orphans holding the same ports — and on the office server the symptom is not
- * a failed `npm run dev`, it is an AOS that never comes back after a reboot.
+ * a failed `npm run dev`, it is an PFO that never comes back after a reboot.
  */
 
 import { execFile } from "node:child_process";

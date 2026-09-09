@@ -14,7 +14,7 @@
  * is computed, asserted against in tests, rendered on screen and only then
  * handed to something that can actually send. `attachments`, `batching` and
  * `compose` each answer one question; this composes the three into the single
- * answer the rest of AOS asks for.
+ * answer the rest of PFO asks for.
  */
 
 import {
@@ -97,7 +97,7 @@ export function describePackageProblem(problem: PackagePlanProblem): string {
       // shows the same sentence beside the row it disabled.
       return `${problem.document.label} cannot be sent. ${describeIneligibility(problem.reason)}`;
     case "over_provider_limit":
-      // Unreachable while the AOS ceiling stays an order of magnitude under
+      // Unreachable while the PFO ceiling stays an order of magnitude under
       // Gmail's, which attachments.test.ts asserts. Kept because "unreachable"
       // is a property of today's constants, not of the code, and a silent
       // provider rejection after the user pressed Send is the failure this

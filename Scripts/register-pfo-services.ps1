@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-    Make AOS start automatically when the office server PC boots. Office server only.
+    Make PFO start automatically when the office server PC boots. Office server only.
 
 .DESCRIPTION
     Registers `Backend/supervisor.mjs` as a Scheduled Task with an at-startup
-    trigger, so AOS comes back on its own after a power cut, a Windows Update
+    trigger, so PFO comes back on its own after a power cut, a Windows Update
     reboot, or somebody switching the PC off at night.
 
     WHY A SCHEDULED TASK AND NOT A WINDOWS SERVICE: a real service needs a
@@ -17,9 +17,9 @@
     WHAT IT DOES NOT DO: start PostgreSQL. That is its own Windows service,
     installed by the PostgreSQL installer, and it already starts automatically.
     The supervisor waits up to two minutes for it before starting the API, which
-    is what stops a slow boot from looking like a broken AOS.
+    is what stops a slow boot from looking like a broken PFO.
 
-    RUN THIS ON THE DESIGNATED AOS SERVER PC ONLY. Running it on an employee's
+    RUN THIS ON THE DESIGNATED PFO SERVER PC ONLY. Running it on an employee's
     PC starts a second, competing copy of the whole backend against a second,
     empty document store  -  the failure Docs/Deployment Topology.md exists to
     prevent.
@@ -35,13 +35,13 @@
     Show what would be registered and change nothing. Start here.
 
 .EXAMPLE
-    .\Scripts\register-aos-services.ps1 -WhatIf
+    .\Scripts\register-pfo-services.ps1 -WhatIf
 
 .EXAMPLE
-    .\Scripts\register-aos-services.ps1 -User "AMAZE-SERVER\aos"
+    .\Scripts\register-pfo-services.ps1 -User "AMAZE-SERVER\aos"
 
 .NOTES
-    Status:   .\Scripts\aos-status.ps1
+    Status:   .\Scripts\pfo-status.ps1
     Start:    Start-ScheduledTask -TaskName "PFO Server"
     Stop:     Stop-ScheduledTask  -TaskName "PFO Server"
     Remove:   Unregister-ScheduledTask -TaskName "PFO Server" -Confirm:$false
@@ -57,12 +57,12 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
-. (Join-Path $PSScriptRoot "aos-lan-address.ps1")
+. (Join-Path $PSScriptRoot "pfo-lan-address.ps1")
 $Supervisor = Join-Path $RepoRoot "Backend\supervisor.mjs"
 $LogFile = Join-Path $RepoRoot "Backend\supervisor.log"
 
 if (-not (Test-Path $Supervisor)) {
-    throw "Could not find $Supervisor. Run this from inside the AOS checkout."
+    throw "Could not find $Supervisor. Run this from inside the PFO checkout."
 }
 
 $EnvFile = Join-Path $RepoRoot ".env"
@@ -106,7 +106,7 @@ Write-Host "  PFO_API_HOST  $apiHost"
 Write-Host ""
 
 if ($webHost -eq "127.0.0.1" -or $webHost -eq "localhost") {
-    Write-Warning "PFO_WEB_HOST is $webHost  -  AOS will run but NO OTHER PC WILL BE ABLE TO REACH IT."
+    Write-Warning "PFO_WEB_HOST is $webHost  -  PFO will run but NO OTHER PC WILL BE ABLE TO REACH IT."
     Write-Warning "On the office server set PFO_WEB_HOST=0.0.0.0 in .env, then re-run this script."
     Write-Host ""
 } else {
@@ -114,7 +114,7 @@ if ($webHost -eq "127.0.0.1" -or $webHost -eq "localhost") {
     if ($lan.Address) {
         $via = ""
         if ($lan.Source -eq "override") { $via = "   (from PFO_LAN_IP)" }
-        Write-Host "  Employees will reach AOS at:  http://$($lan.Address)`:$webPort$via"
+        Write-Host "  Employees will reach PFO at:  http://$($lan.Address)`:$webPort$via"
         Write-Host "  Make sure that address is static or DHCP-reserved, and record it in"
         Write-Host "  Docs/Deployment Topology.md. A server whose IP changes on reboot breaks"
         Write-Host "  every bookmark in the office silently."
@@ -157,7 +157,7 @@ $Settings = New-ScheduledTaskSettingsSet `
 
 # -ExecutionTimeLimit Zero means "no limit": this task is a server that is
 # supposed to run forever, and the default three-day limit would silently kill
-# AOS mid-week. -MultipleInstances IgnoreNew is the second line of defence
+# PFO mid-week. -MultipleInstances IgnoreNew is the second line of defence
 # behind the supervisor's own PID lock  -  two supervisors kill each other's
 # services and present as an application that flickers.
 
@@ -183,15 +183,15 @@ if ($PSCmdlet.ShouldProcess($TaskName, "Register the scheduled task")) {
         -Trigger $Trigger `
         -Settings $Settings `
         -Principal $Principal `
-        -Description "Runs the AOS backend (web, API, document storage, mail) via Backend/supervisor.mjs. Starts at boot; waits for PostgreSQL before starting the API." | Out-Null
+        -Description "Runs the PFO backend (web, API, document storage, mail) via Backend/supervisor.mjs. Starts at boot; waits for PostgreSQL before starting the API." | Out-Null
 
     Write-Host "  Registered."
     Write-Host ""
     Write-Host "  Start it now and check it:"
     Write-Host "      Start-ScheduledTask -TaskName '$TaskName'"
-    Write-Host "      .\Scripts\aos-status.ps1"
+    Write-Host "      .\Scripts\pfo-status.ps1"
     Write-Host ""
-    Write-Host "  Then REBOOT and run aos-status.ps1 again. An auto-start that has never"
+    Write-Host "  Then REBOOT and run pfo-status.ps1 again. An auto-start that has never"
     Write-Host "  survived a real reboot is not known to work."
     Write-Host ""
 }

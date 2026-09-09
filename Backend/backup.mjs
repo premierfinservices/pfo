@@ -70,7 +70,7 @@ async function main() {
   const runDir = path.join(backupRoot, timestamp());
   await mkdir(runDir, { recursive: true });
 
-  console.log(`AOS backup — ${runDir}\n`);
+  console.log(`PFO backup — ${runDir}\n`);
 
   // ── 1. The database ──────────────────────────────────────────────────────
   const dumpPath = path.join(runDir, "aos.dump");

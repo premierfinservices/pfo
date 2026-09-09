@@ -1,5 +1,5 @@
 /**
- * The permission catalog — every action AOS recognises.
+ * The permission catalog — every action PFO recognises.
  *
  * Source of truth: PRD/Permissions.md, ADR-022, ADR-026, ADR-027
  *

@@ -1,7 +1,7 @@
 /**
  * Document Rules administration (Milestone 9, ADR-035).
  *
- * The screen the milestone exists for: what AOS asks for is now data a
+ * The screen the milestone exists for: what PFO asks for is now data a
  * business user owns, not code a developer owns. Every document on every
  * case's checklist is generated from a row visible here.
  *

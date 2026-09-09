@@ -670,7 +670,7 @@ export interface AddRequirementInput {
  * WHAT THIS IS FOR. A lender asks for something the rule pack does not cover —
  * a specific NOC, a letter explaining a gap in banking, a second address
  * proof for a shared premises. Before this the only recourse was to chase it
- * outside AOS, which means it is not on the checklist, not in storage, not
+ * outside PFO, which means it is not on the checklist, not in storage, not
  * verified and not in the submission package.
  *
  * WHAT IT IS NOT. It is not a way around the requirement engine. It ADDS a

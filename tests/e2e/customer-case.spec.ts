@@ -192,7 +192,7 @@ test.describe("customers and cases are read and written through the API", () => 
     await expect(page.getByText(applicant).first()).toBeVisible();
   });
 
-  test("warns that AOS may already know this customer", async ({ page }) => {
+  test("warns that PFO may already know this customer", async ({ page }) => {
     await signIn(page, TELECALLER);
     const applicant = unique("Duplicate");
     await openCase(page, applicant);

@@ -155,7 +155,7 @@ describe("waitingOn — who acts next, distinct from who currently holds the cas
     expect(result?.summary).toContain("query");
   });
 
-  it("names the bank, not a colleague, once a decision is genuinely out of AOS's hands", () => {
+  it("names the bank, not a colleague, once a decision is genuinely out of PFO's hands", () => {
     const db = baseDb();
     const submissions: Pick<Submission, "status">[] = [{ status: "under_process" }];
     const result = waitingOn(db, baseCase({ stage: "submitted" }), zeroProgress, submissions);

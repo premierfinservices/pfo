@@ -22,7 +22,7 @@ afternoon, is worth more than reading it twice.
 
 ---
 
-## What AOS data actually is
+## What PFO data actually is
 
 Two halves that must be restored **from the same backup run**:
 
@@ -76,11 +76,11 @@ offline. Everything else can be rebuilt from this repository.
    byte for byte". If it reports missing or corrupted files, the database is
    restored but some documents are not — see "Partial document loss" below.
 
-4. Start AOS and check it:
+4. Start PFO and check it:
 
    ```powershell
    Start-ScheduledTask -TaskName "PFO Server"
-   .\Scripts\aos-status.ps1
+   .\Scripts\pfo-status.ps1
    ```
 
 5. Open a case that had documents and download one. That is the only check that
@@ -128,16 +128,16 @@ What to do instead:
    over the live one:
 
    ```powershell
-   node Backend/restore.mjs --backup "<run>" --db aos_recovery `
+   node Backend/restore.mjs --backup "<run>" --db pfo_recovery `
        --storage-root C:\PFO\Recovery --create-db --drop-existing
    ```
-2. Read what you need out of `aos_recovery` with `psql`, and copy the document
+2. Read what you need out of `pfo_recovery` with `psql`, and copy the document
    files you need out of `C:\PFO\Recovery\Documents`.
 3. Re-enter the work in the live system through the normal screens, so it
    carries correct events and ownership.
-4. Drop `aos_recovery` and delete `C:\PFO\Recovery` when done.
+4. Drop `pfo_recovery` and delete `C:\PFO\Recovery` when done.
 
-Note that most "deletions" in AOS are not deletions: cases are marked lost and
+Note that most "deletions" in PFO are not deletions: cases are marked lost and
 can be reopened, requirements become `not_applicable` rather than disappearing,
 users are deactivated rather than removed, and the event log cannot be modified
 at all (a database trigger refuses `UPDATE` and `DELETE` on it). Check whether

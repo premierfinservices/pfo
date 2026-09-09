@@ -513,7 +513,7 @@ export async function setCustomerIdentifiers(
  *
  * The decision is `can()` — the same function and the same
  * `role_permission`/`user_permission_override` data every other permission
- * check in AOS reads — not a second implementation in SQL. Once granted, the
+ * check in PFO reads — not a second implementation in SQL. Once granted, the
  * raw value comes from `app.reveal_identifier_value()`, the one SECURITY
  * DEFINER function that can still read `person_identifier.value_raw`; nothing
  * else in the schema can, as of migration 0034.

@@ -31,12 +31,12 @@ DEFINER) may touch it.
 identity comes to exist. Everything else requires `app.current_user_id()` to be
 non-null — an authenticated, *active* employee published into the transaction.
 
-That is a boundary around the connection, not around the user. **RLS in AOS
+That is a boundary around the connection, not around the user. **RLS in PFO
 does not enforce per-user or per-case access and must not be described as
 doing so.** Ownership is decided in `Backend/authorize.ts` and proven in
 `Backend/api.test.ts`; ADR-022 exists to keep that answered once. What tier B
 buys is concrete and narrower: someone holding the `aos_app` password but not
-inside an authenticated AOS transaction — a leaked `.env`, a `psql` session
+inside an authenticated PFO transaction — a leaked `.env`, a `psql` session
 from another PC on the office LAN — reads no customer, case, document or
 submission row.
 

@@ -576,7 +576,7 @@ export interface LoanCase {
  * id, because a pure evaluator has no database to resolve one against.
  *
  * Seeded from DEFAULT_REQUIREMENT_RULES and editable afterwards, which is the
- * milestone's whole point: a business user changes what AOS asks for without
+ * milestone's whole point: a business user changes what PFO asks for without
  * a developer and without a deploy.
  */
 export interface DocumentRequirementRule extends RequirementRule {
@@ -720,7 +720,7 @@ export interface Submission {
    */
   institutionOrganisationId?: Id;
   /** How the file goes out — master data (`submissionModes`). Records intent
-   * only. NOTHING IN AOS SENDS ANYTHING. */
+   * only. NOTHING IN PFO SENDS ANYTHING. */
   submissionModeId?: Id;
   /**
    * What the bank and branch were CALLED when the file went to them

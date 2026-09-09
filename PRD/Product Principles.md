@@ -70,7 +70,7 @@ search boxes per entity type.
 A repeat customer's KYC is already on file. A known employer is already known. Any
 screen asking for something the system already holds is a defect, and the moment
 of recognition — "3 previous cases, KYC on file" — should be shown, because that
-is where AOS visibly beats the way things work today.
+is where PFO visibly beats the way things work today.
 
 *What this rules out:* documents owned by cases, employer as free text, and any
 per-case re-entry of person-level facts.

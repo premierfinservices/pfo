@@ -55,7 +55,7 @@ describe("the case workflow's order", () => {
 });
 
 describe("resolving ?tab= from the URL", () => {
-  it("returns the requested section when it is one AOS has", () => {
+  it("returns the requested section when it is one PFO has", () => {
     for (const tab of CASE_TABS) {
       expect(resolveCaseTab(tab)).toBe(tab);
     }

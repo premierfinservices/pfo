@@ -2,7 +2,7 @@
 
 **Status:** Draft for review.
 
-How AOS decides what a case still needs, and how "done" it is — without ever
+How PFO decides what a case still needs, and how "done" it is — without ever
 penalising a case for information that does not apply to it.
 
 This document exists because two requirements in the brief are actually the same

@@ -1,16 +1,16 @@
 <#
 .SYNOPSIS
-    Is AOS working, and if not, which part is broken?
+    Is PFO working, and if not, which part is broken?
 
 .DESCRIPTION
-    The first thing to run when somebody says "AOS is down". It answers, in
+    The first thing to run when somebody says "PFO is down". It answers, in
     order, the questions an operator actually has: is PostgreSQL up, are the
-    four AOS processes up, can employees reach this machine, is the mail
+    four PFO processes up, can employees reach this machine, is the mail
     provider configured, and when did the last backup succeed.
 
     Safe to run at any time - it reads and reports, and changes nothing.
 
-    Written because the alternative was a person guessing. AOS is five moving
+    Written because the alternative was a person guessing. PFO is five moving
     parts (PostgreSQL plus four Node processes) and every one of them fails in a
     way that looks identical from a browser: a page that will not load.
 
@@ -20,7 +20,7 @@
     this script failed. Keep it ASCII.
 
 .EXAMPLE
-    .\Scripts\aos-status.ps1
+    .\Scripts\pfo-status.ps1
 #>
 
 [CmdletBinding()]
@@ -31,7 +31,7 @@ $ErrorActionPreference = "Continue"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $EnvFile = Join-Path $RepoRoot ".env"
 
-. (Join-Path $PSScriptRoot "aos-lan-address.ps1")
+. (Join-Path $PSScriptRoot "pfo-lan-address.ps1")
 
 $settings = @{
     PFO_WEB_PORT      = "4300"
@@ -73,7 +73,7 @@ function Show-Line($label, $ok, $detail) {
 }
 
 Write-Host ""
-Write-Host "AOS status - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') on $env:COMPUTERNAME"
+Write-Host "PFO status - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') on $env:COMPUTERNAME"
 Write-Host ("-" * 72)
 
 # --- PostgreSQL -----------------------------------------------------------
@@ -87,12 +87,12 @@ if ($pgService) {
 $pgPort = Test-NetConnection -ComputerName "127.0.0.1" -Port $settings.PFO_DB_PORT -InformationLevel Quiet -WarningAction SilentlyContinue
 Show-Line "PostgreSQL port" $pgPort "127.0.0.1:$($settings.PFO_DB_PORT), database '$($settings.PFO_DB_NAME)'"
 
-# --- The four AOS processes -----------------------------------------------
+# --- The four PFO processes -----------------------------------------------
 $web = Test-Endpoint "http://127.0.0.1:$($settings.PFO_WEB_PORT)/health"
-Show-Line "AOS web server" $web.ok "port $($settings.PFO_WEB_PORT)"
+Show-Line "PFO web server" $web.ok "port $($settings.PFO_WEB_PORT)"
 
 $api = Test-Endpoint "http://127.0.0.1:$($settings.PFO_API_PORT)/api/health"
-Show-Line "AOS API" $api.ok "port $($settings.PFO_API_PORT)"
+Show-Line "PFO API" $api.ok "port $($settings.PFO_API_PORT)"
 
 $storage = Test-Endpoint "http://127.0.0.1:$($settings.PFO_STORAGE_PORT)/health"
 Show-Line "Document storage" $storage.ok "port $($settings.PFO_STORAGE_PORT) (loopback only, by design)"
@@ -137,11 +137,11 @@ if ($loopbackOnly) {
         Write-Host "        Set PFO_LAN_IP in .env to the address employees should use." -ForegroundColor Yellow
     }
 
-    $rule = Get-NetFirewallRule -DisplayName "AOS*" -ErrorAction SilentlyContinue
+    $rule = Get-NetFirewallRule -DisplayName "PFO*" -ErrorAction SilentlyContinue
     if ($rule) {
         Show-Line "Firewall rule" ($rule.Enabled -contains "True") "$($rule.DisplayName -join ', ')"
     } else {
-        Show-Line "Firewall rule" $false "no rule named 'AOS*' - inbound TCP $($settings.PFO_WEB_PORT) may be blocked"
+        Show-Line "Firewall rule" $false "no rule named 'PFO*' - inbound TCP $($settings.PFO_WEB_PORT) may be blocked"
     }
 }
 

@@ -9,7 +9,7 @@ person is on leave the answer does not exist.
 
 **Design goal: no employee should ever need to remember the correct name of
 anything.** They type what they remember — a fragment, a misspelling, a place, a
-phone number's last four digits — and AOS finds it. The system holds the correct
+phone number's last four digits — and PFO finds it. The system holds the correct
 name so that humans don't have to.
 
 ---
@@ -185,7 +185,7 @@ Applying the four-question test:
 ### Keeping it invisible
 
 Users never "create an Organisation." They type a name into an employer or
-business field. AOS matches against existing organisations and their aliases,
+business field. PFO matches against existing organisations and their aliases,
 offers the best match, and if there is none, creates the record silently in the
 background. The typing experience is identical to a plain text field. The
 difference is only in what gets stored.

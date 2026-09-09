@@ -7,7 +7,7 @@
  *
  * The pieces:
  *
- *   document-catalogue.ts every document type AOS can ask for, defined once
+ *   document-catalogue.ts every document type PFO can ask for, defined once
  *   rules.ts              the evaluator — facts in, requirements out, no database
  *   default-rules.ts      the researched starting rule pack, editable afterwards
  *   financial-year.ts     India's April–March year

@@ -1,7 +1,7 @@
 /**
  * Server-side authorization.
  *
- * THE POINT OF THIS FILE: until now every permission check in AOS ran in the
+ * THE POINT OF THIS FILE: until now every permission check in PFO ran in the
  * browser, inside `Frontend/src/fake/store.ts`. A check that runs in the
  * client is advice, not enforcement — anyone who can open devtools can call
  * the function that follows it. This module answers the same questions on the

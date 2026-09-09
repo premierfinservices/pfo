@@ -4,7 +4,7 @@
  * Source of truth: ADR-014, ADR-015, ADR-016, ADR-034. Schema:
  * Database/migrations/0019, 0020.
  *
- * AOS's lender intelligence layer. Not a list of banks — a model of how
+ * PFO's lender intelligence layer. Not a list of banks — a model of how
  * Amaze works with lending institutions, with the five concepts the domain
  * genuinely has kept apart:
  *

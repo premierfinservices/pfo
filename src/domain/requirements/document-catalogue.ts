@@ -1,5 +1,5 @@
 /**
- * Every document type AOS knows how to ask for — in the words an Amaze
+ * Every document type PFO knows how to ask for — in the words an Amaze
  * telecaller actually uses on the phone.
  *
  * WHY THIS LIST LIVES IN src/domain/ AND NOT ONLY IN A SEED
@@ -118,7 +118,7 @@ export type PeriodKind = "financial_year" | "assessment_year";
 /**
  * Who a document belongs to (ADR-007): the person, property or organisation it
  * describes, with `case` reserved for genuinely case-specific paperwork. A
- * vehicle quotation is case-scoped because AOS has no vehicle entity — noted
+ * vehicle quotation is case-scoped because PFO has no vehicle entity — noted
  * here rather than silently modelled, because "the case owns it" is a real
  * answer only while that stays true.
  */
@@ -130,7 +130,7 @@ export type DocumentOwnerKind = (typeof DOCUMENT_OWNER_KINDS)[number];
  * WHO PRODUCES THIS DOCUMENT — and therefore whether Amaze may put it on a
  * customer's collection list at all.
  *
- * AOS's document engine exists to answer one question for the person on the
+ * PFO's document engine exists to answer one question for the person on the
  * phone: what do I still have to get from this customer? A checklist that
  * also contains the lender's own login form and Amaze's internal application
  * form answers a different question badly, and the observable result is a
@@ -304,7 +304,7 @@ export const DOCUMENT_CATALOGUE: readonly DocumentTypeDefinition[] = [
   { code: "builder_noc", name: "Builder NOC / Allotment Letter", ownerKind: "property", requiresPeriod: false, requiresExpiry: false, description: "The builder's no-objection letter and allotment letter, when buying from a builder.", category: "property", displayOrder: 650 },
   { code: "lease_deed", name: "Registered Lease Deed", ownerKind: "property", requiresPeriod: false, requiresExpiry: false, description: "The registered lease for the property whose rent is being lent against.", category: "property", displayOrder: 660 },
 
-  // --- Vehicle. Case-scoped because AOS has no vehicle entity ---------------
+  // --- Vehicle. Case-scoped because PFO has no vehicle entity ---------------
   { code: "vehicle_quotation", name: "Vehicle Quotation", localName: "Proforma Invoice", ownerKind: "case", requiresPeriod: false, requiresExpiry: false, description: "The dealer's price quotation for the vehicle being bought.", category: "additional", displayOrder: 670 },
   { code: "vehicle_rc", name: "Vehicle RC Book", ownerKind: "case", requiresPeriod: false, requiresExpiry: false, description: "The RC of a second-hand vehicle. The bank's name is added to it after the loan is given.", category: "additional", displayOrder: 680 },
   { code: "vehicle_valuation", name: "Vehicle Valuation Report", ownerKind: "case", requiresPeriod: false, requiresExpiry: false, description: "A valuer's report on a second-hand vehicle. The vehicle's age limits how long the loan can run.", category: "additional", displayOrder: 690 },
@@ -353,7 +353,7 @@ export function documentTypeByCode(code: string): DocumentTypeDefinition | undef
   return DOCUMENT_TYPES_BY_CODE.get(code);
 }
 
-/** Every document type code AOS knows about. */
+/** Every document type code PFO knows about. */
 export function allDocumentTypeCodes(): string[] {
   return DOCUMENT_CATALOGUE.map((type) => type.code);
 }

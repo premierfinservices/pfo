@@ -674,7 +674,7 @@ describe("the default pack — integrity", () => {
 
 /**
  * The Telecaller Workflow milestone. Every test here is a complaint from
- * someone using AOS on the phone, turned into an assertion.
+ * someone using PFO on the phone, turned into an assertion.
  */
 describe("the checklist a telecaller actually reads out", () => {
   it("asks a brand-new business loan for the business documents, without waiting for anyone to record what kind of business it is", () => {

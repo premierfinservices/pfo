@@ -3,7 +3,7 @@
  *
  * THE DEBT THIS PAYS. Stage 2 wrote no events and said so. Stage 3A added them
  * for administrative actions only. Stage 3B migrated the customer and case
- * slice and carried the gap forward, which meant AOS had a case screen backed
+ * slice and carried the gap forward, which meant PFO had a case screen backed
  * by PostgreSQL and no record of who had moved anything on it. BR-050 says a
  * state change and its event are written in the same transaction or the change
  * does not happen; these tests are what makes that claim checkable.

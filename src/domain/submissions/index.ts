@@ -13,7 +13,7 @@
  * - `attachments.ts` — which documents may be sent, and how large one email
  *                       may be.
  * - `batching.ts`    — splitting a selection across emails, deterministically.
- * - `compose.ts`     — the subject and the body, written from AOS's own facts.
+ * - `compose.ts`     — the subject and the body, written from PFO's own facts.
  * - `package.ts`     — the three above, composed into the object the user
  *                       reviews and the sender walks.
  *

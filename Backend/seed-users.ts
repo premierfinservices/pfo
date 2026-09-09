@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Create the five AOS development accounts.
+ * Create the five PFO development accounts.
  *
  * WHY THIS EXISTS: authentication is server-side, which creates a bootstrap
  * problem every such system has — you cannot log in to create the first user.
@@ -13,7 +13,7 @@
  *
  * This script used to hash `process.env.PFO_SEED_PASSWORD ?? "aos-dev-password"`
  * — a literal, committed to a public repository, applied to five accounts, one
- * of which (`partner.p`) holds `managing_partner`, the widest role AOS has. It
+ * of which (`partner.p`) holds `managing_partner`, the widest role PFO has. It
  * had a comment saying the password was not a secret and must not become one.
  * That comment was correct about the intent and had no way to enforce it, and
  * two things made the intent fail on its own terms:

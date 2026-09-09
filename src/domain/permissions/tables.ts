@@ -85,7 +85,7 @@ export const TABLE_BINDINGS: readonly TableBinding[] = [
   {
     table: "person",
     family: "reference",
-    purpose: "Every human AOS knows, exactly once. Identity is the surrogate ID (ADR-013).",
+    purpose: "Every human PFO knows, exactly once. Identity is the surrogate ID (ADR-013).",
     select: permits("person.read"),
     insert: permits("person.create"),
     update: permits("person.update", "person.merge"),
@@ -131,7 +131,7 @@ export const TABLE_BINDINGS: readonly TableBinding[] = [
   {
     table: "app_user",
     family: "self",
-    purpose: "A person who can log into AOS. One-to-one with person, optional.",
+    purpose: "A person who can log into PFO. One-to-one with person, optional.",
     select: permits("user.read"),
     insert: permits("user.manage"),
     update: permits("user.manage"),
@@ -543,7 +543,7 @@ export const TABLE_BINDINGS: readonly TableBinding[] = [
     update: permits("master_data.manage"),
     delete: NEVER_DELETED,
     notes:
-      "Called a rule because that is what the office calls it. Nothing in AOS may " +
+      "Called a rule because that is what the office calls it. Nothing in PFO may " +
       "ever execute one; the submission workflow reads `submission` (0006).",
   },
   {
@@ -627,7 +627,7 @@ export const TABLE_BINDINGS: readonly TableBinding[] = [
     table: "document_requirement_rule",
     family: "reference",
     purpose:
-      "The Document Requirement Engine (ADR-035). Every document AOS asks for " +
+      "The Document Requirement Engine (ADR-035). Every document PFO asks for " +
       "is generated from a row here — there is no hardcoded checklist left in " +
       "the application. Seeded with researched defaults and edited afterwards " +
       "by a business user, without a deploy.",
@@ -705,7 +705,7 @@ export const TABLE_BINDINGS: readonly TableBinding[] = [
     table: "document_type",
     family: "reference",
     purpose:
-      "The kinds of document AOS recognises. A table rather than an enum because " +
+      "The kinds of document PFO recognises. A table rather than an enum because " +
       "requirement templates key off it and adding a type must not be a migration " +
       "(ADR-025).",
     select: permits("master_data.read"),
@@ -887,7 +887,7 @@ export const TABLE_BINDINGS: readonly TableBinding[] = [
     delete: NEVER_DELETED,
     notes:
       "Governed by its parent submission, which is what `case-derived` means " +
-      "here (ADR-027). NOTHING IN AOS SENDS EMAIL — these rows record who a " +
+      "here (ADR-027). NOTHING IN PFO SENDS EMAIL — these rows record who a " +
       "file was addressed to, and a future Gmail or Outlook integration reads " +
       "them rather than re-asking.",
   },

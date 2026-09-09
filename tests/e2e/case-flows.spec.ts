@@ -1,6 +1,6 @@
 /**
  * Real browser QA — four end-to-end loan-case scenarios driven entirely
- * through the AOS UI (no store/domain calls). Each case is created fresh via
+ * through the PFO UI (no store/domain calls). Each case is created fresh via
  * New Case, its customer profile is edited, its case facts are set through
  * the "Edit facts" dialog, and the generated document checklist is inspected
  * for business sense, then one document is uploaded and viewed.

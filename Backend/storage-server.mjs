@@ -289,7 +289,7 @@ await mkdir(documentsRoot(), { recursive: true });
  * it checks `document.read` / `document.upload` before a byte moves.
  *
  * Stage 4 made the API's bind address configurable so employee PCs could
- * finally reach AOS. This refusal is the other half of that change: it makes
+ * finally reach PFO. This refusal is the other half of that change: it makes
  * sure the same reasoning is never applied here by analogy. If document bytes
  * ever need to leave this machine directly, the answer is authentication on
  * this server, not a wider bind — and this check should be the thing that
@@ -307,6 +307,6 @@ if (requestedHost && requestedHost !== "127.0.0.1" && requestedHost !== "localho
 }
 
 listenOrExplain(server, PORT, "127.0.0.1", "document storage backend", () => {
-  console.log(`AOS document storage backend listening on http://127.0.0.1:${PORT} (loopback only)`);
+  console.log(`PFO document storage backend listening on http://127.0.0.1:${PORT} (loopback only)`);
   console.log(`Storage root: ${currentRoot}`);
 });

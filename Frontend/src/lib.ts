@@ -200,7 +200,7 @@ export function waitingOn(
     if (submissions.some((s) => s.status === "query_raised")) {
       return { summary: `Waiting on: ${loginDeskActor} — a bank has raised a query on this file` };
     }
-    // Genuinely the lender's turn from here — AOS has no reliable "who at the
+    // Genuinely the lender's turn from here — PFO has no reliable "who at the
     // bank" to name, so this names the counterparty rather than a colleague.
     return { summary: "Waiting on: the bank — a decision is pending" };
   }

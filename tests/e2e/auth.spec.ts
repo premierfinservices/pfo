@@ -43,7 +43,7 @@ test.describe.configure({ mode: "serial" });
 test.skip(true, "Suspended by Stage 3B — see the note at the top of this file.");
 
 test.describe("Login screen", () => {
-  test("shows AOS branding, and starts unauthenticated", async ({ page }) => {
+  test("shows PFO branding, and starts unauthenticated", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByText("Premier Finserv One")).toBeVisible();
     await expect(page.getByLabel("Username / Employee ID")).toBeVisible();

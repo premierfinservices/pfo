@@ -3,7 +3,7 @@
  *
  * Source of truth: ADR-025
  *
- * AOS has no settings module and no key-value configuration table. This is the
+ * PFO has no settings module and no key-value configuration table. This is the
  * one narrow table for timings, and its shape is deliberate: **the keys are a
  * closed enum here, seeded into `operational_threshold` by migration. The value
  * is editable at runtime; the key set is not.**

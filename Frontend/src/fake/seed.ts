@@ -134,7 +134,7 @@ export function buildSeed(): Database {
     { id: id("per", 94), fullName: "Vignesh R", aliases: [], identifiers: [
       { id: id("pid", 9), type: "phone", value: "+91 90252 66710", isPrimary: true, verificationSource: "self_declared" },
     ] },
-    // Real AOS employees (Employee Authentication milestone).
+    // Real PFO employees (Employee Authentication milestone).
     { id: id("per", 96), fullName: "Chinna Thambi", aliases: [], identifiers: [] },
     { id: id("per", 97), fullName: "Jayalakshmi", aliases: [], identifiers: [] },
     { id: id("per", 98), fullName: "Tarun Ramesh", aliases: [], identifiers: [] },
@@ -187,7 +187,7 @@ export function buildSeed(): Database {
     // One human, two hats — the case ADR-022 exists for.
     { id: id("usr", 5), personId: id("per", 91), name: "Karthik V (also calling)", username: "karthik.v2", passwordHash: DEV_SEED_PASSWORD_HASH, roles: ["telecaller", "login_executive"], isActive: true },
 
-    // Real AOS employees (Employee Authentication milestone). All share the
+    // Real PFO employees (Employee Authentication milestone). All share the
     // one dev seed password above; see DEV_SEED_PASSWORD_HASH.
     { id: id("usr", 6), personId: id("per", 96), name: "Chinna Thambi", username: "chinna.thambi", passwordHash: DEV_SEED_PASSWORD_HASH, roles: ["telecaller", "login_executive"], isActive: true },
     { id: id("usr", 7), personId: id("per", 97), name: "Jayalakshmi", username: "jayalakshmi", passwordHash: DEV_SEED_PASSWORD_HASH, roles: ["telecaller"], isActive: true },
@@ -264,7 +264,7 @@ export function buildSeed(): Database {
    * The rule pack, seeded exactly as Database/migrations/0022 seeds it.
    *
    * These are DEFAULTS. Everything below is editable from the Document Rules
-   * screen — which is the milestone: what AOS asks for is data a business
+   * screen — which is the milestone: what PFO asks for is data a business
    * user owns, not code a developer owns.
    */
   const documentRequirementRules: Database["documentRequirementRules"] =

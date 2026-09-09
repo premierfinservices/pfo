@@ -6,7 +6,7 @@
  * Four files, one job each:
  *
  * - `scopes.ts`  — what `own` / `team` / `all` mean, and what `own` means per family.
- * - `actions.ts` — the catalog: every action AOS recognises.
+ * - `actions.ts` — the catalog: every action PFO recognises.
  * - `roles.ts`   — who holds what, enumerated, every entry scoped.
  * - `tables.ts`  — every table bound to the permissions governing its operations.
  *

@@ -2,7 +2,7 @@
  * The Banks tab — Stage 3D.
  *
  * Add a bank branch, choose the verified documents that belong with it,
- * review the emails AOS is about to send, and send them through the real
+ * review the emails PFO is about to send, and send them through the real
  * Gmail-backed mail backend (`Backend/mail-client.ts` -> `mail-server.mjs`).
  * A case only becomes Submitted once that send actually succeeds — the
  * server does that (`Backend/submissions.ts`'s `finalizeIfFullySent`), never

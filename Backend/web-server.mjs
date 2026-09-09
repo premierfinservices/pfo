@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The office web server: serves the built AOS frontend, and proxies `/api` to
+ * The office web server: serves the built PFO frontend, and proxies `/api` to
  * the API process.
  *
  * WHY THIS EXISTS (Stage 4 audit, C1/H6). The frontend calls `/api/...` on its
@@ -145,7 +145,7 @@ function proxyToApi(req, res) {
   );
 
   upstream.on("error", () => {
-    // The API process is down. Answered in the same shape every other AOS
+    // The API process is down. Answered in the same shape every other PFO
     // error uses — `{ message }` — because the browser's `api()` client reads
     // that field and shows it to the employee. A bare 502 would surface as
     // "Something went wrong", which does not say who to tell.
@@ -216,13 +216,13 @@ if (!existsSync(path.join(DIST, "index.html"))) {
 }
 
 listenOrExplain(server, PORT, HOST, "web server", () => {
-  console.log(`AOS web server listening on http://${HOST}:${PORT}`);
+  console.log(`PFO web server listening on http://${HOST}:${PORT}`);
   console.log(`  Serving ${DIST}`);
   console.log(`  /api -> http://${API_HOST}:${API_PORT}`);
   if (HOST === "127.0.0.1" || HOST === "localhost") {
     console.log("  Loopback only — no other PC can reach this. Set PFO_WEB_HOST=0.0.0.0 on the office server.");
   } else {
-    console.log(`\n  *** EMPLOYEES REACH AOS AT http://<this PC's LAN IP>:${PORT} ***`);
-    console.log("  Only the designated AOS server PC should be doing this — see Docs/Deployment Topology.md.\n");
+    console.log(`\n  *** EMPLOYEES REACH PFO AT http://<this PC's LAN IP>:${PORT} ***`);
+    console.log("  Only the designated PFO server PC should be doing this — see Docs/Deployment Topology.md.\n");
   }
 });

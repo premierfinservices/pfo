@@ -106,7 +106,7 @@ export async function recordUserEvent(client: Queryable, event: UserEvent): Prom
  * migration (ADR-026, Production Readiness Phase 1) — and follow the same
  * `entity.verb` shape. Written for every attempt, granted or denied, which is
  * what makes this pair different from the rest of the catalog: nowhere else
- * in AOS does a denial get its own event.
+ * in PFO does a denial get its own event.
  */
 export type CustomerEventType =
   | "person.created"

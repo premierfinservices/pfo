@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Register the nightly AOS backup as a Windows Scheduled Task. Office server only.
+    Register the nightly PFO backup as a Windows Scheduled Task. Office server only.
 
 .DESCRIPTION
     A backup that depends on somebody remembering to type `npm run backup` is not
@@ -37,7 +37,7 @@
     .\Scripts\register-backup-task.ps1 -WhatIf
 
 .EXAMPLE
-    # Register it for real, running at 20:30 as the office AOS account.
+    # Register it for real, running at 20:30 as the office PFO account.
     .\Scripts\register-backup-task.ps1 -Time 20:30 -User "AMAZE-SERVER\aos"
 
 .NOTES
@@ -62,7 +62,7 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 $BackupScript = Join-Path $RepoRoot "Backend\backup.mjs"
 
 if (-not (Test-Path $BackupScript)) {
-    throw "Could not find $BackupScript. Run this script from inside the AOS checkout."
+    throw "Could not find $BackupScript. Run this script from inside the PFO checkout."
 }
 
 $EnvFile = Join-Path $RepoRoot ".env"
@@ -124,7 +124,7 @@ $Principal = New-ScheduledTaskPrincipal -UserId $User -LogonType S4U -RunLevel H
 
 # S4U rather than the Register-ScheduledTask -User/-RunLevel default
 # (InteractiveToken): the same non-interactive logon fix as
-# register-aos-services.ps1, applied here for consistency.
+# register-pfo-services.ps1, applied here for consistency.
 
 if ($PSCmdlet.ShouldProcess($TaskName, "Register the scheduled task")) {
     $existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
@@ -139,7 +139,7 @@ if ($PSCmdlet.ShouldProcess($TaskName, "Register the scheduled task")) {
         -Trigger $Trigger `
         -Settings $Settings `
         -Principal $Principal `
-        -Description "Nightly AOS backup: pg_dump of the operational database plus a copy of the document store, verified before retention prunes anything (Backend/backup.mjs)." | Out-Null
+        -Description "Nightly PFO backup: pg_dump of the operational database plus a copy of the document store, verified before retention prunes anything (Backend/backup.mjs)." | Out-Null
 
     Write-Host ""
     Write-Host "  Registered."

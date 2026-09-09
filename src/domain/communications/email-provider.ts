@@ -1,5 +1,5 @@
 /**
- * The seam between AOS and whatever actually sends mail.
+ * The seam between PFO and whatever actually sends mail.
  *
  * Source of truth: ADR-039.
  *
@@ -10,7 +10,7 @@
  * endpoint differs from the send endpoint. Every one of those is a fact about
  * one provider in one year.
  *
- *   AOS submission domain
+ *   PFO submission domain
  *           ↓
  *     EmailProvider          ← this file
  *           ↓
@@ -55,7 +55,7 @@ export interface OutgoingEmail {
   readonly to: readonly EmailAddress[];
   readonly cc?: readonly EmailAddress[] | undefined;
   readonly subject: string;
-  /** Plain text. AOS sends no HTML mail — see compose.ts. */
+  /** Plain text. PFO sends no HTML mail — see compose.ts. */
   readonly body: string;
   readonly attachments: readonly EmailAttachment[];
 }
@@ -101,7 +101,7 @@ export type EmailSendResult =
     };
 
 /**
- * How AOS sends one email.
+ * How PFO sends one email.
  *
  * ONE MESSAGE PER CALL, deliberately. A batch call would have to define what
  * happens when three of five succeed, which is exactly the partial-failure
@@ -143,7 +143,7 @@ export function describeEmailFailure(failure: EmailSendFailure): string {
 }
 
 /**
- * The provider AOS uses when nothing is configured.
+ * The provider PFO uses when nothing is configured.
  *
  * IT REFUSES. It does not pretend, does not queue, does not log-and-continue.
  * A prototype that quietly "sends" mail nobody receives is worse than one that

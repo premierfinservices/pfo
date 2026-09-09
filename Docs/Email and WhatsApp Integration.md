@@ -51,7 +51,7 @@ is a developer task and nothing below goes in the repository.
 
 ### Why OAuth2 and not a password
 
-Google stopped accepting account passwords from applications in 2022, and AOS
+Google stopped accepting account passwords from applications in 2022, and PFO
 must not store one regardless. **A service account will not work here**: domain-
 wide delegation only impersonates users in a Google *Workspace* domain, and
 `premierfinservices.cbe@gmail.com` is a consumer account. If Premier Finservices
@@ -70,7 +70,7 @@ moves to Workspace on its own domain, the service-account route becomes availabl
 4. **Credentials → Create credentials → OAuth client ID → Desktop app.** This
    gives the client id and client secret.
 5. Authorise once with the scope `https://www.googleapis.com/auth/gmail.send` —
-   the **send-only** scope; AOS never reads the mailbox — and exchange the code
+   the **send-only** scope; PFO never reads the mailbox — and exchange the code
    for a refresh token. Google's OAuth Playground does this with "Use your own
    OAuth credentials" ticked.
 6. Copy `.env.example` to `.env` and fill in:
@@ -93,7 +93,7 @@ git-ignored.
 ### If nothing is configured
 
 Every send is refused with a message saying so, the attempt is recorded, and the
-case timeline shows the failure. AOS never reports a send it did not make.
+case timeline shows the failure. PFO never reports a send it did not make.
 
 ---
 
@@ -176,8 +176,8 @@ the source of truth:
 | `PFO_WHATSAPP_PHONE_NUMBER_ID` | The Cloud API's id for the number, not the number. |
 | `PFO_WHATSAPP_ACCESS_TOKEN` | System-user token with `whatsapp_business_messaging`. A developer token expires in 24 hours and must not be used for anything real. |
 | Approved message templates | One per workflow. Each is reviewed by Meta. |
-| A public HTTPS webhook | For delivery receipts and replies. **AOS has none** — both local backends bind to `127.0.0.1`. |
-| Customer opt-in, recorded | Meta requires it and Indian data-protection practice expects it. **AOS has no field for this yet.** |
+| A public HTTPS webhook | For delivery receipts and replies. **PFO has none** — both local backends bind to `127.0.0.1`. |
+| Customer opt-in, recorded | Meta requires it and Indian data-protection practice expects it. **PFO has no field for this yet.** |
 
 The last two are the real blockers, and neither is solved by writing code.
 

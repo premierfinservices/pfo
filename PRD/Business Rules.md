@@ -2,7 +2,7 @@
 
 **Status:** Draft for review.
 
-The laws of AOS, stated independently of any implementation. A rule here is not a
+The laws of PFO, stated independently of any implementation. A rule here is not a
 preference or a default — it is an invariant. If code can violate it, the code is
 wrong.
 

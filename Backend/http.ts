@@ -36,7 +36,7 @@ export function refusalMessage(permission: string): string {
  * that is right — an employee can do nothing about it and the details belong
  * in the log, not the browser. For a stopped PostgreSQL service it is
  * actively misleading: the employee retries, gets the same sentence, and the
- * office concludes AOS is broken when the actual answer is "start the
+ * office concludes PFO is broken when the actual answer is "start the
  * database service on the server PC".
  *
  * Matched on node-postgres/libpq error codes rather than message text, which

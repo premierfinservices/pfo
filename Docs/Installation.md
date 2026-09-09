@@ -1,6 +1,6 @@
-# Installing AOS on the office server
+# Installing PFO on the office server
 
-Written to be followed by someone who has not worked on AOS. Every step says
+Written to be followed by someone who has not worked on PFO. Every step says
 what to type and how to know it worked. Where a step can go wrong quietly, it
 says how to tell.
 
@@ -47,7 +47,7 @@ Get-Service postgresql*     # must show Running
 
 ---
 
-## 2. Get AOS onto the machine
+## 2. Get PFO onto the machine
 
 Put the checkout somewhere permanent — not on the Desktop, not in Downloads.
 `C:\PFO\App` is a reasonable choice.
@@ -94,7 +94,7 @@ PFO_DB_NAME=pfo
 PFO_DB_USER=postgres
 PFO_DB_PASSWORD=<the password from step 1>
 
-# THIS is what makes AOS reachable from other PCs. Only on this machine.
+# THIS is what makes PFO reachable from other PCs. Only on this machine.
 PFO_WEB_HOST=0.0.0.0
 PFO_WEB_PORT=4300
 
@@ -123,12 +123,12 @@ since. Stop and ask — do not force it.
 
 ---
 
-## 5a. Stop AOS connecting as a superuser
+## 5a. Stop PFO connecting as a superuser
 
-**Do this before AOS holds any real customer file.** Steps 1 and 4 have the
+**Do this before PFO holds any real customer file.** Steps 1 and 4 have the
 application connecting as `postgres`, which is a PostgreSQL superuser: it can
 run programs on this PC, read any file the PostgreSQL service can read, read
-every role's password hash, and erase the audit log. Nothing AOS does needs any
+every role's password hash, and erase the audit log. Nothing PFO does needs any
 of that. Migration `0033` created a role — `aos_app` — that can do none of it,
 and left it with **no password**, so it cannot be used until you set one here.
 
@@ -154,13 +154,13 @@ PFO_DB_ADMIN_USER=postgres
 PFO_DB_ADMIN_PASSWORD=<the postgres password from step 1>
 ```
 
-Restart AOS and confirm it still works — sign in, open a case, upload a
+Restart PFO and confirm it still works — sign in, open a case, upload a
 document. If anything returns "Something went wrong", revert the two
 `PFO_DB_USER`/`PFO_DB_PASSWORD` lines to `postgres`, restart, and report what
 failed: it means a table or privilege was missed, and running as superuser is
 better than running not at all while that is fixed.
 
-> **What this buys.** A bug or an injection in AOS can no longer reach the rest
+> **What this buys.** A bug or an injection in PFO can no longer reach the rest
 > of the machine, and can no longer delete anything — `aos_app` holds no
 > `DELETE` privilege on any table, so BR-003 ("nothing is hard-deleted") is now
 > enforced by PostgreSQL rather than by the application happening not to try.
@@ -178,7 +178,7 @@ npm run build
 ```
 
 This produces `Frontend/dist`, which the web server serves. **Re-run it every
-time you update AOS**, or employees keep getting the old interface.
+time you update PFO**, or employees keep getting the old interface.
 
 ---
 
@@ -191,7 +191,7 @@ npm run start:production
 Leave it running and, in a second window:
 
 ```powershell
-.\Scripts\aos-status.ps1
+.\Scripts\pfo-status.ps1
 ```
 
 Every line except the scheduled tasks and the backup should say `UP`. If
@@ -205,7 +205,7 @@ Stop it with Ctrl-C for now.
 ## 8. Open the firewall
 
 ```powershell
-New-NetFirewallRule -DisplayName "AOS web (4300)" -Direction Inbound `
+New-NetFirewallRule -DisplayName "PFO web (4300)" -Direction Inbound `
     -Action Allow -Protocol TCP -LocalPort 4300 -Profile Private
 ```
 
@@ -218,7 +218,7 @@ Get-NetConnectionProfile
 Do not open 4319, 4320, 4321 or 5432. Three of those have no authentication.
 
 **Test from another PC now**, before going further: browse to
-`http://<server IP>:4300`. You should get the AOS login screen. If you do not,
+`http://<server IP>:4300`. You should get the PFO login screen. If you do not,
 nothing after this point matters yet.
 
 ---
@@ -234,10 +234,10 @@ PFO_GMAIL_CLIENT_SECRET=...
 PFO_GMAIL_REFRESH_TOKEN=...
 ```
 
-Restart AOS and confirm:
+Restart PFO and confirm:
 
 ```powershell
-.\Scripts\aos-status.ps1     # Mail backend: provider 'gmail' - able to send
+.\Scripts\pfo-status.ps1     # Mail backend: provider 'gmail' - able to send
 ```
 
 Until this is done every submission is refused with a clear message. Nothing
@@ -277,7 +277,7 @@ Confirm none are left active:
 ```
 
 `telecaller.a`, `telecaller.b`, `login.exec`, `manager.m` and `partner.p` must
-all read `f`. **Do not put real customer data in AOS until they do.**
+all read `f`. **Do not put real customer data in PFO until they do.**
 
 ---
 
@@ -301,16 +301,16 @@ not been verified is a folder.
 
 ---
 
-## 12. Make AOS start itself
+## 12. Make PFO start itself
 
 ```powershell
-.\Scripts\register-aos-services.ps1 -WhatIf
-.\Scripts\register-aos-services.ps1
+.\Scripts\register-pfo-services.ps1 -WhatIf
+.\Scripts\register-pfo-services.ps1
 Start-ScheduledTask -TaskName "PFO Server"
-.\Scripts\aos-status.ps1
+.\Scripts\pfo-status.ps1
 ```
 
-**Then reboot the PC and run `aos-status.ps1` again.** An auto-start that has
+**Then reboot the PC and run `pfo-status.ps1` again.** An auto-start that has
 never survived a real reboot is not known to work, and the day it matters is
 the day nobody is looking.
 
@@ -328,12 +328,12 @@ the database password and the login slips.
 
 | Task | Command |
 |---|---|
-| Is it working? | `.\Scripts\aos-status.ps1` |
-| Restart AOS | `Stop-ScheduledTask -TaskName "PFO Server"` then `Start-ScheduledTask ...` |
+| Is it working? | `.\Scripts\pfo-status.ps1` |
+| Restart PFO | `Stop-ScheduledTask -TaskName "PFO Server"` then `Start-ScheduledTask ...` |
 | Read the log | `Get-Content Backend\supervisor.log -Tail 50` |
 | Back up now | `npm run backup` |
 | Check backups are restorable | `npm run backup:verify --all` |
-| Update AOS | `git pull; npm ci; npm run migrate; npm run build;` restart the task |
+| Update PFO | `git pull; npm ci; npm run migrate; npm run build;` restart the task |
 
 **Practise a restore before you need one.** `npm run restore-drill` rehearses
 the whole procedure against throwaway databases and folders — it never touches

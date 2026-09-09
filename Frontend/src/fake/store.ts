@@ -2300,7 +2300,7 @@ export interface AddBankInput {
   caseId: Id;
   branchOrganisationId: Id;
   /** How the file is intended to go out (master data). Records intent only —
-   * nothing in AOS sends anything. */
+   * nothing in PFO sends anything. */
   submissionModeId?: Id;
   recipients: readonly RecipientDraft[];
 }
@@ -2594,7 +2594,7 @@ export function acceptOffer(offerId: Id, actorUserId: Id): ActionResult {
 // ---------------------------------------------------------------------------
 
 /**
- * The mailbox AOS sends as, when the mail backend has not said otherwise.
+ * The mailbox PFO sends as, when the mail backend has not said otherwise.
  *
  * A display default only. The backend sends as whichever account it is
  * authenticated to, and never fakes a From header — see mail-server.mjs.
@@ -2746,7 +2746,7 @@ function contextForSubmission(submission: Submission, source: Database = db): Su
 
   return {
     customerName: person?.fullName ?? organisation?.canonicalName ?? "The applicant",
-    // AOS's own customer-facing product name (ADR-033). No second loan
+    // PFO's own customer-facing product name (ADR-033). No second loan
     // vocabulary is invented for email.
     loanTypeName: product?.name ?? product?.variant ?? "Loan",
     counterparty: counterpartyOf(submission, source),
@@ -5130,7 +5130,7 @@ export function resetUserPassword(userId: Id, passwordHash: string, actorUserId:
  * succeeds when the user has no case, document or audit history — BR-062
  * says a departed employee's name must survive on everything they touched,
  * and a hard delete of a user with history would silently break that.
- * Deactivate instead for anyone who has ever done anything in AOS.
+ * Deactivate instead for anyone who has ever done anything in PFO.
  */
 export function deleteUser(userId: Id, actorUserId: Id): ActionResult {
   const refusal = authorize(actorUserId, "user.manage", "all");

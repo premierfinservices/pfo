@@ -154,7 +154,7 @@ function parseRoles(value: unknown): Role[] {
 /**
  * Refuse a change that would leave nobody able to administer users.
  *
- * THE FAILURE THIS PREVENTS: AOS has six accounts and no console. If the last
+ * THE FAILURE THIS PREVENTS: PFO has six accounts and no console. If the last
  * active holder of `user.manage` is deactivated, stripped of their roles, or
  * denied the permission by override, there is no supported way back in —
  * recovery means someone with the database password editing `user_role` by

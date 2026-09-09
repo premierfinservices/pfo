@@ -1,5 +1,5 @@
 /**
- * Who is using AOS right now, and what they may do.
+ * Who is using PFO right now, and what they may do.
  *
  * Identity comes from the SERVER as of Stage 3B — `AuthGate` exchanges a
  * bearer token for `GET /api/auth/me` and passes the result here. Before that
@@ -9,7 +9,7 @@
  * Permission answers come from `hasPermissionWithOverrides` in
  * `src/domain/permissions/` — role grants plus this user's own explicit
  * grants and denials, which the server now sends with the session. That is the
- * ONE implementation of this question in AOS: the API's `authorize.ts` calls
+ * ONE implementation of this question in PFO: the API's `authorize.ts` calls
  * the same function on the same catalogue. There is deliberately no
  * frontend-specific permission model, because two implementations of "may
  * they?" is how a button appears for someone the server will refuse.

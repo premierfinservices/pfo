@@ -17,7 +17,7 @@ export const USERS = {
   manager: "Lakshmi Narayanan",
 } as const;
 
-/** The six real AOS employees created for the Employee Authentication milestone. */
+/** The six real PFO employees created for the Employee Authentication milestone. */
 export const EMPLOYEES = {
   telecallerAndLoginExecutive: "Chinna Thambi",
   telecaller: "Jayalakshmi",

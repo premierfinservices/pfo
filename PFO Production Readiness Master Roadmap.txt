@@ -1,4 +1,4 @@
-AOS — PRODUCTION READINESS MASTER ROADMAP
+PFO — PRODUCTION READINESS MASTER ROADMAP
 Checkpoint: 2026-08-12 (office PC — Cutover Gate audit and execution in progress,
   see the OFFICE SERVER PRODUCTION CUTOVER GATE section for status)
 Current commit: see git log
@@ -500,18 +500,18 @@ Home-PC database.
 STATUS as of 2026-08-12, office PC, this checkpoint
 ------------------------------------------------------------
   1. Verified production backup — DONE. Latest verified run:
-     C:\AOS\Backups\2026-08-12_05-56-00 (dump checksum + all 110 document
+     C:\PFO\Backups\2026-08-12_05-56-00 (dump checksum + all 110 document
      files byte-for-byte). Two earlier same-day runs also verify; one older
      pre-checksum-format run does not (expected, not corruption).
   2. All required migrations applied — DONE, including a NEW migration 0036
      found necessary by this same audit (see below). `migrate.mjs --status`:
-     0001 through 0036 all `applied` on the real `aos`, no CHANGED checksums.
+     0001 through 0036 all `applied` on the real `pfo`, no CHANGED checksums.
   3. aos_app configured with a strong production password — DONE (long
      random, generated and verified on this machine, never committed).
   4. Administrative DB credentials kept separate — DONE:
-     AOS_DB_ADMIN_USER=postgres / AOS_DB_ADMIN_PASSWORD set in .env
-     alongside AOS_DB_USER=aos_app, per Docs/Installation.md §5a.
-  5. Production .env configured — DONE for DB role and AOS_WEB_HOST/PORT.
+     PFO_DB_ADMIN_USER=postgres / PFO_DB_ADMIN_PASSWORD set in .env
+     alongside PFO_DB_USER=aos_app, per Docs/Installation.md §5a.
+  5. Production .env configured — DONE for DB role and PFO_WEB_HOST/PORT.
      Gmail (§9) was already configured with real credentials before this
      session (not newly added here).
   6. bootstrap-production — ALREADY DONE in an earlier session (2026-08-10);
@@ -519,22 +519,22 @@ STATUS as of 2026-08-12, office PC, this checkpoint
   7. Five development accounts inactive — CONFIRMED: telecaller.a/b,
      login.exec, manager.m, partner.p all is_active=f. Six real employee
      accounts active.
-  8. LAN binding / production web server — DONE in .env (AOS_WEB_HOST=0.0.0.0,
-     AOS_WEB_PORT=4300); functionally verified (health, login-path smoke
+  8. LAN binding / production web server — DONE in .env (PFO_WEB_HOST=0.0.0.0,
+     PFO_WEB_PORT=4300); functionally verified (health, login-path smoke
      test, reachable at the real LAN IP from this machine). NOT YET started
      as the permanent service — see #9.
-  9. Windows service startup (Scripts/register-aos-services.ps1) —
+  9. Windows service startup (Scripts/register-pfo-services.ps1) —
      NOT DONE. Requires an ELEVATED PowerShell session; this session's
      PowerShell had a UAC-filtered token and could not self-elevate.
      Exact command to run, once, in an elevated window:
-       cd "<repo>"; .\Scripts\register-aos-services.ps1
+       cd "<repo>"; .\Scripts\register-pfo-services.ps1
  10. Scheduled backup (Scripts/register-backup-task.ps1) — NOT DONE, same
      elevation blocker as #9:
        cd "<repo>"; .\Scripts\register-backup-task.ps1 -Time 20:30
-     Then immediately: Start-ScheduledTask -TaskName "AOS Nightly Backup";
+     Then immediately: Start-ScheduledTask -TaskName "PFO Nightly Backup";
      npm run backup:verify
  11. Firewall rule — NOT DONE, same elevation blocker:
-       New-NetFirewallRule -DisplayName "AOS web (4300)" -Direction Inbound `
+       New-NetFirewallRule -DisplayName "PFO web (4300)" -Direction Inbound `
          -Action Allow -Protocol TCP -LocalPort 4300 -Profile Private
      The office Wi-Fi network is already correctly classified Private.
  12. Verify from a second office PC — NOT DONE. Needs a human at a second
@@ -568,14 +568,14 @@ STATUS as of 2026-08-12, office PC, this checkpoint
  19. Verify backup and restore on the real hardware — DONE. A restore-drill
      bug specific to this environment (vite-node choking on a shebang line)
      was found and fixed; 16/16 checks then passed genuinely under aos_app,
-     never touching `aos` or C:\AOS\Data. A full restore of the newest real
-     backup into a disposable "aos_rehearsal" database also succeeded
-     (used to rehearse migration 0036 before applying it to `aos`).
+     never touching `pfo` or C:\PFO\Data. A full restore of the newest real
+     backup into a disposable "pfo_rehearsal" database also succeeded
+     (used to rehearse migration 0036 before applying it to `pfo`).
  20. Designated server / topology recorded — STILL BLANK. Docs/Deployment
      Topology.md's own "still to be recorded" table (server identity, LAN
      IP, backup location, password custodian) needs a human to fill in —
      not guessable from software. NOTE: this machine's automatic IP
-     detection (Scripts/register-aos-services.ps1, aos-status.ps1) picked
+     detection (Scripts/register-pfo-services.ps1, pfo-status.ps1) picked
      a HotspotShield VPN tunnel address instead of the real LAN IP, because
      more than one non-loopback interface exists. The real address is
      192.168.0.102 (DHCP, Wi-Fi, not yet router-reserved) — use that one,
@@ -585,7 +585,7 @@ STATUS as of 2026-08-12, office PC, this checkpoint
      found for a deliberate, separate cleanup decision.
 
   ONE GENUINE PRODUCTION BLOCKER WAS FOUND AND FIXED BY THIS AUDIT:
-  switching AOS_DB_USER to aos_app (required by #3) is the first time this
+  switching PFO_DB_USER to aos_app (required by #3) is the first time this
   ever actually happened on a machine holding real data, and it surfaced a
   real gap nothing had caught before: migration 0033 granted aos_app only
   SELECT on document_type, document_requirement_rule, operational_threshold
@@ -596,9 +596,9 @@ STATUS as of 2026-08-12, office PC, this checkpoint
   migration 0036 (UPDATE only, matching exactly what the API writes; no
   INSERT/DELETE — the master-data vocabulary is closed and additive-only
   through migrations). Backed up, rehearsed against a full restore of the
-  real `aos` data into a disposable database, verified there, verified
-  again end-to-end through the real Playwright suite against aos_e2e, THEN
-  applied to `aos` and reverified. Four smaller, narrower bugs in test/
+  real `pfo` data into a disposable database, verified there, verified
+  again end-to-end through the real Playwright suite against pfo_e2e, THEN
+  applied to `pfo` and reverified. Four smaller, narrower bugs in test/
   backup/restore tooling (never previously exercised under aos_app on any
   machine) were found and fixed the same way — see the commit for detail.
 
@@ -606,7 +606,7 @@ STATUS as of 2026-08-12, office PC, this checkpoint
 WHAT "PRODUCTION READY" MEANS
 ============================================================
 
-AOS is production-ready for the INITIAL production scope when:
+PFO is production-ready for the INITIAL production scope when:
 
   - Authentication and authorization are secure.
   - Sensitive customer information is appropriately protected.
@@ -629,7 +629,7 @@ AOS is production-ready for the INITIAL production scope when:
   - No known BLOCKER remains.
 
 IMPORTANT:
-Production-ready does NOT mean every planned AOS feature is complete.
+Production-ready does NOT mean every planned PFO feature is complete.
 
 Not prerequisites for first production cutover unless the business
 changes scope:
@@ -703,8 +703,8 @@ WHAT CHANGED
    Banks tab can say which are this case's own; package contents remain
    exactly what the operator ticked, so nothing is auto-attached.
 
-7. SESSION LIFECYCLE. An inactivity timeout (AOS_SESSION_IDLE_MS, default 5min)
-   alongside the existing absolute lifetime (AOS_SESSION_TTL_MS, 12h), both
+7. SESSION LIFECYCLE. An inactivity timeout (PFO_SESSION_IDLE_MS, default 5min)
+   alongside the existing absolute lifetime (PFO_SESSION_TTL_MS, 12h), both
    checked server-side on every request; a lapsed session is REVOKED, on its
    own connection so the 401's transaction rollback cannot discard it. The
    browser token moved from localStorage to sessionStorage, so closing the
@@ -733,18 +733,18 @@ A session opened on the office PC to "begin Phase 6" found the checkout
 already at 4e82ab1 (this commit), 0 commits ahead/behind origin/main —
 Phase 6 had already been implemented and pushed from elsewhere. Rather than
 redo or re-scope it, this session verified the claims above hold in the
-actual office environment, against the real office `aos` database:
-  - `node Backend/migrate.mjs --status` (read-only) against `aos` (the
-    office PC's .env points AOS_DB_NAME at `aos`, not a test database):
+actual office environment, against the real office `pfo` database:
+  - `node Backend/migrate.mjs --status` (read-only) against `pfo` (the
+    office PC's .env points PFO_DB_NAME at `pfo`, not a test database):
     migration 0035 is APPLIED to the office database. The note this Phase 6
     section originally wrote — that 0035 had been applied only to
-    aos_test/aos_e2e — was stale; it has since been applied to `aos` too.
+    pfo_test/pfo_e2e — was stale; it has since been applied to `pfo` too.
     It is additive (nullable columns, one defaulted column, three
     document_type row updates), so this caused no discontinuity.
   - `npm run typecheck`: clean.
   - `npm test`: 642/642 unit tests passed.
-  - `npm run test:integration` (hard-wired to aos_test, verified via
-    vitest.integration.config.ts before running — never touches `aos`):
+  - `npm run test:integration` (hard-wired to pfo_test, verified via
+    vitest.integration.config.ts before running — never touches `pfo`):
     202/202 passed, including Backend/security.test.ts and
     Backend/security-workflows.test.ts, which Phase 4's note had flagged as
     failing to spawn their child aos_app server in an isolated worktree —
@@ -777,8 +777,8 @@ REMAINING DEVELOPMENT:
 THEN:
   Office Server Production Cutover Gate (unstarted — see the 21-step
   checklist above; nothing in Phase 6 advances or substitutes for it.
-  Migration 0035 is now confirmed applied to the office `aos` database
-  itself, not only aos_test/aos_e2e — see the 2026-08-12 office-PC
+  Migration 0035 is now confirmed applied to the office `pfo` database
+  itself, not only pfo_test/pfo_e2e — see the 2026-08-12 office-PC
   verification note at the end of this Phase 6 section. This does not
   advance the cutover gate; the remaining 21 steps are still unstarted)
 
@@ -809,7 +809,7 @@ If a newly discovered issue is a genuine production blocker, attach
 it to the closest existing phase or explicitly flag it for roadmap
 review before implementation.
 
-The goal is not to make AOS perfect.
+The goal is not to make PFO perfect.
 
 The goal is to make the defined initial production workflow safe,
 reliable, secure, recoverable and usable with real client data.

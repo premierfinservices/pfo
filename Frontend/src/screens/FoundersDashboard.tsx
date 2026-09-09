@@ -25,7 +25,7 @@
  * (session.tsx's own rule, BR-060).
  *
  * "Needs attention" and "Tasks" are the one place this screen goes further
- * than a raw read: AOS has no task/communication/note API yet (the tables and
+ * than a raw read: PFO has no task/communication/note API yet (the tables and
  * permissions exist, Backend has no routes for them), so this derives real,
  * closed-vocabulary signals — a case sitting past its stage's configured
  * threshold (`operational_threshold`, ADR-025), or a hold whose follow-up date

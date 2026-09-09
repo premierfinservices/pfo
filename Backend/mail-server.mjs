@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The local mail backend — the one place in AOS that knows what Gmail is.
+ * The local mail backend — the one place in PFO that knows what Gmail is.
  *
  * Scope, deliberately narrow, exactly as `storage-server.mjs` is narrow: take
  * one fully-composed message and send it. It does not choose recipients, write
@@ -9,7 +9,7 @@
  * because two things cannot happen in a browser tab: holding an OAuth refresh
  * token, and speaking to Gmail's API without CORS.
  *
- *   AOS submission domain
+ *   PFO submission domain
  *          ↓
  *   EmailProvider              src/domain/communications/email-provider.ts
  *          ↓
@@ -83,7 +83,7 @@ const PORT = Number(process.env.PFO_MAIL_PORT ?? 4320);
 const PROVIDER = (process.env.PFO_MAIL_PROVIDER ?? "unconfigured").trim().toLowerCase();
 
 /**
- * The mailbox AOS sends as.
+ * The mailbox PFO sends as.
  *
  * This is a DEFAULT for display, not an authorisation. Gmail sends as
  * whichever account the refresh token belongs to regardless of what is put on
@@ -557,7 +557,7 @@ if (requestedMailHost && requestedMailHost !== "127.0.0.1" && requestedMailHost 
 }
 
 listenOrExplain(server, PORT, "127.0.0.1", "mail backend", () => {
-  console.log(`AOS mail backend listening on http://127.0.0.1:${PORT} (loopback only)`);
+  console.log(`PFO mail backend listening on http://127.0.0.1:${PORT} (loopback only)`);
   if (PROVIDER === "capture") {
     console.log("");
     console.log("  *** MAIL PROVIDER: capture — NOTHING WILL BE SENT ***");

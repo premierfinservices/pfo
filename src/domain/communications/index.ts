@@ -1,5 +1,5 @@
 /**
- * How AOS talks to the outside world (ADR-039).
+ * How PFO talks to the outside world (ADR-039).
  *
  * Two seams, deliberately unlike each other:
  *

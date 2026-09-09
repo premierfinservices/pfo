@@ -22,7 +22,7 @@ at once, sometimes over time.
 
 If Customer and Referrer are separate tables, that one human becomes three rows
 with three phone numbers that drift apart, and "have we dealt with this person
-before?" becomes unanswerable — which is exactly the question AOS exists to
+before?" becomes unanswerable — which is exactly the question PFO exists to
 answer.
 
 **Fix:** one `person` table. Roles are *relationships*, held in separate tables,
@@ -107,7 +107,7 @@ complexity does it add, and is that complexity justified now.
 
 ### Identity
 
-**person** — every human AOS knows, exactly once.
+**person** — every human PFO knows, exactly once.
 Fields: person_id (permanent, system-generated, meaningless), full name, date of
 birth, address, created_at, created_by.
 Identity rule: **the Person ID is the identity.** It never changes and is never
@@ -132,7 +132,7 @@ recycled and therefore never definitive alone. Validity dates are what make
 recycled numbers safe — a 2024 call is attributed to whoever held the number in
 2024. Full model in `Identity Resolution.md` Part 3 and ADR-013.
 
-**user** — a person who can log into AOS. One-to-one with person, optional.
+**user** — a person who can log into PFO. One-to-one with person, optional.
 Fields: person_id, **auth_identity_id**, active, last_login.
 `auth_identity_id` is the link to the authentication provider's session identity.
 It is the field **every RLS policy depends on** — a policy asks "which user is
@@ -378,7 +378,7 @@ Three tables that exist because ADR-025 refused a settings module. There is no
 key-value configuration table; configurable-without-a-code-change is achieved per
 kind of thing, and each kind gets the shape that suits it.
 
-**document_type** — the kinds of document AOS recognises.
+**document_type** — the kinds of document PFO recognises.
 Fields: code, name, description, owner_kind (person / property / organisation /
 case), requires_period, requires_expiry, active, display_order.
 Referenced by `document` and `document_requirement`. A table rather than an enum
@@ -554,7 +554,7 @@ Read as sentences:
    advice.
 2. **Login fees.** Are they tracked per submission as money owed and collected?
    If yes, it may pull a small payments concept into scope.
-3. **Referrer commissions.** Calculated and tracked in AOS, or handled outside?
+3. **Referrer commissions.** Calculated and tracked in PFO, or handled outside?
    Tracking them means payouts, which is real scope.
 4. ~~**Case numbering.**~~ **Resolved by ADR-024:** `AL-YYYY-NNNNN`, sequential
    within the calendar year, allocated at creation, immutable, nothing encoded.

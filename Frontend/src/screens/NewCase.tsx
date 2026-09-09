@@ -5,7 +5,7 @@
  *
  * It captures the small set of facts the document requirement engine needs to
  * produce a correct checklist, and nothing else. It is not a data-entry form
- * for everything AOS knows about a customer — that is the person's profile,
+ * for everything PFO knows about a customer — that is the person's profile,
  * filled over time — and it is not a substitute for the case screen, where
  * every answer here is correctable afterwards.
  *
@@ -23,7 +23,7 @@
  * PROGRESSIVE DISCLOSURE, AND WHY IT IS NOT A STYLE CHOICE
  *
  * This form is filled DURING a phone call. Forty fields on screen is a form
- * the telecaller fills in afterwards from notes, which is the moment AOS stops
+ * the telecaller fills in afterwards from notes, which is the moment PFO stops
  * being used live and starts being a filing system. So: pick the loan type,
  * and only the questions that loan type can answer appear. A gold loan reveals
  * no business section, because a gold loan is underwritten on the ornaments.

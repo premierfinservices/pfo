@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * One process that runs and keeps running the whole AOS backend.
+ * One process that runs and keeps running the whole PFO backend.
  *
  * WHY (Stage 4 audit, H5). The office had no service lifecycle at all: no
  * auto-start on reboot, no supervision, no restart policy. The only documented
- * way to start AOS was `npm run dev` in a terminal window — a window that gets
+ * way to start PFO was `npm run dev` in a terminal window — a window that gets
  * closed, on a PC that gets rebooted for Windows Update at 3am, after which
  * the office arrives to an application that is simply not there and no
  * indication of why. `Backend/free-dev-ports.mjs` exists precisely because
@@ -12,13 +12,13 @@
  *
  * WHAT IT DOES, and deliberately nothing more:
  *
- *   - Starts the four AOS processes in dependency order and waits for each to
+ *   - Starts the four PFO processes in dependency order and waits for each to
  *     answer its health endpoint before starting the next. Starting the API
  *     before PostgreSQL accepts connections is the single most common cause of
- *     a "broken" AOS after a power cut, and it is entirely avoidable.
+ *     a "broken" PFO after a power cut, and it is entirely avoidable.
  *   - Restarts any child that exits, with exponential backoff. A process that
  *     is crash-looping is not helped by being restarted 200 times a second,
- *     and the backoff is what turns "AOS is down" into a log with a pattern
+ *     and the backoff is what turns "PFO is down" into a log with a pattern
  *     in it.
  *   - Kills the whole tree on shutdown, so Ctrl-C or a service stop does not
  *     leave orphans holding ports 4300/4319/4320/4321 — the exact failure
@@ -34,7 +34,7 @@
  *
  * Usage:
  *   npm run start:production      run it in the foreground
- *   Scripts/register-aos-services.ps1   register it to start at boot
+ *   Scripts/register-pfo-services.ps1   register it to start at boot
  */
 
 import { spawn } from "node:child_process";
@@ -110,7 +110,7 @@ const LOCK_FILE = path.join(ROOT, "Backend", "supervisor.pid");
  * Refuse to start if another supervisor is already running.
  *
  * FOUND BY RUNNING IT. Two supervisors on one machine do not politely coexist:
- * each sweeps AOS's ports for leftover Node processes at startup, so each
+ * each sweeps PFO's ports for leftover Node processes at startup, so each
  * kills the OTHER's children, and both then crash-loop on EADDRINUSE while
  * the office sees an application that flickers in and out. It looks exactly
  * like a crash bug and is nothing of the sort.
@@ -132,7 +132,7 @@ function claimSingleInstance() {
       try {
         process.kill(previous, 0);
         console.error(
-          `\n  An AOS supervisor is already running on this machine (PID ${previous}).\n\n` +
+          `\n  An PFO supervisor is already running on this machine (PID ${previous}).\n\n` +
             `  Two supervisors fight over the same ports and repeatedly kill each\n` +
             `  other's services. Stop the running one first:\n\n` +
             `      Stop-ScheduledTask -TaskName 'PFO Server'\n` +
@@ -186,7 +186,7 @@ async function waitForHealth(url, timeoutMs) {
  * On a Windows reboot the PostgreSQL service and this supervisor start at
  * roughly the same moment, and Postgres routinely takes longer. Without this
  * wait the API comes up, fails every request for thirty seconds, and an
- * employee who happened to log in during that window is told AOS is broken.
+ * employee who happened to log in during that window is told PFO is broken.
  */
 async function waitForPostgres() {
   const pg = (await import("pg")).default;
@@ -220,7 +220,7 @@ async function waitForPostgres() {
   }
 
   log("postgres", "STILL NOT REACHABLE after 2 minutes. Starting the rest anyway;");
-  log("postgres", "AOS will report a clear database error to employees until it comes back.");
+  log("postgres", "PFO will report a clear database error to employees until it comes back.");
   return false;
 }
 
@@ -274,7 +274,7 @@ function start(service) {
  *
  * `child.kill()` on Windows terminates only the process it names. `vite-node`
  * and `npm` both leave grandchildren holding the listening socket, which is
- * how a "stopped" AOS keeps port 4321 busy and the next start fails with
+ * how a "stopped" PFO keeps port 4321 busy and the next start fails with
  * EADDRINUSE. `taskkill /T` walks the tree.
  */
 function shutdown(reason) {
@@ -320,10 +320,10 @@ async function main() {
    * supervisor was force-killed rather than signalled, and its web-server
    * child survived holding port 4300 — Windows does not tear down a process
    * tree when an ancestor dies. Without this sweep the next start finds every
-   * port taken, crash-loops on EADDRINUSE, and the office arrives to an AOS
+   * port taken, crash-loops on EADDRINUSE, and the office arrives to an PFO
    * that "did not come back after the reboot" for a reason nobody can see.
    *
-   * Only AOS's own four ports, and only PIDs confirmed to be node.exe — the
+   * Only PFO's own four ports, and only PIDs confirmed to be node.exe — the
    * same discipline `free-dev-ports.mjs` has always applied. It will never
    * touch PostgreSQL, which is not a Node process and not on these ports.
    */

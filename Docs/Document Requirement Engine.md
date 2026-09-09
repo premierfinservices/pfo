@@ -11,10 +11,10 @@ The engine decides **which documents a case needs**. Nothing else.
 
 Before this milestone, that answer lived in `if` statements: a `KYC` array, a
 `SECURED_PRODUCTS` set, a branch per product. Adding a product meant editing
-code, and the office had no way to see — let alone change — what AOS would ask
+code, and the office had no way to see — let alone change — what PFO would ask
 a customer for.
 
-Now every document AOS asks for is generated from a **rule row**. There is no
+Now every document PFO asks for is generated from a **rule row**. There is no
 fixed checklist anywhere in the application. A loan manager can read all 105
 rules on the Document Rules screen, change what is asked for, and take a rule
 out of service, without a developer and without a deploy.

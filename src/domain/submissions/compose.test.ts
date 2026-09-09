@@ -62,7 +62,7 @@ describe("subject", () => {
     );
   });
 
-  it("uses the customer-facing loan name AOS already holds, not a new one", () => {
+  it("uses the customer-facing loan name PFO already holds, not a new one", () => {
     // ADR-033's name, verbatim. This test exists so nobody "tidies" the
     // subject into a shorter invented product vocabulary.
     expect(composeSubject(CONTEXT, batch([gst]), 1)).toContain("Machinery and Equipment Loan");
@@ -172,7 +172,7 @@ describe("body", () => {
   });
 
   it("does not invent an honorific for the customer", () => {
-    // AOS holds no gender for anybody. "Mr." derived from a name is a guess,
+    // PFO holds no gender for anybody. "Mr." derived from a name is a guess,
     // and a letter to a bank is a bad place to guess.
     expect(body).not.toMatch(/\bMr\.|\bMrs\.|\bMs\./);
   });

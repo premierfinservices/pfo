@@ -1,4 +1,4 @@
-# AOS — Amaze Operating System
+# PFO — Amaze Operating System
 
 The internal operating system for Premier Finservices.
 
@@ -35,7 +35,7 @@ The PRD folder is the source of truth. Code follows the PRD, never the reverse.
 2. **`Product Principles.md`** — the tie-breakers. ✅
 3. **`Business Rules.md`** — the invariants. Implementation-independent. ✅
 4. **`Data Model.md`** — entities and relationships. ✅
-5. **`Identity Resolution.md`** — how AOS finds anything from a half-remembered
+5. **`Identity Resolution.md`** — how PFO finds anything from a half-remembered
    fragment. ✅
 6. **`Requirements and Progress.md`** — contextual completeness; why an absent
    optional participant never lowers a score. ✅

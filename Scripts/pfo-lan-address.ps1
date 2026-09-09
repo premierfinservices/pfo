@@ -3,8 +3,8 @@
     Work out which IPv4 address employees actually reach this machine on.
 
 .DESCRIPTION
-    Dot-source this file and call Get-AosLanAddress. Used by aos-status.ps1 and
-    register-aos-services.ps1, which must never disagree about the answer.
+    Dot-source this file and call Get-AosLanAddress. Used by pfo-status.ps1 and
+    register-pfo-services.ps1, which must never disagree about the answer.
 
     WHY THIS EXISTS: both callers print an address to the operator as the URL to
     bookmark and to record in Docs/Deployment Topology.md. The original one-liner
@@ -26,7 +26,7 @@
     real server hardware is HardwareInterface $false but may be the true LAN
     path. Refusing to answer is recoverable; answering wrongly is not.
 
-    NOTE ON ENCODING: plain ASCII, for the reason given in aos-status.ps1.
+    NOTE ON ENCODING: plain ASCII, for the reason given in pfo-status.ps1.
     Windows PowerShell 5.1 reads a BOM-less file as ANSI and a stray dash
     becomes a parse error.
 #>

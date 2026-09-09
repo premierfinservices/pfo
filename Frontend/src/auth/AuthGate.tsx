@@ -1,5 +1,5 @@
 /**
- * Session gate — the one place AOS decides "is anyone logged in, and who".
+ * Session gate — the one place PFO decides "is anyone logged in, and who".
  *
  * STAGE 3B CHANGED WHERE THE ANSWER COMES FROM. It used to be a user id in
  * localStorage resolved against the prototype store's own `db.users`, which

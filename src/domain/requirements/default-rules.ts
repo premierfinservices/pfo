@@ -8,8 +8,8 @@
  * Sensible defaults, researched against how banks and NBFCs lending in Tamil
  * Nadu actually ask for paperwork — and nothing more than defaults. Every rule
  * here is seeded into `document_requirement_rule` and is editable by a
- * business user afterwards. This file is what a fresh AOS starts life
- * believing; it is not what AOS enforces forever.
+ * business user afterwards. This file is what a fresh PFO starts life
+ * believing; it is not what PFO enforces forever.
  *
  * That distinction is the reason the file exists at all. The alternative —
  * shipping an empty rule table and asking someone to type ninety rules on day
@@ -233,7 +233,7 @@ interface RuleInput {
    * generating anything but is worth keeping legible — see the three
    * non-customer artifacts at the end of the pack. Distinct from
    * `applicability: "not_applicable"`, which is "this situation does not need
-   * the document"; this is "AOS should never have been asking a customer for
+   * the document"; this is "PFO should never have been asking a customer for
    * it at all".
    */
   active?: boolean;
@@ -1567,7 +1567,7 @@ export const DEFAULT_REQUIREMENT_RULES: readonly RequirementRule[] = [
   // `not_applicable` the ordinary way (BR-034). Turning any of them back on is
   // one click in the Document Rules screen if the business disagrees.
   //
-  // None of this removes the documents from AOS. The login form and the NACH
+  // None of this removes the documents from PFO. The login form and the NACH
   // mandate belong to the submission workflow, which knows which lender was
   // chosen; the Amaze application form is internal paperwork. All three remain
   // in the catalogue, uploadable against the case as Additional Documents.
@@ -1618,7 +1618,7 @@ export const DEFAULT_REQUIREMENT_RULES: readonly RequirementRule[] = [
  * Asserted by default-rules.test.ts rather than enforced at runtime, on
  * purpose: the rule table is master data a business user edits, and a save
  * that silently did nothing would be worse than a rule that generates a row
- * somebody can see and turn off. What this guarantees is that the pack AOS
+ * somebody can see and turn off. What this guarantees is that the pack PFO
  * SHIPS never puts a bank's or Amaze's own paperwork on a collection list.
  */
 export function activeRulesAskingForNonCustomerDocuments(): RequirementRule[] {

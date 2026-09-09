@@ -115,7 +115,7 @@ async function main() {
 
   const manifest = JSON.parse(await readFile(path.join(backupDir, "manifest.json"), "utf8"));
   console.log(
-    `AOS restore — from ${backupDir}\n` +
+    `PFO restore — from ${backupDir}\n` +
       `  into database "${targetDb}" on ${config.host}:${config.port}\n` +
       `  documents into "${targetDocuments}"\n\n` +
       `  Backup taken ${manifest.takenAt} of "${manifest.database}"\n`,

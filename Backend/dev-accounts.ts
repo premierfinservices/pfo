@@ -23,7 +23,7 @@ import type pg from "pg";
  * Historically these shared one password written down in that file, which made
  * every one of them a way into the office database for anyone who had read the
  * repository — `partner.p` most of all, since `managing_partner` is the widest
- * role AOS has. `seed-users.ts` no longer publishes a password, but any
+ * role PFO has. `seed-users.ts` no longer publishes a password, but any
  * database seeded before that change still holds accounts that do, and nothing
  * can tell the difference from the outside. So production disables all five,
  * always.
