@@ -242,17 +242,31 @@ confirmed: `pfo`. Ran on Unfold Media Corp PC (the production server).
 - Verified: `npm run typecheck` clean; `npm test` (655 tests, no DB
   involved) green; grep confirms zero remaining `AOS_[A-Z_]+` outside the
   deliberately-excluded files.
-- **NOT YET DONE — the actual cutover**: production `.env` on Unfold PC
-  still has the old `AOS_*` names (unchanged — editing it is the live,
-  hard-to-reverse-if-mishandled step, held for explicit go-ahead), the
-  `AOS Server` task has not been restarted, and the home PC's `.env` was
-  not reachable from this session at all. Until `.env` on both machines is
-  updated to `PFO_*` and the task restarted, production keeps running on
-  the pre-Phase-4 checkout — `Backend/env.mjs` only fills in vars not
-  already set, so the old `.env` file's `AOS_*` keys are simply not read
-  by the new code's `PFO_*` lookups, meaning **the current running
-  process must not be restarted onto this commit until `.env` is updated
-  in the same window**, or it starts with unset config.
+- **Unfold PC `.env` cutover: DONE.** All 19 `AOS_*` keys mirrored to
+  `PFO_*` (same values), then the old `AOS_*` lines removed — `.env` is
+  now `PFO_*`-only.
+- **Task restart: BLOCKED on elevation, same limitation as Phase 7.** The
+  running supervisor (PID 8960 at the time, spawned by the `AOS Server`
+  task under its own service-account context) refused a second instance
+  via its own single-instance lock (`Backend/supervisor.mjs`'s
+  `claimSingleInstance()` — by design, see its own comment about two
+  supervisors fighting over ports). `Stop-ScheduledTask` from this
+  non-elevated session did not actually kill it — no error, just a no-op —
+  and a direct `taskkill /PID 8960 /T /F` returned "Access is denied" on
+  every process in the tree. **The old (pre-rename) process is still
+  running right now, healthy, on its original in-memory config —
+  confirmed via `http://127.0.0.1:4321/api/health/detail` returning
+  `{"ok":true,"database":"up","storage":"up","mail":"up"}`. No outage, but
+  the rename has not actually gone live yet.** To finish: from an
+  ELEVATED PowerShell prompt on Unfold PC, run
+  `Stop-ScheduledTask -TaskName "AOS Server"` (add
+  `taskkill /PID <pid in Backend/supervisor.pid> /T /F` if that alone
+  doesn't clear it), then `Start-ScheduledTask -TaskName "AOS Server"`,
+  then verify `Backend/supervisor.log` shows a fresh startup sequence and
+  `http://<LAN IP>:4300` still logs in.
+- Home PC's `.env` was not reachable from this session at all — needs the
+  same `AOS_*` → `PFO_*` update done there separately before its own dev
+  stack matches this commit.
 - **Coordination requirement**: `.env` is git-ignored and per-machine. Both
   the home PC's `.env` and Unfold PC's production `.env` must be updated
   to the new var names in the same maintenance window the code ships,
