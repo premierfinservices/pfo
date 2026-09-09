@@ -139,13 +139,48 @@ answer in this table is worse than a blank one.
 
 | | |
 |---|---|
-| Server PC (make / asset tag / location) | MAIN-PC (Amaze PC) — *(asset tag / physical location not yet recorded)* |
-| Server LAN IP, static or DHCP-reserved | `192.168.0.101` on the `192.168.0.0/24` office LAN — *(DHCP reservation status not yet recorded)* |
+| Server PC (make / asset tag / location) | **UNFOLDMEDIACORP** — *(asset tag / physical location not yet recorded)* |
+| Server LAN IP, static or DHCP-reserved | `192.168.0.101` on the `192.168.0.0/24` office LAN — *(DHCP reservation status not yet recorded; reserve it in the router against this PC's MAC address before go-live)* |
 | URL employees use | `http://192.168.0.101:4300` |
-| Backup destination (physical location) | `F:\AOS-Backups` on MAIN-PC — *(offsite/physical copy arrangement not yet recorded)* |
+| Backup destination (physical location) | `C:\AOS\Backups` on UNFOLDMEDIACORP — *(offsite/physical copy arrangement not yet recorded)* |
 | Who holds the database password and the login slips | *(not yet recorded)* |
 
-Other known LAN client: UNFOLDMEDIACORP at `192.168.0.102` (browser-only, runs nothing, per the rule above).
+**2026-09-07 — server moved to UNFOLDMEDIACORP.** This PC now runs PostgreSQL
+and all four AOS processes, registered to start at boot (`AOS Server` /
+`AOS Nightly Backup` scheduled tasks), with inbound TCP 4300 open on the
+Private profile and a verified backup taken same day. It holds the real
+production database and document store (confirmed, not inferred from this
+checkout).
+
+MAIN-PC was previously documented here as the server at this same IP,
+`192.168.0.101` — that record was stale; production has in fact been running
+on UNFOLDMEDIACORP since 2026-09-07. **2026-09-09 — MAIN-PC crashed and is
+unrecoverable.** It cannot rejoin the LAN, so the IP-collision / silently
+diverging second copy risk described above is closed. The office now runs
+on exactly two machines: the home PC (development only) and UNFOLDMEDIACORP
+(production server, and also development — see below).
+
+## UNFOLDMEDIACORP also does development work
+
+With MAIN-PC gone, UNFOLDMEDIACORP is used for both running production and
+day-to-day development. That is only safe under strict isolation, since this
+one physical machine now hosts both the real `aos` database/`C:\AOS\Data`
+**and** whatever a dev session touches:
+
+- Development processes here use a separate, disposable database (e.g.
+  `aos_dev`) — never `aos`.
+- Development processes bind `AOS_WEB_HOST=127.0.0.1` and use ports distinct
+  from production's 4300/4321/4319/4320 — never `0.0.0.0`, never the
+  production ports.
+- Development processes point `AOS_STORAGE_ROOT` at a disposable local
+  folder — never `C:\AOS\Data`.
+- The production `AOS Server` scheduled task (boot trigger, runs regardless
+  of who is logged in) is left running throughout; a `npm run dev` session
+  here is a second, separate process tree alongside it, not a replacement.
+
+This does not relax "the rule" above — it is still true that only one set of
+processes may bind the real database/storage/port 4300. It just means the
+same PC now hosts two fully separated stacks side by side.
 
 A server whose IP changes on reboot breaks every bookmark in the office
 silently — reserve it in the router against that PC's MAC address before
