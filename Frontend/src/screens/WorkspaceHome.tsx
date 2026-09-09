@@ -31,7 +31,12 @@ export function WorkspaceHome(): ReactNode {
   const session = useSession();
   const cases = useApiQuery<readonly ApiCase[]>("/cases");
 
-  const all = cases.data ?? [];
+  // Practice cases stay visible in All Cases/search (CaseList.tsx renders
+  // `cases.data` directly, unfiltered, with a badge) but must never reach a
+  // dashboard tile, so the filter lives here, at the one place this
+  // screen's tiles and FoundersDashboard's tiles both derive `all`/`active`
+  // from.
+  const all = (cases.data ?? []).filter((c) => !c.isPractice);
   const active = useMemo(
     () => all.filter((c) => c.stage !== "closed" && c.stage !== "lost"),
     [all],
