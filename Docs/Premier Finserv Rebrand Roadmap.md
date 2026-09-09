@@ -550,16 +550,17 @@ What was done:
 
 ### Outstanding
 
-- **Reboot verification not yet done.** Same caveat every boot-trigger
-  registration carries (see Phase-general note in Installation.md): an
-  auto-start that has never survived a real reboot is not known to work.
-  Reboot Unfold PC at a convenient time, then re-run `aos-status.ps1`
-  before deleting the disabled `AOS Server`/`AOS Nightly Backup` tasks.
+- **Reboot verification: DONE (2026-09-09, 16:45).** Unfold PC rebooted;
+  `aos-status.ps1` afterward showed `PFO Server` auto-started cleanly via
+  its `BootTrigger` with no manual intervention — `Running`, result code
+  `267009` (`SCHED_S_TASK_RUNNING`, the expected code for an active
+  boot-triggered task, not an error). Web/API/storage/mail/Postgres all
+  UP, document store intact (110 files, 27.5 MB).
 - **Tonight's 20:30 scheduled run of `PFO Nightly Backup` not yet
   observed** — today's verification was a manual `Start-ScheduledTask`,
   not the trigger firing on its own. Check `C:\PFO\Backups\backup-log.txt`
   tomorrow morning.
-- Once both of the above are confirmed, remove the disabled `AOS Server`
+- Once the backup trigger is confirmed, remove the disabled `AOS Server`
   / `AOS Nightly Backup` tasks: `Unregister-ScheduledTask -TaskName "AOS
   Server" -Confirm:$false` (and the backup equivalent).
 
