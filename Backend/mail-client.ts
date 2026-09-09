@@ -28,7 +28,7 @@ function toBase64(bytes: Uint8Array): string {
 }
 
 export function createHttpEmailProvider(
-  baseUrl: string = process.env.AOS_MAIL_SERVER_URL ?? DEFAULT_BASE_URL,
+  baseUrl: string = process.env.PFO_MAIL_SERVER_URL ?? DEFAULT_BASE_URL,
 ): EmailProvider {
   const url = baseUrl.replace(/\/$/, "");
 

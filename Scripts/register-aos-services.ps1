@@ -26,7 +26,7 @@
 
 .PARAMETER User
     Windows account to run as. Defaults to the current user. Needs to be able to
-    read the repo, read/write AOS_STORAGE_ROOT, and reach PostgreSQL.
+    read the repo, read/write PFO_STORAGE_ROOT, and reach PostgreSQL.
 
 .PARAMETER TaskName
     Default "AOS Server".
@@ -84,10 +84,10 @@ $webHost = "127.0.0.1"
 $webPort = "4300"
 $lanIp = ""
 foreach ($line in Get-Content $EnvFile) {
-    if ($line -match '^\s*AOS_API_HOST\s*=\s*(.+?)\s*$') { $apiHost = $Matches[1].Trim('"').Trim("'") }
-    if ($line -match '^\s*AOS_WEB_HOST\s*=\s*(.+?)\s*$') { $webHost = $Matches[1].Trim('"').Trim("'") }
-    if ($line -match '^\s*AOS_WEB_PORT\s*=\s*(.+?)\s*$') { $webPort = $Matches[1].Trim('"').Trim("'") }
-    if ($line -match '^\s*AOS_LAN_IP\s*=\s*(.+?)\s*$') { $lanIp = $Matches[1].Trim('"').Trim("'") }
+    if ($line -match '^\s*PFO_API_HOST\s*=\s*(.+?)\s*$') { $apiHost = $Matches[1].Trim('"').Trim("'") }
+    if ($line -match '^\s*PFO_WEB_HOST\s*=\s*(.+?)\s*$') { $webHost = $Matches[1].Trim('"').Trim("'") }
+    if ($line -match '^\s*PFO_WEB_PORT\s*=\s*(.+?)\s*$') { $webPort = $Matches[1].Trim('"').Trim("'") }
+    if ($line -match '^\s*PFO_LAN_IP\s*=\s*(.+?)\s*$') { $lanIp = $Matches[1].Trim('"').Trim("'") }
 }
 
 $node = (Get-Command node -ErrorAction SilentlyContinue).Source
@@ -101,19 +101,19 @@ Write-Host "  Command       $node $Supervisor"
 Write-Host "  Working dir   $RepoRoot"
 Write-Host "  Log           $LogFile"
 Write-Host ""
-Write-Host "  AOS_WEB_HOST  $webHost"
-Write-Host "  AOS_API_HOST  $apiHost"
+Write-Host "  PFO_WEB_HOST  $webHost"
+Write-Host "  PFO_API_HOST  $apiHost"
 Write-Host ""
 
 if ($webHost -eq "127.0.0.1" -or $webHost -eq "localhost") {
-    Write-Warning "AOS_WEB_HOST is $webHost  -  AOS will run but NO OTHER PC WILL BE ABLE TO REACH IT."
-    Write-Warning "On the office server set AOS_WEB_HOST=0.0.0.0 in .env, then re-run this script."
+    Write-Warning "PFO_WEB_HOST is $webHost  -  AOS will run but NO OTHER PC WILL BE ABLE TO REACH IT."
+    Write-Warning "On the office server set PFO_WEB_HOST=0.0.0.0 in .env, then re-run this script."
     Write-Host ""
 } else {
     $lan = Get-AosLanAddress -Override $lanIp
     if ($lan.Address) {
         $via = ""
-        if ($lan.Source -eq "override") { $via = "   (from AOS_LAN_IP)" }
+        if ($lan.Source -eq "override") { $via = "   (from PFO_LAN_IP)" }
         Write-Host "  Employees will reach AOS at:  http://$($lan.Address)`:$webPort$via"
         Write-Host "  Make sure that address is static or DHCP-reserved, and record it in"
         Write-Host "  Docs/Deployment Topology.md. A server whose IP changes on reboot breaks"
@@ -128,7 +128,7 @@ if ($webHost -eq "127.0.0.1" -or $webHost -eq "localhost") {
         } else {
             Write-Host "  No connected physical interface has a usable IPv4 address."
         }
-        Write-Host "  Set AOS_LAN_IP in .env to the address employees should use, record"
+        Write-Host "  Set PFO_LAN_IP in .env to the address employees should use, record"
         Write-Host "  it in Docs/Deployment Topology.md, and re-run this script. Do not"
         Write-Host "  guess: a wrong address is bookmarked office-wide and fails silently."
     }

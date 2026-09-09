@@ -17,7 +17,7 @@
  *
  * So: one small process, no dependencies, that does the two things the office
  * actually needs. `npm run build` produces `Frontend/dist`; this serves it and
- * forwards `/api` to `AOS_API_PORT`, keeping the browser's requests
+ * forwards `/api` to `PFO_API_PORT`, keeping the browser's requests
  * same-origin exactly as they are in development. Nothing about the frontend
  * changes between a developer's machine and the office.
  *
@@ -32,9 +32,9 @@
  *   npm run web-server     serve it
  *
  * Configuration:
- *   AOS_WEB_PORT   default 4300 — what employees put in their browser
- *   AOS_WEB_HOST   default 127.0.0.1; the office server sets 0.0.0.0
- *   AOS_API_PORT   default 4321 — where /api is forwarded, always loopback
+ *   PFO_WEB_PORT   default 4300 — what employees put in their browser
+ *   PFO_WEB_HOST   default 127.0.0.1; the office server sets 0.0.0.0
+ *   PFO_API_PORT   default 4321 — where /api is forwarded, always loopback
  */
 
 import { createServer, request as httpRequest } from "node:http";
@@ -51,16 +51,16 @@ loadDotEnv();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, "..", "Frontend", "dist");
 
-const PORT = Number(process.env.AOS_WEB_PORT ?? 4300);
-const HOST = process.env.AOS_WEB_HOST?.trim() || "127.0.0.1";
-const API_PORT = Number(process.env.AOS_API_PORT ?? 4321);
+const PORT = Number(process.env.PFO_WEB_PORT ?? 4300);
+const HOST = process.env.PFO_WEB_HOST?.trim() || "127.0.0.1";
+const API_PORT = Number(process.env.PFO_API_PORT ?? 4321);
 
 /**
  * The API is reached over loopback even when this server is on the LAN.
  *
  * That is the point of the split: employees talk to THIS process, which is the
  * only one listening on the network, and it is the only thing that talks to
- * the API. Setting AOS_API_HOST=0.0.0.0 as well is possible but unnecessary —
+ * the API. Setting PFO_API_HOST=0.0.0.0 as well is possible but unnecessary —
  * and every port not open is a port nobody has to reason about.
  */
 const API_HOST = "127.0.0.1";
@@ -220,7 +220,7 @@ listenOrExplain(server, PORT, HOST, "web server", () => {
   console.log(`  Serving ${DIST}`);
   console.log(`  /api -> http://${API_HOST}:${API_PORT}`);
   if (HOST === "127.0.0.1" || HOST === "localhost") {
-    console.log("  Loopback only — no other PC can reach this. Set AOS_WEB_HOST=0.0.0.0 on the office server.");
+    console.log("  Loopback only — no other PC can reach this. Set PFO_WEB_HOST=0.0.0.0 on the office server.");
   } else {
     console.log(`\n  *** EMPLOYEES REACH AOS AT http://<this PC's LAN IP>:${PORT} ***`);
     console.log("  Only the designated AOS server PC should be doing this — see Docs/Deployment Topology.md.\n");

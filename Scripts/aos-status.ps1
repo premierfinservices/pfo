@@ -34,17 +34,17 @@ $EnvFile = Join-Path $RepoRoot ".env"
 . (Join-Path $PSScriptRoot "aos-lan-address.ps1")
 
 $settings = @{
-    AOS_WEB_PORT      = "4300"
-    AOS_API_PORT      = "4321"
-    AOS_STORAGE_PORT  = "4319"
-    AOS_MAIL_PORT     = "4320"
-    AOS_DB_PORT       = "5432"
-    AOS_DB_NAME       = "aos"
-    AOS_WEB_HOST      = "127.0.0.1"
-    AOS_LAN_IP        = ""
-    AOS_STORAGE_ROOT  = "C:\AOS\Data"
-    AOS_BACKUP_ROOT   = "C:\AOS\Backups"
-    AOS_MAIL_PROVIDER = "unconfigured"
+    PFO_WEB_PORT      = "4300"
+    PFO_API_PORT      = "4321"
+    PFO_STORAGE_PORT  = "4319"
+    PFO_MAIL_PORT     = "4320"
+    PFO_DB_PORT       = "5432"
+    PFO_DB_NAME       = "aos"
+    PFO_WEB_HOST      = "127.0.0.1"
+    PFO_LAN_IP        = ""
+    PFO_STORAGE_ROOT  = "C:\AOS\Data"
+    PFO_BACKUP_ROOT   = "C:\AOS\Backups"
+    PFO_MAIL_PROVIDER = "unconfigured"
 }
 if (Test-Path $EnvFile) {
     foreach ($line in Get-Content $EnvFile) {
@@ -84,20 +84,20 @@ if ($pgService) {
     Show-Line "PostgreSQL service" $false "no postgresql* service found on this machine"
 }
 
-$pgPort = Test-NetConnection -ComputerName "127.0.0.1" -Port $settings.AOS_DB_PORT -InformationLevel Quiet -WarningAction SilentlyContinue
-Show-Line "PostgreSQL port" $pgPort "127.0.0.1:$($settings.AOS_DB_PORT), database '$($settings.AOS_DB_NAME)'"
+$pgPort = Test-NetConnection -ComputerName "127.0.0.1" -Port $settings.PFO_DB_PORT -InformationLevel Quiet -WarningAction SilentlyContinue
+Show-Line "PostgreSQL port" $pgPort "127.0.0.1:$($settings.PFO_DB_PORT), database '$($settings.PFO_DB_NAME)'"
 
 # --- The four AOS processes -----------------------------------------------
-$web = Test-Endpoint "http://127.0.0.1:$($settings.AOS_WEB_PORT)/health"
-Show-Line "AOS web server" $web.ok "port $($settings.AOS_WEB_PORT)"
+$web = Test-Endpoint "http://127.0.0.1:$($settings.PFO_WEB_PORT)/health"
+Show-Line "AOS web server" $web.ok "port $($settings.PFO_WEB_PORT)"
 
-$api = Test-Endpoint "http://127.0.0.1:$($settings.AOS_API_PORT)/api/health"
-Show-Line "AOS API" $api.ok "port $($settings.AOS_API_PORT)"
+$api = Test-Endpoint "http://127.0.0.1:$($settings.PFO_API_PORT)/api/health"
+Show-Line "AOS API" $api.ok "port $($settings.PFO_API_PORT)"
 
-$storage = Test-Endpoint "http://127.0.0.1:$($settings.AOS_STORAGE_PORT)/health"
-Show-Line "Document storage" $storage.ok "port $($settings.AOS_STORAGE_PORT) (loopback only, by design)"
+$storage = Test-Endpoint "http://127.0.0.1:$($settings.PFO_STORAGE_PORT)/health"
+Show-Line "Document storage" $storage.ok "port $($settings.PFO_STORAGE_PORT) (loopback only, by design)"
 
-$mail = Test-Endpoint "http://127.0.0.1:$($settings.AOS_MAIL_PORT)/health"
+$mail = Test-Endpoint "http://127.0.0.1:$($settings.PFO_MAIL_PORT)/health"
 if ($mail.ok) {
     $mailBody = $mail.body | ConvertFrom-Json
     $configured = $mailBody.configured -eq $true
@@ -106,7 +106,7 @@ if ($mail.ok) {
     } else {
         $note = "provider '$($mailBody.provider)' - RUNNING BUT CANNOT SEND"
     }
-    Show-Line "Mail backend" $true "port $($settings.AOS_MAIL_PORT), $note"
+    Show-Line "Mail backend" $true "port $($settings.PFO_MAIL_PORT), $note"
     if (-not $configured) {
         Write-Host "        Submissions will be refused with a clear message until Gmail is configured (.env.example)." -ForegroundColor Yellow
     }
@@ -114,34 +114,34 @@ if ($mail.ok) {
         Write-Host "        *** CAPTURE MODE: nothing is actually sent. This must never be an office install. ***" -ForegroundColor Red
     }
 } else {
-    Show-Line "Mail backend" $false "port $($settings.AOS_MAIL_PORT)"
+    Show-Line "Mail backend" $false "port $($settings.PFO_MAIL_PORT)"
 }
 
 # --- Reachability from other PCs ------------------------------------------
 Write-Host ("-" * 72)
-$loopbackOnly = $settings.AOS_WEB_HOST -in @("127.0.0.1", "localhost")
+$loopbackOnly = $settings.PFO_WEB_HOST -in @("127.0.0.1", "localhost")
 if ($loopbackOnly) {
-    Show-Line "Employee access" $false "AOS_WEB_HOST=$($settings.AOS_WEB_HOST) - no other PC can reach this machine"
-    Write-Host "        Correct for a development checkout. On the office server set AOS_WEB_HOST=0.0.0.0." -ForegroundColor Yellow
+    Show-Line "Employee access" $false "PFO_WEB_HOST=$($settings.PFO_WEB_HOST) - no other PC can reach this machine"
+    Write-Host "        Correct for a development checkout. On the office server set PFO_WEB_HOST=0.0.0.0." -ForegroundColor Yellow
 } else {
-    $lan = Get-AosLanAddress -Override $settings.AOS_LAN_IP
+    $lan = Get-AosLanAddress -Override $settings.PFO_LAN_IP
     if ($lan.Address) {
         $via = "detected"
-        if ($lan.Source -eq "override") { $via = "from AOS_LAN_IP" }
-        Show-Line "Employee access" $true "http://$($lan.Address)`:$($settings.AOS_WEB_PORT)  ($via)"
+        if ($lan.Source -eq "override") { $via = "from PFO_LAN_IP" }
+        Show-Line "Employee access" $true "http://$($lan.Address)`:$($settings.PFO_WEB_PORT)  ($via)"
     } else {
         Show-Line "Employee access" $false "cannot tell which address employees reach this machine on"
         foreach ($c in $lan.Candidates) {
             Write-Host "        candidate: $($c.Address) on $($c.Adapter) [$($c.Description)]" -ForegroundColor Yellow
         }
-        Write-Host "        Set AOS_LAN_IP in .env to the address employees should use." -ForegroundColor Yellow
+        Write-Host "        Set PFO_LAN_IP in .env to the address employees should use." -ForegroundColor Yellow
     }
 
     $rule = Get-NetFirewallRule -DisplayName "AOS*" -ErrorAction SilentlyContinue
     if ($rule) {
         Show-Line "Firewall rule" ($rule.Enabled -contains "True") "$($rule.DisplayName -join ', ')"
     } else {
-        Show-Line "Firewall rule" $false "no rule named 'AOS*' - inbound TCP $($settings.AOS_WEB_PORT) may be blocked"
+        Show-Line "Firewall rule" $false "no rule named 'AOS*' - inbound TCP $($settings.PFO_WEB_PORT) may be blocked"
     }
 }
 
@@ -160,17 +160,17 @@ foreach ($name in @("AOS Server", "AOS Nightly Backup")) {
 
 # --- Storage and backups --------------------------------------------------
 Write-Host ("-" * 72)
-$docs = Join-Path $settings.AOS_STORAGE_ROOT "Documents"
+$docs = Join-Path $settings.PFO_STORAGE_ROOT "Documents"
 if (Test-Path $docs) {
     $files = Get-ChildItem $docs -Recurse -File -ErrorAction SilentlyContinue
     $mb = [math]::Round((($files | Measure-Object -Property Length -Sum).Sum / 1MB), 1)
-    Show-Line "Document store" $true "$($settings.AOS_STORAGE_ROOT) - $($files.Count) file(s), $mb MB"
+    Show-Line "Document store" $true "$($settings.PFO_STORAGE_ROOT) - $($files.Count) file(s), $mb MB"
 } else {
     Show-Line "Document store" $false "$docs does not exist"
 }
 
-if (Test-Path $settings.AOS_BACKUP_ROOT) {
-    $runs = Get-ChildItem $settings.AOS_BACKUP_ROOT -Directory -ErrorAction SilentlyContinue | Sort-Object Name
+if (Test-Path $settings.PFO_BACKUP_ROOT) {
+    $runs = Get-ChildItem $settings.PFO_BACKUP_ROOT -Directory -ErrorAction SilentlyContinue | Sort-Object Name
     if ($runs.Count -gt 0) {
         $newest = $runs[-1]
         $age = (New-TimeSpan -Start $newest.CreationTime -End (Get-Date)).TotalHours
@@ -181,10 +181,10 @@ if (Test-Path $settings.AOS_BACKUP_ROOT) {
         }
         Write-Host "        Prove it is restorable:  npm run backup:verify" -ForegroundColor DarkGray
     } else {
-        Show-Line "Last backup" $false "$($settings.AOS_BACKUP_ROOT) exists but holds no backup runs"
+        Show-Line "Last backup" $false "$($settings.PFO_BACKUP_ROOT) exists but holds no backup runs"
     }
 } else {
-    Show-Line "Last backup" $false "$($settings.AOS_BACKUP_ROOT) does not exist - NO BACKUP HAS EVER RUN"
+    Show-Line "Last backup" $false "$($settings.PFO_BACKUP_ROOT) does not exist - NO BACKUP HAS EVER RUN"
 }
 
 Write-Host ("-" * 72)

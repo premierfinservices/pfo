@@ -76,10 +76,10 @@ moves to Workspace on its own domain, the service-account route becomes availabl
 6. Copy `.env.example` to `.env` and fill in:
 
    ```
-   AOS_MAIL_PROVIDER=gmail
-   AOS_GMAIL_CLIENT_ID=…
-   AOS_GMAIL_CLIENT_SECRET=…
-   AOS_GMAIL_REFRESH_TOKEN=…
+   PFO_MAIL_PROVIDER=gmail
+   PFO_GMAIL_CLIENT_ID=…
+   PFO_GMAIL_CLIENT_SECRET=…
+   PFO_GMAIL_REFRESH_TOKEN=…
    ```
 
 7. `npm run dev`. The mail backend prints which provider it is using at startup.
@@ -111,7 +111,7 @@ mail backend in `capture` mode: each message is built exactly as a real send
 builds it — same MIME, same base64, same headers — and written to disk instead
 of being delivered. The tests then read those files back.
 
-`capture` is enabled only by setting `AOS_MAIL_PROVIDER=capture` explicitly. It
+`capture` is enabled only by setting `PFO_MAIL_PROVIDER=capture` explicitly. It
 must never be set on an office install: the timeline would record submissions
 that never left the building.
 
@@ -173,8 +173,8 @@ the source of truth:
 |---|---|
 | Verified Meta Business account | Business verification needs company documents; takes days. |
 | WhatsApp Business Account with a registered number | That number then stops working in the WhatsApp / WhatsApp Business handset apps. |
-| `AOS_WHATSAPP_PHONE_NUMBER_ID` | The Cloud API's id for the number, not the number. |
-| `AOS_WHATSAPP_ACCESS_TOKEN` | System-user token with `whatsapp_business_messaging`. A developer token expires in 24 hours and must not be used for anything real. |
+| `PFO_WHATSAPP_PHONE_NUMBER_ID` | The Cloud API's id for the number, not the number. |
+| `PFO_WHATSAPP_ACCESS_TOKEN` | System-user token with `whatsapp_business_messaging`. A developer token expires in 24 hours and must not be used for anything real. |
 | Approved message templates | One per workflow. Each is reviewed by Meta. |
 | A public HTTPS webhook | For delivery receipts and replies. **AOS has none** — both local backends bind to `127.0.0.1`. |
 | Customer opt-in, recorded | Meta requires it and Indian data-protection practice expects it. **AOS has no field for this yet.** |

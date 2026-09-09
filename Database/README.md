@@ -14,7 +14,7 @@ deny-everything nor inert, because of a fact recorded nowhere: the application
 connected as `postgres` — `rolsuper`, `rolbypassrls`, and the owner of every
 table. A superuser bypasses RLS unconditionally, `FORCE` included. So the
 security surface was not merely unbuilt; the part that appeared to exist was
-doing nothing, and the obvious remedy (point `AOS_DB_USER` at an ordinary role)
+doing nothing, and the obvious remedy (point `PFO_DB_USER` at an ordinary role)
 would have made every query return zero rows with no error.
 
 **What is true now.** `0033` creates `aos_app`: `NOSUPERUSER`, `NOBYPASSRLS`,

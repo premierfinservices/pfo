@@ -20,7 +20,7 @@ import path from "node:path";
 const KNOWN_VERSIONS = ["18", "17", "16", "15"];
 
 export function resolvePgBinDir() {
-  if (process.env.AOS_PG_BIN_DIR?.trim()) return process.env.AOS_PG_BIN_DIR.trim();
+  if (process.env.PFO_PG_BIN_DIR?.trim()) return process.env.PFO_PG_BIN_DIR.trim();
   for (const version of KNOWN_VERSIONS) {
     const candidate = `C:\\Program Files\\PostgreSQL\\${version}\\bin`;
     if (existsSync(path.join(candidate, "pg_dump.exe"))) return candidate;
@@ -39,7 +39,7 @@ export function requirePgBinDir(label = "pg_dump") {
   const binDir = resolvePgBinDir();
   if (binDir) return binDir;
   console.error(
-    `\n  Could not find ${label}. Set AOS_PG_BIN_DIR to the PostgreSQL 'bin' folder\n` +
+    `\n  Could not find ${label}. Set PFO_PG_BIN_DIR to the PostgreSQL 'bin' folder\n` +
       `  (e.g. C:\\Program Files\\PostgreSQL\\17\\bin) and try again.\n`,
   );
   process.exit(1);

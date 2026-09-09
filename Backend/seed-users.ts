@@ -11,7 +11,7 @@
  *
  * WHAT CHANGED IN STAGE 4 ITEM 3, and why it needed to.
  *
- * This script used to hash `process.env.AOS_SEED_PASSWORD ?? "aos-dev-password"`
+ * This script used to hash `process.env.PFO_SEED_PASSWORD ?? "aos-dev-password"`
  * — a literal, committed to a public repository, applied to five accounts, one
  * of which (`partner.p`) holds `managing_partner`, the widest role AOS has. It
  * had a comment saying the password was not a secret and must not become one.
@@ -30,7 +30,7 @@
  *     nothing; avoiding it required knowing to set an environment variable.
  *
  * Both are inverted now. There is no password in this file: absent an explicit
- * AOS_SEED_PASSWORD, one is generated and printed once. And the script asks
+ * PFO_SEED_PASSWORD, one is generated and printed once. And the script asks
  * the database whether it looks like production before writing anything.
  *
  * Still idempotent, and that is still the important safety property: an
@@ -46,7 +46,7 @@ import type { Role } from "@domain/permissions/index.js";
 
 // The ADMIN pool, not the application's: `aos_app` is deliberately unable to
 // create accounts (see db.ts). Falls back to the ordinary pool when
-// AOS_DB_ADMIN_USER is unset, so nothing changes on a machine still connecting
+// PFO_DB_ADMIN_USER is unset, so nothing changes on a machine still connecting
 // as `postgres`.
 import { adminPool, closeAdminPool, withAdmin } from "./db.js";
 
@@ -87,7 +87,7 @@ function fail(message: string): never {
  * Printed once and recoverable only by resetting it — which is the correct
  * trade for a development account and is what `bootstrap-production.ts`
  * already does for the real ones. A developer who wants a stable password
- * across rebuilds sets AOS_SEED_PASSWORD in `.env`, which is git-ignored;
+ * across rebuilds sets PFO_SEED_PASSWORD in `.env`, which is git-ignored;
  * that is the supported way to have a memorable one, and it keeps the value
  * out of the repository where the old default sat.
  */
@@ -96,13 +96,13 @@ function generatePassword(): string {
 }
 
 async function main(): Promise<void> {
-  const database = process.env.AOS_DB_NAME ?? "aos";
-  const confirmed = process.env.AOS_SEED_CONFIRM === database;
+  const database = process.env.PFO_DB_NAME ?? "aos";
+  const confirmed = process.env.PFO_SEED_CONFIRM === database;
 
   // ── Guard 1: does this database already hold the real employees? ──────────
   //
   // Checked before anything is written, and NOT overridable by
-  // AOS_SEED_CONFIRM. A name can be typed by accident; six named people
+  // PFO_SEED_CONFIRM. A name can be typed by accident; six named people
   // cannot. If they are here, this is the office database or a restore of it,
   // and no combination of flags should put a development login on it.
   const { rows: production } = await adminPool().query(
@@ -124,7 +124,7 @@ async function main(): Promise<void> {
   // `aos_test`, `aos_e2e`, `aos_dev`, `aos_local`, `aos_scratch` pass silently
   // — that is the whole integration and E2E fleet, so no test workflow gains a
   // step. Anything else, INCLUDING the bare `aos` a developer uses on their own
-  // machine, needs AOS_SEED_CONFIRM. That is deliberate: `aos` is also the
+  // machine, needs PFO_SEED_CONFIRM. That is deliberate: `aos` is also the
   // office database's name, and this script cannot tell the two apart from the
   // outside. One environment variable, once, is the cost of that ambiguity.
   const looksLikeDevelopment = /_(test|e2e|dev|local|scratch)$/i.test(database);
@@ -134,12 +134,12 @@ async function main(): Promise<void> {
       `Refusing to run against "${database}": that name is not obviously a development\n` +
         `  database, and this script creates accounts with a shared password.\n\n` +
         `  If "${database}" really is your own development database:\n` +
-        `      AOS_SEED_CONFIRM=${database} npm run seed-users\n\n` +
+        `      PFO_SEED_CONFIRM=${database} npm run seed-users\n\n` +
         `  If you meant the office database, you want bootstrap-production instead.`,
     );
   }
 
-  const supplied = process.env.AOS_SEED_PASSWORD;
+  const supplied = process.env.PFO_SEED_PASSWORD;
   const password = supplied ?? generatePassword();
   const passwordHash = await hashPassword(password);
   const created: string[] = [];
@@ -193,14 +193,14 @@ async function main(): Promise<void> {
   }
 
   if (supplied) {
-    console.log(`\nDone. ${created.length} account(s) created with AOS_SEED_PASSWORD.`);
+    console.log(`\nDone. ${created.length} account(s) created with PFO_SEED_PASSWORD.`);
   } else {
     console.log(
       `\n${"=".repeat(64)}\n` +
         `  PASSWORD FOR THE ${created.length} NEW ACCOUNT(S) — SHOWN ONCE\n\n` +
         `      ${password}\n\n` +
         `  Generated, not published: nothing in this repository contains it.\n` +
-        `  Set AOS_SEED_PASSWORD in .env (git-ignored) if you would rather\n` +
+        `  Set PFO_SEED_PASSWORD in .env (git-ignored) if you would rather\n` +
         `  choose a stable one for this machine.\n` +
         `${"=".repeat(64)}\n`,
     );

@@ -41,7 +41,7 @@ export function refusalMessage(permission: string): string {
  *
  * Matched on node-postgres/libpq error codes rather than message text, which
  * is localised and version-dependent. `ECONNREFUSED` is a stopped server,
- * `ENOTFOUND`/`EHOSTUNREACH` a wrong or unreachable AOS_DB_HOST,
+ * `ENOTFOUND`/`EHOSTUNREACH` a wrong or unreachable PFO_DB_HOST,
  * `ETIMEDOUT`/`ECONNRESET` a network that dropped mid-query, `57P03` is
  * Postgres itself saying it is still starting up, and `53300` is the
  * connection limit — a real office condition when something leaks connections.

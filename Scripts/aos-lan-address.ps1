@@ -21,7 +21,7 @@
 
     WHEN IT CANNOT TELL, IT SAYS SO. Zero or several surviving candidates return
     no address plus the full candidate list, so the caller can ask the operator
-    to set AOS_LAN_IP rather than nominate one. That is also the safety net for
+    to set PFO_LAN_IP rather than nominate one. That is also the safety net for
     the case this filter gets wrong: a NIC team or a Hyper-V virtual switch on
     real server hardware is HardwareInterface $false but may be the true LAN
     path. Refusing to answer is recoverable; answering wrongly is not.
@@ -34,7 +34,7 @@
 function Get-AosLanAddress {
     [CmdletBinding()]
     param(
-        # AOS_LAN_IP as read from .env by the caller, if set. An operator who has
+        # PFO_LAN_IP as read from .env by the caller, if set. An operator who has
         # declared the address outranks any amount of detection.
         [string]$Override
     )

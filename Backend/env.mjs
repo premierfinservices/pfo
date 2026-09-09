@@ -9,7 +9,7 @@
  * so, not crash.
  *
  * A variable already present in the real environment always wins, so
- * `AOS_DB_NAME=aos_test npm run migrate` overrides the file — which is how the
+ * `PFO_DB_NAME=aos_test npm run migrate` overrides the file — which is how the
  * integration tests point at a throwaway database instead of the office one.
  *
  * `mail-server.mjs` keeps its own copy for now: it works, it is covered by the

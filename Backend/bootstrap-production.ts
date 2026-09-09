@@ -20,7 +20,7 @@
  *
  * THE DEVELOPMENT ACCOUNTS ARE NOW DISABLED UNCONDITIONALLY (Stage 4 Item 3).
  * They used to be left active unless `--reset` was passed AND
- * AOS_BOOTSTRAP_CONFIRM matched the database name, which put the SAFE state
+ * PFO_BOOTSTRAP_CONFIRM matched the database name, which put the SAFE state
  * behind two opt-ins and made the dangerous one the default: a plain
  * `npm run bootstrap-production` produced a database with real employee
  * accounts on it and `partner.p` — a Managing Partner whose password was, at
@@ -48,7 +48,7 @@ import type { Role } from "@domain/permissions/index.js";
 // The ADMIN pool, not the application's: `aos_app` cannot create accounts or
 // append to `event` outside an authenticated transaction, both of which this
 // script does (see db.ts). Falls back to the ordinary pool when
-// AOS_DB_ADMIN_USER is unset.
+// PFO_DB_ADMIN_USER is unset.
 import { closeAdminPool, withAdmin } from "./db.js";
 import { disableDevelopmentAccounts } from "./dev-accounts.js";
 
@@ -98,7 +98,7 @@ async function main(): Promise<void> {
   const args = new Set(process.argv.slice(2));
   const reset = args.has("--reset");
   const dryRun = args.has("--dry-run");
-  const database = process.env.AOS_DB_NAME ?? "aos";
+  const database = process.env.PFO_DB_NAME ?? "aos";
 
   // A suite that truncates tables must never be one typo away from the real
   // data — and neither must this, in the other direction.

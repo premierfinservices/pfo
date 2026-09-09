@@ -28,12 +28,12 @@
  *                 the case timeline would record a submission that never
  *                 happened and somebody would stop chasing the bank.
  *
- *   gmail         Real delivery, via OAuth2. Requires the four AOS_GMAIL_*
+ *   gmail         Real delivery, via OAuth2. Requires the four PFO_GMAIL_*
  *                 variables below. No password is stored anywhere, ever.
  *
  *   capture       FOR TESTS ONLY. Writes the message to disk instead of
  *                 sending it and reports success. Enabled only by explicitly
- *                 setting AOS_MAIL_PROVIDER=capture, announced loudly at
+ *                 setting PFO_MAIL_PROVIDER=capture, announced loudly at
  *                 startup, and never reachable by accident — the Playwright
  *                 suite sets it, and nothing else should.
  *
@@ -59,7 +59,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * flag fails outright when the file is absent on the Node versions this repo
  * supports, and an office install that has not been configured yet should
  * start and say so, not crash. A variable already in the real environment
- * always wins, so `AOS_MAIL_PROVIDER=capture npm run dev` overrides the file
+ * always wins, so `PFO_MAIL_PROVIDER=capture npm run dev` overrides the file
  * — which is how the Playwright suite selects the test provider.
  */
 function loadDotEnv() {
@@ -79,8 +79,8 @@ function loadDotEnv() {
 
 loadDotEnv();
 
-const PORT = Number(process.env.AOS_MAIL_PORT ?? 4320);
-const PROVIDER = (process.env.AOS_MAIL_PROVIDER ?? "unconfigured").trim().toLowerCase();
+const PORT = Number(process.env.PFO_MAIL_PORT ?? 4320);
+const PROVIDER = (process.env.PFO_MAIL_PROVIDER ?? "unconfigured").trim().toLowerCase();
 
 /**
  * The mailbox AOS sends as.
@@ -91,10 +91,10 @@ const PROVIDER = (process.env.AOS_MAIL_PROVIDER ?? "unconfigured").trim().toLowe
  * never fakes a From header. If the two disagree, Gmail wins and the header is
  * rewritten by them, not by us.
  */
-const SENDER_ADDRESS = process.env.AOS_MAIL_SENDER_ADDRESS ?? "premierfinservices.cbe@gmail.com";
-const SENDER_NAME = process.env.AOS_MAIL_SENDER_NAME ?? "Premier Finserv";
+const SENDER_ADDRESS = process.env.PFO_MAIL_SENDER_ADDRESS ?? "premierfinservices.cbe@gmail.com";
+const SENDER_NAME = process.env.PFO_MAIL_SENDER_NAME ?? "Premier Finserv";
 
-const SEND_TIMEOUT_MS = Number(process.env.AOS_MAIL_TIMEOUT_MS ?? 60_000);
+const SEND_TIMEOUT_MS = Number(process.env.PFO_MAIL_TIMEOUT_MS ?? 60_000);
 
 // ---------------------------------------------------------------------------
 // RFC 5322 / 2045 message construction.
@@ -202,16 +202,16 @@ function buildMimeMessage(message) {
 // ---------------------------------------------------------------------------
 
 const GMAIL = {
-  clientId: process.env.AOS_GMAIL_CLIENT_ID ?? "",
-  clientSecret: process.env.AOS_GMAIL_CLIENT_SECRET ?? "",
-  refreshToken: process.env.AOS_GMAIL_REFRESH_TOKEN ?? "",
+  clientId: process.env.PFO_GMAIL_CLIENT_ID ?? "",
+  clientSecret: process.env.PFO_GMAIL_CLIENT_SECRET ?? "",
+  refreshToken: process.env.PFO_GMAIL_REFRESH_TOKEN ?? "",
 };
 
 function gmailMisconfiguration() {
   const missing = [];
-  if (!GMAIL.clientId) missing.push("AOS_GMAIL_CLIENT_ID");
-  if (!GMAIL.clientSecret) missing.push("AOS_GMAIL_CLIENT_SECRET");
-  if (!GMAIL.refreshToken) missing.push("AOS_GMAIL_REFRESH_TOKEN");
+  if (!GMAIL.clientId) missing.push("PFO_GMAIL_CLIENT_ID");
+  if (!GMAIL.clientSecret) missing.push("PFO_GMAIL_CLIENT_SECRET");
+  if (!GMAIL.refreshToken) missing.push("PFO_GMAIL_REFRESH_TOKEN");
   return missing;
 }
 
@@ -330,7 +330,7 @@ function classifyGmailStatus(status, detail) {
 // ---------------------------------------------------------------------------
 
 const CAPTURE_DIR =
-  process.env.AOS_MAIL_CAPTURE_DIR ?? path.join(__dirname, "captured-mail");
+  process.env.PFO_MAIL_CAPTURE_DIR ?? path.join(__dirname, "captured-mail");
 
 let captureSeq = 0;
 
@@ -449,7 +449,7 @@ async function handleSend(req, res) {
       failureResult(
         message.submissionPackageEmailId,
         "not_configured",
-        "No email provider is configured for this installation of Premier Finserv One. Set AOS_MAIL_PROVIDER=gmail " +
+        "No email provider is configured for this installation of Premier Finserv One. Set PFO_MAIL_PROVIDER=gmail " +
           `and provide ${missing.join(", ")} — see .env.example and Docs/Email and WhatsApp Integration.md. Nothing was sent.`,
       ),
     );
@@ -465,7 +465,7 @@ async function handleSend(req, res) {
         failureResult(
           message.submissionPackageEmailId,
           "not_configured",
-          `AOS_MAIL_PROVIDER is gmail but ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} not set. Nothing was sent.`,
+          `PFO_MAIL_PROVIDER is gmail but ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} not set. Nothing was sent.`,
         ),
       );
       return;
@@ -546,10 +546,10 @@ const server = createServer((req, res) => {
  * API server is the only
  * caller, and it checks `submission.create` first.
  */
-const requestedMailHost = process.env.AOS_MAIL_HOST?.trim();
+const requestedMailHost = process.env.PFO_MAIL_HOST?.trim();
 if (requestedMailHost && requestedMailHost !== "127.0.0.1" && requestedMailHost !== "localhost") {
   console.error(
-    `\n  Refusing to start: AOS_MAIL_HOST is "${requestedMailHost}".\n` +
+    `\n  Refusing to start: PFO_MAIL_HOST is "${requestedMailHost}".\n` +
       `  The mail backend can send as the Premier Finservices mailbox and has no\n` +
       `  authentication. It must never listen beyond loopback.\n`,
   );

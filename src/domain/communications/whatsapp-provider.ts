@@ -110,11 +110,11 @@ export const WHATSAPP_REQUIRED_CONFIGURATION: readonly {
     what: "Created inside the Meta Business account, with a phone number registered to it. That number can no longer be used with the ordinary WhatsApp or WhatsApp Business handset apps.",
   },
   {
-    key: "AOS_WHATSAPP_PHONE_NUMBER_ID",
+    key: "PFO_WHATSAPP_PHONE_NUMBER_ID",
     what: "The Cloud API's id for the registered sending number. Not the phone number itself.",
   },
   {
-    key: "AOS_WHATSAPP_ACCESS_TOKEN",
+    key: "PFO_WHATSAPP_ACCESS_TOKEN",
     what: "A system-user access token with whatsapp_business_messaging. A temporary developer token expires in 24 hours and must not be used for anything real.",
   },
   {

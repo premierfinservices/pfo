@@ -61,7 +61,7 @@ ADR-026 does in the database. No RLS, because the policies are not written yet.
 
 File storage is real, not simulated: uploads go through `@domain/storage` to
 `Backend/storage-server.mjs`, a local Node server that writes the actual bytes
-to disk under a configurable root (`AOS_STORAGE_ROOT`, defaulting to
+to disk under a configurable root (`PFO_STORAGE_ROOT`, defaulting to
 `C:\AOS\Data`). `npm run dev` starts it alongside Vite automatically; if you
 ever run Vite alone, uploads will fail with a clear error rather than silently
 doing nothing.

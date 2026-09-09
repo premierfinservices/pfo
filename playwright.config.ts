@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 import { E2E_API_PORT, E2E_DB, E2E_VITE_PORT } from "./tests/support/e2e-environment";
 
-const STORAGE_ROOT = process.env.AOS_STORAGE_ROOT ?? "C:/AOS/QA-Data";
+const STORAGE_ROOT = process.env.PFO_STORAGE_ROOT ?? "C:/AOS/QA-Data";
 
 /**
  * The suite runs the mail backend in `capture` mode: messages are built the
@@ -15,7 +15,7 @@ const STORAGE_ROOT = process.env.AOS_STORAGE_ROOT ?? "C:/AOS/QA-Data";
  * depends on Google being up is a suite that lies about what it proved. See
  * Docs/Email and WhatsApp Integration.md for the manual check that covers it.
  */
-const MAIL_CAPTURE_DIR = process.env.AOS_MAIL_CAPTURE_DIR ?? "C:/AOS/QA-Mail";
+const MAIL_CAPTURE_DIR = process.env.PFO_MAIL_CAPTURE_DIR ?? "C:/AOS/QA-Mail";
 
 /**
  * ============================================================================
@@ -23,7 +23,7 @@ const MAIL_CAPTURE_DIR = process.env.AOS_MAIL_CAPTURE_DIR ?? "C:/AOS/QA-Mail";
  * ============================================================================
  *
  * This is the correction Stage 3C-0 exists partly to make. The previous
- * configuration set `AOS_DB_NAME: "aos_e2e"` on the server it started, and
+ * configuration set `PFO_DB_NAME: "aos_e2e"` on the server it started, and
  * `reuseExistingServer: true` — so if a developer had `npm run dev` already
  * running (which, in an office where this is the app people work in, is most
  * of the time), Playwright quietly adopted THAT server instead. That server is
@@ -40,7 +40,7 @@ const MAIL_CAPTURE_DIR = process.env.AOS_MAIL_CAPTURE_DIR ?? "C:/AOS/QA-Mail";
  *      suite's path at all, in either direction.
  *   3. `strictPort` in vite.config.ts. A port already in use is an error, not
  *      a silent shift onto a neighbour's server.
- *   4. `AOS_REQUIRE_DB_NAME`. The API process refuses to start against any
+ *   4. `PFO_REQUIRE_DB_NAME`. The API process refuses to start against any
  *      database but `aos_e2e` (Backend/db.ts), whatever else is set.
  *
  * It also runs `dev:e2e` rather than `dev`: vite and the API only. The storage
@@ -70,15 +70,15 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 60_000,
     env: {
-      AOS_STORAGE_ROOT: STORAGE_ROOT,
-      AOS_MAIL_PROVIDER: "capture",
-      AOS_MAIL_CAPTURE_DIR: MAIL_CAPTURE_DIR,
-      AOS_VITE_PORT: String(E2E_VITE_PORT),
-      AOS_API_PORT: String(E2E_API_PORT),
-      AOS_DB_NAME: E2E_DB,
+      PFO_STORAGE_ROOT: STORAGE_ROOT,
+      PFO_MAIL_PROVIDER: "capture",
+      PFO_MAIL_CAPTURE_DIR: MAIL_CAPTURE_DIR,
+      PFO_VITE_PORT: String(E2E_VITE_PORT),
+      PFO_API_PORT: String(E2E_API_PORT),
+      PFO_DB_NAME: E2E_DB,
       // The belt to the above braces: the API process aborts at startup if
-      // this and AOS_DB_NAME ever disagree.
-      AOS_REQUIRE_DB_NAME: E2E_DB,
+      // this and PFO_DB_NAME ever disagree.
+      PFO_REQUIRE_DB_NAME: E2E_DB,
     },
   },
 });

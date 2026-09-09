@@ -218,17 +218,46 @@ deferred to Phase 3 — cosmetic only, doesn't affect the live sender identity.
 
 ## PHASE 4 — Env var prefix rename (`AOS_*` → `<SLUG>_*`)
 
-**STATUS: NOT STARTED.** Blocked on: slug decision (Open Decision #1).
+**STATUS: CODE SIDE COMPLETE, CUTOVER NOT YET DONE** (2026-09-09). Slug
+confirmed: `pfo`. Ran on Unfold Media Corp PC (the production server).
 **Complexity: Medium-High — Model: Sonnet 5 — Effort: High**
 
-- Every `AOS_*` reference across `Backend/`, `Frontend/`, `.env.example`,
-  `Backend/free-dev-ports.mjs` (`AOS_VITE_PORT` etc.), `Backend/env.mjs`,
-  `Scripts/*.ps1` (`aos-status.ps1` reads `AOS_*` keys from `.env`).
+- Renamed every `AOS_*` env var identifier to `PFO_*` across 48 files:
+  `Backend/`, `Frontend/`, `src/domain/`, `.env.example`, `Scripts/*.ps1`,
+  root test/build configs (`vite.config.ts`, `playwright.config.ts`,
+  `vitest.integration.config.ts`), `tests/`, and the docs that document
+  these exact var names (`CLAUDE.md`, `Docs/Installation.md`,
+  `Docs/Disaster Recovery.md`, `Docs/Email and WhatsApp Integration.md`,
+  `Docs/Session Checkpoint.md`, `Database/README.md`,
+  `Frontend/README.md`) — 438 replacements. Only the identifier prefix
+  changed; values (`aos`, `aos_test`, `aos_dev`, `C:\AOS\Data`, the `AOS
+  Server` task name) are untouched — those are Phases 5-8.
+- Deliberately NOT touched, same reasoning as Phase 3: `Docs/Deployment
+  Topology.md` and `AOS Production Readiness Master Roadmap.txt` (both
+  explicitly deferred to Phase 9's wholesale rewrite),
+  `Database/migrations/0033_application_role.sql` (immutable history),
+  `Docs/superpowers/plans/*` (historical checkpoint records), and this
+  roadmap's own earlier narrative text (historical record of what was
+  literally set at the time).
+- Verified: `npm run typecheck` clean; `npm test` (655 tests, no DB
+  involved) green; grep confirms zero remaining `AOS_[A-Z_]+` outside the
+  deliberately-excluded files.
+- **NOT YET DONE — the actual cutover**: production `.env` on Unfold PC
+  still has the old `AOS_*` names (unchanged — editing it is the live,
+  hard-to-reverse-if-mishandled step, held for explicit go-ahead), the
+  `AOS Server` task has not been restarted, and the home PC's `.env` was
+  not reachable from this session at all. Until `.env` on both machines is
+  updated to `PFO_*` and the task restarted, production keeps running on
+  the pre-Phase-4 checkout — `Backend/env.mjs` only fills in vars not
+  already set, so the old `.env` file's `AOS_*` keys are simply not read
+  by the new code's `PFO_*` lookups, meaning **the current running
+  process must not be restarted onto this commit until `.env` is updated
+  in the same window**, or it starts with unset config.
 - **Coordination requirement**: `.env` is git-ignored and per-machine. Both
   the home PC's `.env` and Unfold PC's production `.env` must be updated
   to the new var names in the same maintenance window the code ships,
   or the app starts with unset config the moment new code reads
-  `<SLUG>_DB_NAME` but the `.env` file still has `AOS_DB_NAME`.
+  `PFO_DB_NAME` but the `.env` file still has `AOS_DB_NAME`.
 - Risk: MEDIUM. Mechanical but wide blast radius; a missed rename in one
   file (e.g. `free-dev-ports.mjs`, which currently mirrors ports between
   production and dev-on-server-PC) reintroduces the dev/prod port-collision

@@ -29,7 +29,7 @@ Two halves that must be restored **from the same backup run**:
 | | Where | What it is |
 |---|---|---|
 | Operational database | PostgreSQL `aos` | Customers, cases, requirements, document *metadata*, verification, submissions, users, permissions, the event log |
-| Document bytes | `AOS_STORAGE_ROOT` (`C:\AOS\Data`) | The actual PDFs and photos |
+| Document bytes | `PFO_STORAGE_ROOT` (`C:\AOS\Data`) | The actual PDFs and photos |
 
 `document.file_path` in the database is a *pointer*. A database restored
 without its matching documents is a system that believes in files it cannot
@@ -56,11 +56,11 @@ offline. Everything else can be rebuilt from this repository.
    with only document problems — a good dump with some missing files is far
    better than nothing.
 
-2. Restore. Note `AOS_RESTORE_CONFIRM`: without it the script refuses to write
+2. Restore. Note `PFO_RESTORE_CONFIRM`: without it the script refuses to write
    to the office database at all.
 
    ```powershell
-   $env:AOS_RESTORE_CONFIRM="aos"
+   $env:PFO_RESTORE_CONFIRM="aos"
    node Backend/restore.mjs `
        --backup "D:\AOS-Backups\2026-08-10_20-30-00" `
        --db aos `
@@ -90,7 +90,7 @@ offline. Everything else can be rebuilt from this repository.
 
 ## Scenario B — the server PC is dead
 
-You need the backup folder (from wherever `AOS_BACKUP_ROOT` pointed) and the
+You need the backup folder (from wherever `PFO_BACKUP_ROOT` pointed) and the
 `.env` copy.
 
 1. Follow `Docs/Installation.md` steps 1–4 on the replacement PC — Node,
@@ -100,7 +100,7 @@ You need the backup folder (from wherever `AOS_BACKUP_ROOT` pointed) and the
 3. Create the database and restore:
 
    ```powershell
-   $env:AOS_RESTORE_CONFIRM="aos"
+   $env:PFO_RESTORE_CONFIRM="aos"
    node Backend/restore.mjs `
        --backup "<backup folder>" --db aos `
        --storage-root C:\AOS\Data --create-db
@@ -171,7 +171,7 @@ that the case, the document metadata, the requirement linkage, the audit trail
 and the document bytes all came back. It never touches `aos` or `C:\AOS\Data`.
 
 Last run: 16/16 checks passed, including both damage-detection cases. The
-report is written to `<AOS_BACKUP_ROOT>\..\DrillBackups\last-drill-report.md`.
+report is written to `<PFO_BACKUP_ROOT>\..\DrillBackups\last-drill-report.md`.
 
 Run it after any change to the backup or restore scripts, and once a quarter
 regardless.

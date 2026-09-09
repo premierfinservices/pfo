@@ -23,7 +23,7 @@ loadDotEnv();
  * Hard-coded, deliberately NOT read from the environment.
  *
  * globalSetup runs in vitest's main process, which does not receive
- * `test.env` — so reading AOS_DB_NAME here would pick up `.env` and point the
+ * `test.env` — so reading PFO_DB_NAME here would pick up `.env` and point the
  * whole suite at the OFFICE database. It did exactly that on the first run.
  * The name must match `vitest.integration.config.ts`.
  */
@@ -33,18 +33,18 @@ export async function setup(): Promise<void> {
   // Creating a database needs CREATEDB, which `aos_app` (migration 0033) does
   // not have and must not have — same admin-fallback reasoning as
   // `Backend/db-config.mjs`'s `connectionConfig()`: prefer
-  // `AOS_DB_ADMIN_USER`/`_PASSWORD` when the machine's `.env` set them (an
+  // `PFO_DB_ADMIN_USER`/`_PASSWORD` when the machine's `.env` set them (an
   // office server past Docs/Installation.md §5a), else fall back to
-  // `AOS_DB_USER`/`_PASSWORD` (a plain dev machine, still `postgres`).
-  const adminUser = process.env.AOS_DB_ADMIN_USER?.trim();
+  // `PFO_DB_USER`/`_PASSWORD` (a plain dev machine, still `postgres`).
+  const adminUser = process.env.PFO_DB_ADMIN_USER?.trim();
   const admin = new pg.Client({
-    host: process.env.AOS_DB_HOST ?? "127.0.0.1",
-    port: Number(process.env.AOS_DB_PORT ?? 5432),
+    host: process.env.PFO_DB_HOST ?? "127.0.0.1",
+    port: Number(process.env.PFO_DB_PORT ?? 5432),
     database: "postgres",
-    user: adminUser || process.env.AOS_DB_USER || "postgres",
+    user: adminUser || process.env.PFO_DB_USER || "postgres",
     password: adminUser
-      ? (process.env.AOS_DB_ADMIN_PASSWORD ?? "")
-      : (process.env.AOS_DB_PASSWORD ?? ""),
+      ? (process.env.PFO_DB_ADMIN_PASSWORD ?? "")
+      : (process.env.PFO_DB_PASSWORD ?? ""),
   });
 
   await admin.connect();
@@ -62,7 +62,7 @@ export async function setup(): Promise<void> {
   }
 
   const result = spawnSync(process.execPath, ["Backend/migrate.mjs"], {
-    env: { ...process.env, AOS_DB_NAME: TEST_DB },
+    env: { ...process.env, PFO_DB_NAME: TEST_DB },
     encoding: "utf8",
   });
   if (result.status !== 0) {

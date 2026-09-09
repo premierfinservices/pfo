@@ -33,7 +33,7 @@ import { listenOrExplain } from "./listen.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, "storage.config.json");
 const DEFAULT_ROOT = "C:\\AOS\\Data";
-const PORT = Number(process.env.AOS_STORAGE_PORT ?? 4319);
+const PORT = Number(process.env.PFO_STORAGE_PORT ?? 4319);
 
 async function loadConfiguredRoot() {
   try {
@@ -46,7 +46,7 @@ async function loadConfiguredRoot() {
   return DEFAULT_ROOT;
 }
 
-let currentRoot = process.env.AOS_STORAGE_ROOT?.trim() || (await loadConfiguredRoot());
+let currentRoot = process.env.PFO_STORAGE_ROOT?.trim() || (await loadConfiguredRoot());
 
 async function persistRoot(root) {
   await writeFile(CONFIG_PATH, JSON.stringify({ root }, null, 2) + "\n", "utf8");
@@ -295,10 +295,10 @@ await mkdir(documentsRoot(), { recursive: true });
  * this server, not a wider bind — and this check should be the thing that
  * forces that conversation.
  */
-const requestedHost = process.env.AOS_STORAGE_HOST?.trim();
+const requestedHost = process.env.PFO_STORAGE_HOST?.trim();
 if (requestedHost && requestedHost !== "127.0.0.1" && requestedHost !== "localhost") {
   console.error(
-    `\n  Refusing to start: AOS_STORAGE_HOST is "${requestedHost}".\n` +
+    `\n  Refusing to start: PFO_STORAGE_HOST is "${requestedHost}".\n` +
       `  The document storage backend has no authentication and must never listen\n` +
       `  beyond loopback. Employee PCs reach documents through the API server,\n` +
       `  which enforces permissions. See Docs/Deployment Topology.md.\n`,

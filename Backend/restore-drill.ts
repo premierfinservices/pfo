@@ -36,7 +36,7 @@
  *
  * It refuses to start if any of those names collides with the configured
  * office database, and its cleanup drops databases ONLY by exact match
- * against that list. `AOS_STORAGE_ROOT` and `AOS_BACKUP_ROOT` from `.env` are
+ * against that list. `PFO_STORAGE_ROOT` and `PFO_BACKUP_ROOT` from `.env` are
  * never read; the office `aos` database is never connected to.
  *
  * The synthetic customer is obviously synthetic ("Drill Testcase") and carries
@@ -57,8 +57,8 @@ import path from "node:path";
 // ---------------------------------------------------------------------------
 // The drill's own environment, set BEFORE anything imports db.ts
 //
-// `Backend/db.ts` reads AOS_DB_NAME and `Backend/storage-client.ts` reads
-// AOS_STORAGE_SERVER_URL at module load, and `loadDotEnv` never overwrites a
+// `Backend/db.ts` reads PFO_DB_NAME and `Backend/storage-client.ts` reads
+// PFO_STORAGE_SERVER_URL at module load, and `loadDotEnv` never overwrites a
 // variable that is already set. Assigning them here and importing those
 // modules dynamically below is what keeps the drill off the office database
 // without the caller having to remember an env prefix.
@@ -77,7 +77,7 @@ const DRILL_FOLDERS = [DRILL_STORAGE, DRILL_BACKUPS, RESTORE_STORAGE];
 const { loadDotEnv } = await import("./env.mjs");
 loadDotEnv();
 
-const officeDatabase = process.env.AOS_DB_NAME ?? "aos";
+const officeDatabase = process.env.PFO_DB_NAME ?? "aos";
 if (DRILL_DATABASES.includes(officeDatabase)) {
   console.error(
     `\n  Refusing to run: the configured database "${officeDatabase}" is one of the\n` +
@@ -85,25 +85,25 @@ if (DRILL_DATABASES.includes(officeDatabase)) {
   );
   process.exit(1);
 }
-const officeStorage = (process.env.AOS_STORAGE_ROOT ?? "C:\\AOS\\Data").replace(/\\+$/, "");
+const officeStorage = (process.env.PFO_STORAGE_ROOT ?? "C:\\AOS\\Data").replace(/\\+$/, "");
 if (DRILL_FOLDERS.some((folder) => folder.toLowerCase() === officeStorage.toLowerCase())) {
   console.error(
-    `\n  Refusing to run: AOS_STORAGE_ROOT ("${officeStorage}") is one of the drill's\n` +
+    `\n  Refusing to run: PFO_STORAGE_ROOT ("${officeStorage}") is one of the drill's\n` +
       `  own disposable folders. The drill would destroy it.\n`,
   );
   process.exit(1);
 }
 
 // Now safe to point everything at the drill's targets.
-process.env.AOS_DB_NAME = SOURCE_DB;
-process.env.AOS_STORAGE_ROOT = DRILL_STORAGE;
-process.env.AOS_STORAGE_SERVER_URL = `http://127.0.0.1:${STORAGE_PORT}`;
-process.env.AOS_BACKUP_ROOT = DRILL_BACKUPS;
-process.env.AOS_BACKUP_RETENTION = "5";
+process.env.PFO_DB_NAME = SOURCE_DB;
+process.env.PFO_STORAGE_ROOT = DRILL_STORAGE;
+process.env.PFO_STORAGE_SERVER_URL = `http://127.0.0.1:${STORAGE_PORT}`;
+process.env.PFO_BACKUP_ROOT = DRILL_BACKUPS;
+process.env.PFO_BACKUP_RETENTION = "5";
 // The drill is not a test suite pointing at a test database; it IS the
 // database it names. Clearing this stops a stray value in the environment
 // from tripping db.ts's guard against a name it was never meant to police.
-delete process.env.AOS_REQUIRE_DB_NAME;
+delete process.env.PFO_REQUIRE_DB_NAME;
 
 const { hashPassword } = await import("@domain/auth/password.js");
 const { pool, withActor } = await import("./db.js");
@@ -140,18 +140,18 @@ function sha256(bytes: Uint8Array | Buffer): string {
  * Administrative throughout (CREATEDB, reading across whatever RLS would
  * otherwise hide) — never a stand-in for the application's own role, which is
  * `security.test.ts`'s job. Same admin-fallback as `Backend/db-config.mjs`:
- * prefer `AOS_DB_ADMIN_USER`/`_PASSWORD` when set, else `AOS_DB_USER`/`_PASSWORD`. */
+ * prefer `PFO_DB_ADMIN_USER`/`_PASSWORD` when set, else `PFO_DB_USER`/`_PASSWORD`. */
 async function connectTo(database: string) {
   const pg = (await import("pg")).default;
-  const adminUser = process.env.AOS_DB_ADMIN_USER?.trim();
+  const adminUser = process.env.PFO_DB_ADMIN_USER?.trim();
   const client = new pg.Client({
-    host: process.env.AOS_DB_HOST ?? "127.0.0.1",
-    port: Number(process.env.AOS_DB_PORT ?? 5432),
+    host: process.env.PFO_DB_HOST ?? "127.0.0.1",
+    port: Number(process.env.PFO_DB_PORT ?? 5432),
     database,
-    user: adminUser || process.env.AOS_DB_USER || "postgres",
+    user: adminUser || process.env.PFO_DB_USER || "postgres",
     password: adminUser
-      ? (process.env.AOS_DB_ADMIN_PASSWORD ?? "")
-      : (process.env.AOS_DB_PASSWORD ?? ""),
+      ? (process.env.PFO_DB_ADMIN_PASSWORD ?? "")
+      : (process.env.PFO_DB_PASSWORD ?? ""),
   });
   await client.connect();
   return client;
@@ -180,7 +180,7 @@ function runScript(script: string, args: string[], env: NodeJS.ProcessEnv) {
 
 async function startStorageServer(root: string): Promise<ChildProcess> {
   const child = spawn(process.execPath, [path.join(process.cwd(), "Backend", "storage-server.mjs")], {
-    env: { ...process.env, AOS_STORAGE_PORT: STORAGE_PORT, AOS_STORAGE_ROOT: root },
+    env: { ...process.env, PFO_STORAGE_PORT: STORAGE_PORT, PFO_STORAGE_ROOT: root },
     stdio: "pipe",
   });
   const deadline = Date.now() + 15_000;
@@ -499,7 +499,7 @@ async function main(): Promise<void> {
     // ── 1. A disposable source, migrated by the real runner ───────────────
     console.log("\n[1/6] Building the synthetic source");
     await dropAndCreate(SOURCE_DB);
-    const migrated = runScript("migrate.mjs", [], { AOS_DB_NAME: SOURCE_DB });
+    const migrated = runScript("migrate.mjs", [], { PFO_DB_NAME: SOURCE_DB });
     if (migrated.status !== 0) fail(`Migrations failed against ${SOURCE_DB}:\n${migrated.stdout}${migrated.stderr}`);
     console.log(`  migrated ${SOURCE_DB}`);
 
@@ -524,9 +524,9 @@ async function main(): Promise<void> {
     // ── 2. Back it up ─────────────────────────────────────────────────────
     console.log("\n[2/6] Backing up");
     const backup = runScript("backup.mjs", [], {
-      AOS_DB_NAME: SOURCE_DB,
-      AOS_STORAGE_ROOT: DRILL_STORAGE,
-      AOS_BACKUP_ROOT: DRILL_BACKUPS,
+      PFO_DB_NAME: SOURCE_DB,
+      PFO_STORAGE_ROOT: DRILL_STORAGE,
+      PFO_BACKUP_ROOT: DRILL_BACKUPS,
     });
     process.stdout.write(backup.stdout ?? "");
     record(
@@ -554,7 +554,7 @@ async function main(): Promise<void> {
       "--storage-root", RESTORE_STORAGE,
       "--create-db",
       "--drop-existing",
-    ], { AOS_DB_NAME: SOURCE_DB });
+    ], { PFO_DB_NAME: SOURCE_DB });
     process.stdout.write(restore.stdout ?? "");
     record(
       "restore.mjs completed and verified what it wrote",
@@ -575,7 +575,7 @@ async function main(): Promise<void> {
       "--create-db",
       "--drop-existing",
       "--overwrite-storage",
-    ], { AOS_DB_NAME: SOURCE_DB });
+    ], { PFO_DB_NAME: SOURCE_DB });
     record(
       "the restore procedure is repeatable",
       second.status === 0,

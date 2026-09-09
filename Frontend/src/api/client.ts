@@ -34,7 +34,7 @@ const TOKEN_KEY = "aos.token";
  * is what makes AOS usable — and drops the one that was never wanted: it is
  * cleared when the browsing context ends. Closing the browser now ends the
  * session in the browser, and the server-side inactivity timeout
- * (`AOS_SESSION_IDLE_MS`, Backend/api-server.ts) ends it on the server whether
+ * (`PFO_SESSION_IDLE_MS`, Backend/api-server.ts) ends it on the server whether
  * or not the browser cooperates. Neither control depends on the other, and
  * neither depends on `beforeunload`, which fires unreliably and is not a
  * security mechanism.

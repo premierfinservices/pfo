@@ -62,7 +62,7 @@ let previousAppRolePassword: string | null = null;
 
 /** The in-process server, used for the checks that do not care which role is
  * underneath (CORS, throttling, bootstrap). Connected as whatever
- * AOS_DB_USER is, i.e. `postgres` under the integration config. */
+ * PFO_DB_USER is, i.e. `postgres` under the integration config. */
 let baseUrl: string;
 let server: ReturnType<typeof createApiServer>;
 
@@ -137,7 +137,7 @@ async function signIn(api_: typeof api, username: string): Promise<{ token: stri
  * the environment, and this file has already imported it as `postgres`. A
  * child process is the honest way to get a second connection identity, and it
  * has the side benefit of proving the real entry point boots — including
- * `AOS_REQUIRE_DB_NAME`, which is set here so a misconfiguration cannot point
+ * `PFO_REQUIRE_DB_NAME`, which is set here so a misconfiguration cannot point
  * this at anything but `aos_test`.
  */
 async function startAppRoleServer(): Promise<void> {
@@ -153,12 +153,12 @@ async function startAppRoleServer(): Promise<void> {
     {
       env: {
         ...process.env,
-        AOS_DB_NAME: "aos_test",
-        AOS_REQUIRE_DB_NAME: "aos_test",
-        AOS_DB_USER: "aos_app",
-        AOS_DB_PASSWORD: APP_ROLE_PASSWORD,
-        AOS_API_PORT: String(port),
-        AOS_API_NO_LISTEN: "0",
+        PFO_DB_NAME: "aos_test",
+        PFO_REQUIRE_DB_NAME: "aos_test",
+        PFO_DB_USER: "aos_app",
+        PFO_DB_PASSWORD: APP_ROLE_PASSWORD,
+        PFO_API_PORT: String(port),
+        PFO_API_NO_LISTEN: "0",
       },
       stdio: "pipe",
     },
@@ -192,8 +192,8 @@ beforeAll(async () => {
   await adminPool().query(`alter role aos_app password '${APP_ROLE_PASSWORD}'`);
 
   appRole = new pg.Client({
-    host: process.env.AOS_DB_HOST ?? "127.0.0.1",
-    port: Number(process.env.AOS_DB_PORT ?? 5432),
+    host: process.env.PFO_DB_HOST ?? "127.0.0.1",
+    port: Number(process.env.PFO_DB_PORT ?? 5432),
     database: "aos_test",
     user: "aos_app",
     password: APP_ROLE_PASSWORD,
@@ -594,7 +594,7 @@ describe("the full authentication lifecycle, served by an API running as aos_app
 
   it("enforces the five-minute idle window at its boundary, not merely 'eventually'", async () => {
     // The two tests above prove "well inside" and "way past". This pins the
-    // actual configured value (AOS_SESSION_IDLE_MS default, Backend/api-server.ts)
+    // actual configured value (PFO_SESSION_IDLE_MS default, Backend/api-server.ts)
     // rather than some arbitrarily larger number that would also pass a looser
     // check.
     const employee = await createEmployee("manager");

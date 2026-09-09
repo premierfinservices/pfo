@@ -35,13 +35,13 @@ let server: ReturnType<typeof createApiServer>;
 let storageServer: ChildProcess;
 let storageRoot: string;
 
-/** A throwaway storage-server instance, on the port `AOS_STORAGE_SERVER_URL`
+/** A throwaway storage-server instance, on the port `PFO_STORAGE_SERVER_URL`
  * (vitest.integration.config.ts) points `storage-client.ts` at — never the
  * office backend on 4319, and never the office disk. */
 async function startStorageServer(): Promise<void> {
   storageRoot = mkdtempSync(path.join(tmpdir(), "aos-test-storage-"));
   storageServer = spawn(process.execPath, [path.join(process.cwd(), "Backend", "storage-server.mjs")], {
-    env: { ...process.env, AOS_STORAGE_PORT: "4329", AOS_STORAGE_ROOT: storageRoot },
+    env: { ...process.env, PFO_STORAGE_PORT: "4329", PFO_STORAGE_ROOT: storageRoot },
     stdio: "pipe",
   });
   const deadline = Date.now() + 10_000;

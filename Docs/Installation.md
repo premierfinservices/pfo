@@ -86,26 +86,26 @@ notepad .env
 The values that matter on the server:
 
 ```ini
-AOS_DB_HOST=127.0.0.1
-AOS_DB_PORT=5432
-AOS_DB_NAME=aos
+PFO_DB_HOST=127.0.0.1
+PFO_DB_PORT=5432
+PFO_DB_NAME=aos
 # Superuser. Correct for the migration in step 5 and WRONG to leave here —
 # step 5a replaces these two lines once the schema exists.
-AOS_DB_USER=postgres
-AOS_DB_PASSWORD=<the password from step 1>
+PFO_DB_USER=postgres
+PFO_DB_PASSWORD=<the password from step 1>
 
 # THIS is what makes AOS reachable from other PCs. Only on this machine.
-AOS_WEB_HOST=0.0.0.0
-AOS_WEB_PORT=4300
+PFO_WEB_HOST=0.0.0.0
+PFO_WEB_PORT=4300
 
-AOS_STORAGE_ROOT=C:\AOS\Data
-AOS_BACKUP_ROOT=D:\AOS-Backups      # a DIFFERENT disk from the documents
-AOS_BACKUP_RETENTION=14
+PFO_STORAGE_ROOT=C:\AOS\Data
+PFO_BACKUP_ROOT=D:\AOS-Backups      # a DIFFERENT disk from the documents
+PFO_BACKUP_RETENTION=14
 
-AOS_MAIL_PROVIDER=unconfigured      # set to gmail in step 9
+PFO_MAIL_PROVIDER=unconfigured      # set to gmail in step 9
 ```
 
-> **`AOS_BACKUP_ROOT` on the same disk as `AOS_STORAGE_ROOT` protects you
+> **`PFO_BACKUP_ROOT` on the same disk as `PFO_STORAGE_ROOT` protects you
 > against database corruption and against nothing else.** That disk failing
 > takes both. Use a second disk, an external drive, or a network share.
 
@@ -143,20 +143,20 @@ again; nobody has to remember it.
 Then edit `.env`:
 
 ```ini
-AOS_DB_USER=aos_app
-AOS_DB_PASSWORD=<the aos_app password you just set>
+PFO_DB_USER=aos_app
+PFO_DB_PASSWORD=<the aos_app password you just set>
 
 # The administrative scripts — seed-users, bootstrap-production — deliberately
 # CANNOT run as aos_app: it is not allowed to create accounts or write to the
 # event log outside an authenticated request. These two lines let those scripts
 # keep using the owner account while the running application does not.
-AOS_DB_ADMIN_USER=postgres
-AOS_DB_ADMIN_PASSWORD=<the postgres password from step 1>
+PFO_DB_ADMIN_USER=postgres
+PFO_DB_ADMIN_PASSWORD=<the postgres password from step 1>
 ```
 
 Restart AOS and confirm it still works — sign in, open a case, upload a
 document. If anything returns "Something went wrong", revert the two
-`AOS_DB_USER`/`AOS_DB_PASSWORD` lines to `postgres`, restart, and report what
+`PFO_DB_USER`/`PFO_DB_PASSWORD` lines to `postgres`, restart, and report what
 failed: it means a table or privilege was missed, and running as superuser is
 better than running not at all while that is fixed.
 
@@ -195,7 +195,7 @@ Leave it running and, in a second window:
 ```
 
 Every line except the scheduled tasks and the backup should say `UP`. If
-"Employee access" says DOWN, `AOS_WEB_HOST` is still `127.0.0.1` — fix `.env`
+"Employee access" says DOWN, `PFO_WEB_HOST` is still `127.0.0.1` — fix `.env`
 and restart.
 
 Stop it with Ctrl-C for now.
@@ -228,10 +228,10 @@ nothing after this point matters yet.
 Follow the Gmail OAuth steps in `.env.example`, then set:
 
 ```ini
-AOS_MAIL_PROVIDER=gmail
-AOS_GMAIL_CLIENT_ID=...
-AOS_GMAIL_CLIENT_SECRET=...
-AOS_GMAIL_REFRESH_TOKEN=...
+PFO_MAIL_PROVIDER=gmail
+PFO_GMAIL_CLIENT_ID=...
+PFO_GMAIL_CLIENT_SECRET=...
+PFO_GMAIL_REFRESH_TOKEN=...
 ```
 
 Restart AOS and confirm:
@@ -244,7 +244,7 @@ Until this is done every submission is refused with a clear message. Nothing
 is queued and nothing is faked — which is the right behaviour, but it does
 mean bank submission does not work until this step is complete.
 
-> **Never set `AOS_MAIL_PROVIDER=capture` on this machine.** It reports success
+> **Never set `PFO_MAIL_PROVIDER=capture` on this machine.** It reports success
 > and sends nothing, so the office would record submissions that never left the
 > building. It exists for automated tests.
 
@@ -263,7 +263,7 @@ person theirs directly, and have them change it.
 The same run **disables the five development accounts** — `telecaller.a`,
 `telecaller.b`, `login.exec`, `manager.m`, `partner.p` — and revokes any live
 session they hold. That used to require `--reset` plus an
-`AOS_BOOTSTRAP_CONFIRM` environment variable, which put the safe outcome behind
+`PFO_BOOTSTRAP_CONFIRM` environment variable, which put the safe outcome behind
 two opt-ins and left `partner.p`, a Managing Partner, signable-in by default.
 Nothing is deleted: the accounts stay as records so departed names survive on
 what they touched (BR-062), and one `update app_user set is_active = true`

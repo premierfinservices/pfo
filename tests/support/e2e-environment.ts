@@ -8,7 +8,7 @@
  *
  * Everything here is a CONSTANT and deliberately not read from the
  * environment. `Backend/test-globalsetup.ts` learned this the hard way and
- * says so: a test bootstrap that reads `AOS_DB_NAME` picks up `.env` and
+ * says so: a test bootstrap that reads `PFO_DB_NAME` picks up `.env` and
  * points the whole suite at the office database. It did exactly that once.
  */
 
@@ -51,7 +51,7 @@ export const E2E_USERS: readonly { username: string; fullName: string; roles: Ro
  * The names that mean "the office database", refused outright.
  *
  * `aos` is the live one. The check is a belt-and-braces companion to
- * `AOS_REQUIRE_DB_NAME` in `Backend/db.ts`: that one stops a SERVER connecting
+ * `PFO_REQUIRE_DB_NAME` in `Backend/db.ts`: that one stops a SERVER connecting
  * to the wrong place, this one stops the SETUP — which creates databases, runs
  * migrations and inserts accounts — from doing so, and it runs before the
  * server exists.

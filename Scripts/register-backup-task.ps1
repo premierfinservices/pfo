@@ -14,7 +14,7 @@
     back up an empty install over the top of the retention window.
 
     The task is registered to run as the account you name, because it needs to
-    read AOS_DB_PASSWORD from the repository's .env and write to AOS_BACKUP_ROOT
+    read PFO_DB_PASSWORD from the repository's .env and write to PFO_BACKUP_ROOT
     (frequently a mapped drive, which SYSTEM cannot see). It is registered with
     -RunLevel Highest only if the backup destination requires it.
 
@@ -44,7 +44,7 @@
     To inspect afterwards:   Get-ScheduledTask -TaskName "AOS Nightly Backup" | Get-ScheduledTaskInfo
     To run it by hand:       Start-ScheduledTask -TaskName "AOS Nightly Backup"
     To remove it:            Unregister-ScheduledTask -TaskName "AOS Nightly Backup" -Confirm:$false
-    Logs:                    <AOS_BACKUP_ROOT>\backup-log.txt
+    Logs:                    <PFO_BACKUP_ROOT>\backup-log.txt
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true)]
@@ -70,11 +70,11 @@ if (-not (Test-Path $EnvFile)) {
     throw ".env does not exist at $EnvFile. Configure the server first (see Docs/Installation.md)  -  an unconfigured backup would silently back up the wrong database."
 }
 
-# Read AOS_BACKUP_ROOT out of .env so the log lands beside the backups rather
+# Read PFO_BACKUP_ROOT out of .env so the log lands beside the backups rather
 # than somewhere only this script knows about.
 $BackupRoot = "C:\AOS\Backups"
 foreach ($line in Get-Content $EnvFile) {
-    if ($line -match '^\s*AOS_BACKUP_ROOT\s*=\s*(.+?)\s*$') {
+    if ($line -match '^\s*PFO_BACKUP_ROOT\s*=\s*(.+?)\s*$') {
         $BackupRoot = $Matches[1].Trim('"').Trim("'")
     }
 }

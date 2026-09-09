@@ -49,7 +49,7 @@ async function waitHealthy(url: string): Promise<void> {
 async function startStorageServer(): Promise<void> {
   storageRoot = mkdtempSync(path.join(tmpdir(), "aos-test-storage-"));
   storageServer = spawn(process.execPath, [path.join(process.cwd(), "Backend", "storage-server.mjs")], {
-    env: { ...process.env, AOS_STORAGE_PORT: "4329", AOS_STORAGE_ROOT: storageRoot },
+    env: { ...process.env, PFO_STORAGE_PORT: "4329", PFO_STORAGE_ROOT: storageRoot },
     stdio: "pipe",
   });
   await waitHealthy("http://127.0.0.1:4329/health");
@@ -60,9 +60,9 @@ async function startMailServer(): Promise<void> {
   mailServer = spawn(process.execPath, [path.join(process.cwd(), "Backend", "mail-server.mjs")], {
     env: {
       ...process.env,
-      AOS_MAIL_PORT: "4330",
-      AOS_MAIL_PROVIDER: "capture",
-      AOS_MAIL_CAPTURE_DIR: mailCaptureDir,
+      PFO_MAIL_PORT: "4330",
+      PFO_MAIL_PROVIDER: "capture",
+      PFO_MAIL_CAPTURE_DIR: mailCaptureDir,
     },
     stdio: "pipe",
   });

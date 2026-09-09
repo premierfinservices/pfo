@@ -50,10 +50,10 @@ loadDotEnv();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
 
-const API_PORT = Number(process.env.AOS_API_PORT ?? 4321);
-const STORAGE_PORT = Number(process.env.AOS_STORAGE_PORT ?? 4319);
-const MAIL_PORT = Number(process.env.AOS_MAIL_PORT ?? 4320);
-const WEB_PORT = Number(process.env.AOS_WEB_PORT ?? 4300);
+const API_PORT = Number(process.env.PFO_API_PORT ?? 4321);
+const STORAGE_PORT = Number(process.env.PFO_STORAGE_PORT ?? 4319);
+const MAIL_PORT = Number(process.env.PFO_MAIL_PORT ?? 4320);
+const WEB_PORT = Number(process.env.PFO_WEB_PORT ?? 4300);
 
 const VITE_NODE = path.join(ROOT, "node_modules", "vite-node", "vite-node.mjs");
 
@@ -191,11 +191,11 @@ async function waitForHealth(url, timeoutMs) {
 async function waitForPostgres() {
   const pg = (await import("pg")).default;
   const config = {
-    host: process.env.AOS_DB_HOST ?? "127.0.0.1",
-    port: Number(process.env.AOS_DB_PORT ?? 5432),
-    database: process.env.AOS_DB_NAME ?? "aos",
-    user: process.env.AOS_DB_USER ?? "postgres",
-    password: process.env.AOS_DB_PASSWORD ?? "",
+    host: process.env.PFO_DB_HOST ?? "127.0.0.1",
+    port: Number(process.env.PFO_DB_PORT ?? 5432),
+    database: process.env.PFO_DB_NAME ?? "aos",
+    user: process.env.PFO_DB_USER ?? "postgres",
+    password: process.env.PFO_DB_PASSWORD ?? "",
     connectionTimeoutMillis: 3000,
   };
 
@@ -304,11 +304,11 @@ async function main() {
   console.log(
     `\nAOS supervisor\n` +
       `  root        ${ROOT}\n` +
-      `  web         ${process.env.AOS_WEB_HOST ?? "127.0.0.1"}:${WEB_PORT}\n` +
-      `  api         ${process.env.AOS_API_HOST ?? "127.0.0.1"}:${API_PORT}\n` +
+      `  web         ${process.env.PFO_WEB_HOST ?? "127.0.0.1"}:${WEB_PORT}\n` +
+      `  api         ${process.env.PFO_API_HOST ?? "127.0.0.1"}:${API_PORT}\n` +
       `  storage     127.0.0.1:${STORAGE_PORT} (loopback only, always)\n` +
       `  mail        127.0.0.1:${MAIL_PORT} (loopback only, always)\n` +
-      `  database    ${process.env.AOS_DB_NAME ?? "aos"} on ${process.env.AOS_DB_HOST ?? "127.0.0.1"}\n`,
+      `  database    ${process.env.PFO_DB_NAME ?? "aos"} on ${process.env.PFO_DB_HOST ?? "127.0.0.1"}\n`,
   );
 
   claimSingleInstance();

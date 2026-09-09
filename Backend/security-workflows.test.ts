@@ -15,7 +15,7 @@
  * `submission_package_email`, `submission_package_document`) is exercised by
  * the actual code path, not inferred from reading the migration.
  *
- * Nothing here reaches Gmail: `AOS_MAIL_PROVIDER=capture` writes the message
+ * Nothing here reaches Gmail: `PFO_MAIL_PROVIDER=capture` writes the message
  * to a throwaway directory and reports success, exactly as
  * `submissions.test.ts` already does. Nothing here reaches the office disk:
  * the storage root is a throwaway temp directory, matching `documents.test.ts`.
@@ -74,7 +74,7 @@ async function waitHealthy(url: string): Promise<void> {
 async function startStorageServer(): Promise<void> {
   storageRoot = mkdtempSync(path.join(tmpdir(), "aos-secwf-storage-"));
   storageServer = spawn(process.execPath, [path.join(process.cwd(), "Backend", "storage-server.mjs")], {
-    env: { ...process.env, AOS_STORAGE_PORT: "4332", AOS_STORAGE_ROOT: storageRoot },
+    env: { ...process.env, PFO_STORAGE_PORT: "4332", PFO_STORAGE_ROOT: storageRoot },
     stdio: "pipe",
   });
   await waitHealthy("http://127.0.0.1:4332/health");
@@ -85,9 +85,9 @@ async function startMailServer(): Promise<void> {
   mailServer = spawn(process.execPath, [path.join(process.cwd(), "Backend", "mail-server.mjs")], {
     env: {
       ...process.env,
-      AOS_MAIL_PORT: "4333",
-      AOS_MAIL_PROVIDER: "capture",
-      AOS_MAIL_CAPTURE_DIR: mailCaptureDir,
+      PFO_MAIL_PORT: "4333",
+      PFO_MAIL_PROVIDER: "capture",
+      PFO_MAIL_CAPTURE_DIR: mailCaptureDir,
     },
     stdio: "pipe",
   });
@@ -113,14 +113,14 @@ async function startAppRoleServer(): Promise<void> {
     {
       env: {
         ...process.env,
-        AOS_DB_NAME: "aos_test",
-        AOS_REQUIRE_DB_NAME: "aos_test",
-        AOS_DB_USER: "aos_app",
-        AOS_DB_PASSWORD: APP_ROLE_PASSWORD,
-        AOS_API_PORT: String(port),
-        AOS_API_NO_LISTEN: "0",
-        AOS_STORAGE_SERVER_URL: "http://127.0.0.1:4332",
-        AOS_MAIL_SERVER_URL: "http://127.0.0.1:4333",
+        PFO_DB_NAME: "aos_test",
+        PFO_REQUIRE_DB_NAME: "aos_test",
+        PFO_DB_USER: "aos_app",
+        PFO_DB_PASSWORD: APP_ROLE_PASSWORD,
+        PFO_API_PORT: String(port),
+        PFO_API_NO_LISTEN: "0",
+        PFO_STORAGE_SERVER_URL: "http://127.0.0.1:4332",
+        PFO_MAIL_SERVER_URL: "http://127.0.0.1:4333",
       },
       stdio: "pipe",
     },
@@ -227,8 +227,8 @@ beforeAll(async () => {
   await startAppRoleServer();
 
   appRole = new pg.Client({
-    host: process.env.AOS_DB_HOST ?? "127.0.0.1",
-    port: Number(process.env.AOS_DB_PORT ?? 5432),
+    host: process.env.PFO_DB_HOST ?? "127.0.0.1",
+    port: Number(process.env.PFO_DB_PORT ?? 5432),
     database: "aos_test",
     user: "aos_app",
     password: APP_ROLE_PASSWORD,

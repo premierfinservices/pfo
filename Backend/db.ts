@@ -7,7 +7,7 @@
  *
  * WHAT LIVES HERE AND WHAT DOES NOT: operational metadata — customers, cases,
  * requirements, verification, submissions, users, events. Document BYTES do
- * not. They stay on disk under `AOS_STORAGE_ROOT`, reached through
+ * not. They stay on disk under `PFO_STORAGE_ROOT`, reached through
  * `Backend/storage-server.mjs`, and the database holds only the storage path
  * (see `document.file_path`'s column comment in migration 0005). That split is
  * deliberate and predates this milestone; nothing here changes it.
@@ -18,7 +18,7 @@ import { loadDotEnv } from "./env.mjs";
 
 loadDotEnv();
 
-const DATABASE = process.env.AOS_DB_NAME ?? "aos";
+const DATABASE = process.env.PFO_DB_NAME ?? "aos";
 
 /**
  * A backend process may be told which database it is REQUIRED to be talking to,
@@ -27,7 +27,7 @@ const DATABASE = process.env.AOS_DB_NAME ?? "aos";
  * WHAT THIS PREVENTS (Stage 3C-0). The Playwright suite creates customers,
  * opens cases, deactivates users and resets passwords. It is supposed to do
  * all of that against `aos_e2e`. Before this guard, the only thing standing
- * between it and the OFFICE database was a `AOS_DB_NAME` set on a server
+ * between it and the OFFICE database was a `PFO_DB_NAME` set on a server
  * process that Playwright might or might not have started itself — and with
  * `reuseExistingServer` it frequently did not. An office dev server left
  * running on the same port was silently adopted, complete with its connection
@@ -37,20 +37,20 @@ const DATABASE = process.env.AOS_DB_NAME ?? "aos";
  * the wrong data. Nothing in the office environment sets this variable, so
  * ordinary development is unaffected.
  */
-const required = process.env.AOS_REQUIRE_DB_NAME;
+const required = process.env.PFO_REQUIRE_DB_NAME;
 if (required !== undefined && required !== DATABASE) {
   throw new Error(
-    `Refusing to start: AOS_REQUIRE_DB_NAME is "${required}" but this process would ` +
+    `Refusing to start: PFO_REQUIRE_DB_NAME is "${required}" but this process would ` +
       `connect to "${DATABASE}". Something is pointing a test at the wrong database.`,
   );
 }
 
 export const pool = new pg.Pool({
-  host: process.env.AOS_DB_HOST ?? "127.0.0.1",
-  port: Number(process.env.AOS_DB_PORT ?? 5432),
+  host: process.env.PFO_DB_HOST ?? "127.0.0.1",
+  port: Number(process.env.PFO_DB_PORT ?? 5432),
   database: DATABASE,
-  user: process.env.AOS_DB_USER ?? "postgres",
-  password: process.env.AOS_DB_PASSWORD ?? "",
+  user: process.env.PFO_DB_USER ?? "postgres",
+  password: process.env.PFO_DB_PASSWORD ?? "",
   // The office runs a handful of PCs against one backend. A small pool keeps
   // `app.allocate_case_number`'s per-year row lock (ADR-024) from queueing
   // behind connections doing nothing.
@@ -75,22 +75,22 @@ export type Queryable = Pick<pg.PoolClient, "query">;
  * API's privileges so a script it never calls can share its connection would
  * trade a real boundary for a small convenience.
  *
- * So: if AOS_DB_ADMIN_USER is set, these scripts use it. If it is not, they
+ * So: if PFO_DB_ADMIN_USER is set, these scripts use it. If it is not, they
  * fall back to the ordinary pool — which is what happens on a development
  * machine that still connects as `postgres`, and means nothing about this
- * changes until an office actually switches AOS_DB_USER to `aos_app`.
+ * changes until an office actually switches PFO_DB_USER to `aos_app`.
  */
 let admin: pg.Pool | null = null;
 
 export function adminPool(): pg.Pool {
-  const user = process.env.AOS_DB_ADMIN_USER?.trim();
+  const user = process.env.PFO_DB_ADMIN_USER?.trim();
   if (!user) return pool;
   admin ??= new pg.Pool({
-    host: process.env.AOS_DB_HOST ?? "127.0.0.1",
-    port: Number(process.env.AOS_DB_PORT ?? 5432),
+    host: process.env.PFO_DB_HOST ?? "127.0.0.1",
+    port: Number(process.env.PFO_DB_PORT ?? 5432),
     database: DATABASE,
     user,
-    password: process.env.AOS_DB_ADMIN_PASSWORD ?? process.env.AOS_DB_PASSWORD ?? "",
+    password: process.env.PFO_DB_ADMIN_PASSWORD ?? process.env.PFO_DB_PASSWORD ?? "",
     // One script, one connection at a time. Nothing here is concurrent.
     max: 2,
   });
@@ -103,7 +103,7 @@ export async function withAdmin<T>(fn: (client: pg.PoolClient) => Promise<T>): P
 }
 
 /** Close whatever the admin scripts opened, including the shared pool when
- * AOS_DB_ADMIN_USER was never set and `adminPool()` handed back `pool`. */
+ * PFO_DB_ADMIN_USER was never set and `adminPool()` handed back `pool`. */
 export async function closeAdminPool(): Promise<void> {
   if (admin) {
     await admin.end();

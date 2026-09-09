@@ -14,7 +14,7 @@ drill 16/16, build green.
 ## What this session closed
 
 The previous checkpoint left one blocking gap: document upload/download,
-bank submissions and mail had never been driven through an `AOS_DB_USER=aos_app`
+bank submissions and mail had never been driven through an `PFO_DB_USER=aos_app`
 connection. Everything else in Item 3 (the role itself, RLS, the auth
 lifecycle, CORS, throttling, bootstrap) was already verified.
 
@@ -57,9 +57,9 @@ paths needed.
 **The Home-PC `aos` checksum mismatch is resolved.** `aos` (confirmed local:
 `127.0.0.1`, not the office) was dropped and recreated, migrated 0001→0033
 clean (no `CHANGED` entries), reseeded with the standard five development
-accounts (`AOS_SEED_CONFIRM=aos npm run seed-users`), and the real
+accounts (`PFO_SEED_CONFIRM=aos npm run seed-users`), and the real
 `api-server` was started against it and a login exercised successfully
-before being stopped. `.env` was not modified; `AOS_DB_USER` is still
+before being stopped. `.env` was not modified; `PFO_DB_USER` is still
 `postgres` on this machine, as it was before.
 
 ---
@@ -105,8 +105,8 @@ before being stopped. `.env` was not modified; `AOS_DB_USER` is still
 
 1. `npm run migrate` (applies 0033; must run as a superuser).
 2. `psql -c "alter role aos_app password '<long random>'"`.
-3. `.env`: `AOS_DB_USER=aos_app`, `AOS_DB_PASSWORD=…`,
-   `AOS_DB_ADMIN_USER=postgres`, `AOS_DB_ADMIN_PASSWORD=…`.
+3. `.env`: `PFO_DB_USER=aos_app`, `PFO_DB_PASSWORD=…`,
+   `PFO_DB_ADMIN_USER=postgres`, `PFO_DB_ADMIN_PASSWORD=…`.
 4. Restart; sign in, open a case, upload a document, send a submission —
    this session's tests prove the code path works as `aos_app`; the office
    server still needs its own live check once the switch is made there, per

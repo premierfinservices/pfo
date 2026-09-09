@@ -6,7 +6,7 @@
  * clock is "now minus the last authenticated activity", not a countdown timer
  * of its own, so the frontend's idea of "how long left" agrees with the
  * server's whether or not this tab has been open the whole time. The two
- * defaults below must match `AOS_SESSION_IDLE_MS`'s default there — see that
+ * defaults below must match `PFO_SESSION_IDLE_MS`'s default there — see that
  * file's comment on `SESSION_IDLE_MS`.
  */
 

@@ -3,7 +3,7 @@
  * Back up the operational database and the document store together.
  *
  * WHY THEY MOVE TOGETHER: `document.file_path` in Postgres is a pointer, not
- * the bytes (see AOS_STORAGE_ROOT's comment in `.env.example`). A database
+ * the bytes (see PFO_STORAGE_ROOT's comment in `.env.example`). A database
  * backup restored without the matching document tree is a system that
  * believes in files it cannot open; a document tree restored without the
  * matching database is bytes nobody can find. One backup run produces one
@@ -31,8 +31,8 @@
  *   node Backend/backup.mjs               back up, verify, then prune
  *   node Backend/backup.mjs --no-verify   skip verification (not recommended)
  *
- * Destination: AOS_BACKUP_ROOT (default C:\AOS\Backups), one subfolder per
- * run named by timestamp. Retention: AOS_BACKUP_RETENTION runs are kept
+ * Destination: PFO_BACKUP_ROOT (default C:\AOS\Backups), one subfolder per
+ * run named by timestamp. Retention: PFO_BACKUP_RETENTION runs are kept
  * (default 14); older ones are deleted after a new backup succeeds AND
  * verifies, never before.
  */
@@ -63,9 +63,9 @@ async function main() {
   const binDir = requirePgBinDir("pg_dump");
   const pgDump = path.join(binDir, "pg_dump.exe");
 
-  const storageRoot = process.env.AOS_STORAGE_ROOT?.trim() || "C:\\AOS\\Data";
-  const backupRoot = process.env.AOS_BACKUP_ROOT?.trim() || "C:\\AOS\\Backups";
-  const retention = Number(process.env.AOS_BACKUP_RETENTION ?? 14);
+  const storageRoot = process.env.PFO_STORAGE_ROOT?.trim() || "C:\\AOS\\Data";
+  const backupRoot = process.env.PFO_BACKUP_ROOT?.trim() || "C:\\AOS\\Backups";
+  const retention = Number(process.env.PFO_BACKUP_RETENTION ?? 14);
 
   const runDir = path.join(backupRoot, timestamp());
   await mkdir(runDir, { recursive: true });

@@ -91,8 +91,8 @@ import { emailProvider as defaultEmailProvider } from "./mail-client.js";
 import { advanceCaseStage, lockCaseForOutcomeMutation } from "./case-stage.js";
 
 const DEFAULT_SENDER: EmailSender = {
-  name: process.env.AOS_MAIL_SENDER_NAME ?? "Premier Finserv",
-  address: process.env.AOS_MAIL_SENDER_ADDRESS ?? "premierfinservices.cbe@gmail.com",
+  name: process.env.PFO_MAIL_SENDER_NAME ?? "Premier Finserv",
+  address: process.env.PFO_MAIL_SENDER_ADDRESS ?? "premierfinservices.cbe@gmail.com",
 };
 
 // ---------------------------------------------------------------------------

@@ -15,7 +15,7 @@
 import type { StorageAdapter, StoredObject } from "@domain/storage/index.js";
 
 const BASE_URL =
-  (process.env.AOS_STORAGE_SERVER_URL ?? "http://127.0.0.1:4319").replace(/\/$/, "");
+  (process.env.PFO_STORAGE_SERVER_URL ?? "http://127.0.0.1:4319").replace(/\/$/, "");
 
 async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
   try {

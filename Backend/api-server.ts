@@ -126,7 +126,7 @@ import {
   updateSubmissionStatus,
 } from "./submissions.js";
 
-const PORT = Number(process.env.AOS_API_PORT ?? 4321);
+const PORT = Number(process.env.PFO_API_PORT ?? 4321);
 
 /**
  * Which network interface to accept connections on.
@@ -136,7 +136,7 @@ const PORT = Number(process.env.AOS_API_PORT ?? 4321);
  * outside the machine should be able to reach an AOS API that is not the
  * office's.
  *
- * THE OFFICE SERVER SETS `AOS_API_HOST=0.0.0.0` (Docs/Installation.md). Until
+ * THE OFFICE SERVER SETS `PFO_API_HOST=0.0.0.0` (Docs/Installation.md). Until
  * Stage 4 there was no way to do that at all — this process bound 127.0.0.1
  * unconditionally, which meant the topology every document described (one
  * server PC, every other PC pointing a browser at it) was not achievable with
@@ -149,7 +149,7 @@ const PORT = Number(process.env.AOS_API_PORT ?? 4321);
  * no authentication of their own, so the API — which checks `document.read`
  * and `submission.create` before a byte moves — is the only safe front door.
  */
-const HOST = process.env.AOS_API_HOST?.trim() || "127.0.0.1";
+const HOST = process.env.PFO_API_HOST?.trim() || "127.0.0.1";
 
 /**
  * ABSOLUTE session lifetime. A workday: long enough that nobody is
@@ -158,7 +158,7 @@ const HOST = process.env.AOS_API_HOST?.trim() || "127.0.0.1";
  * reaches this and ends, however busy the employee has been — the ceiling
  * exists precisely so activity cannot extend a session forever.
  */
-const SESSION_TTL_MS = Number(process.env.AOS_SESSION_TTL_MS ?? 12 * 60 * 60 * 1000);
+const SESSION_TTL_MS = Number(process.env.PFO_SESSION_TTL_MS ?? 12 * 60 * 60 * 1000);
 
 /**
  * INACTIVITY timeout, which is a different control and the one that was
@@ -187,7 +187,7 @@ const SESSION_TTL_MS = Number(process.env.AOS_SESSION_TTL_MS ?? 12 * 60 * 60 * 1
  * skipped — a browser event is not a security control. This is a server-side
  * check on every request, which is the only place it can be one.
  */
-const SESSION_IDLE_MS = Number(process.env.AOS_SESSION_IDLE_MS ?? 5 * 60 * 1000);
+const SESSION_IDLE_MS = Number(process.env.PFO_SESSION_IDLE_MS ?? 5 * 60 * 1000);
 
 // ---------------------------------------------------------------------------
 // HTTP plumbing
@@ -280,12 +280,12 @@ async function readJsonBody(req: IncomingMessage): Promise<Record<string, unknow
  * control, and this handed that out to any web page an employee opened.
  *
  * Now: an allowlist. AOS is served to employees from ONE address —
- * `http://<server LAN IP>:<AOS_WEB_PORT>` — and developed against Vite on
+ * `http://<server LAN IP>:<PFO_WEB_PORT>` — and developed against Vite on
  * 5173. An origin not on the list gets no `Access-Control-Allow-Origin` header
  * at all, which is the correct refusal: the browser blocks the read, and no
  * header is a clearer statement than an echoed one.
  *
- * AOS_ALLOWED_ORIGINS (comma-separated) exists for the installation that
+ * PFO_ALLOWED_ORIGINS (comma-separated) exists for the installation that
  * fronts AOS with a reverse proxy or a hostname, since this process cannot
  * guess either. Set it and it replaces the derived list entirely.
  *
@@ -296,7 +296,7 @@ async function readJsonBody(req: IncomingMessage): Promise<Record<string, unknow
  * which is a real and separate exposure.
  */
 function allowedOrigins(): readonly string[] {
-  const configured = process.env.AOS_ALLOWED_ORIGINS?.trim();
+  const configured = process.env.PFO_ALLOWED_ORIGINS?.trim();
   if (configured) {
     return configured
       .split(",")
@@ -304,10 +304,10 @@ function allowedOrigins(): readonly string[] {
       .filter((origin) => origin.length > 0);
   }
 
-  const webPort = Number(process.env.AOS_WEB_PORT ?? 4300);
+  const webPort = Number(process.env.PFO_WEB_PORT ?? 4300);
   const origins = [
     // The bundled web server, however an employee reaches it. The LAN-IP form
-    // cannot be derived here — the office sets AOS_ALLOWED_ORIGINS for that,
+    // cannot be derived here — the office sets PFO_ALLOWED_ORIGINS for that,
     // and does not need to while the web server proxies /api on its own origin,
     // which makes the request same-origin and sends no Origin header at all.
     `http://localhost:${webPort}`,
@@ -617,8 +617,8 @@ async function describeUser(client: pg.PoolClient, userId: string) {
 // Health probes
 // ---------------------------------------------------------------------------
 
-const STORAGE_URL = (process.env.AOS_STORAGE_SERVER_URL ?? "http://127.0.0.1:4319").replace(/\/$/, "");
-const MAIL_URL = (process.env.AOS_MAIL_SERVER_URL ?? "http://127.0.0.1:4320").replace(/\/$/, "");
+const STORAGE_URL = (process.env.PFO_STORAGE_SERVER_URL ?? "http://127.0.0.1:4319").replace(/\/$/, "");
+const MAIL_URL = (process.env.PFO_MAIL_SERVER_URL ?? "http://127.0.0.1:4320").replace(/\/$/, "");
 
 /** "up" or "down", with a short timeout. A health check that hangs because
  * one backend is wedged is worse than one that reports the wedge. */
@@ -1247,11 +1247,11 @@ async function withActorIdentity<T>(
 }
 
 // Started directly (`npm run api-server`) rather than imported by a test.
-if (process.env.AOS_API_NO_LISTEN !== "1") {
+if (process.env.PFO_API_NO_LISTEN !== "1") {
   createApiServer().listen(PORT, HOST, () => {
     console.log(`AOS API listening on http://${HOST}:${PORT}`);
     if (HOST === "127.0.0.1" || HOST === "localhost") {
-      console.log("  Loopback only — no other PC can reach this. Set AOS_API_HOST=0.0.0.0 on the office server.");
+      console.log("  Loopback only — no other PC can reach this. Set PFO_API_HOST=0.0.0.0 on the office server.");
     } else {
       // Said loudly, because this is the one setting that puts AOS on the
       // office network. If it is set on a machine that is NOT the designated

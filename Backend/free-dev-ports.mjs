@@ -27,11 +27,11 @@ import { pathToFileURL } from "node:url";
 
 const execFileAsync = promisify(execFile);
 
-const AOS_DEV_PORTS = [
-  Number(process.env.AOS_VITE_PORT ?? 5173),
-  Number(process.env.AOS_API_PORT ?? 4321),
-  Number(process.env.AOS_STORAGE_PORT ?? 4319),
-  Number(process.env.AOS_MAIL_PORT ?? 4320),
+const PFO_DEV_PORTS = [
+  Number(process.env.PFO_VITE_PORT ?? 5173),
+  Number(process.env.PFO_API_PORT ?? 4321),
+  Number(process.env.PFO_STORAGE_PORT ?? 4319),
+  Number(process.env.PFO_MAIL_PORT ?? 4320),
 ];
 
 /** Every LISTENING PID on `port`, IPv4 or IPv6 — `-p tcp` silently drops
@@ -115,5 +115,5 @@ export async function freePorts(ports, label = "free-dev-ports") {
 // Run as `node Backend/free-dev-ports.mjs` (the `predev` hook); imported by
 // `Backend/supervisor.mjs`, which must not trigger the dev-port sweep.
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
-  await freePorts(AOS_DEV_PORTS);
+  await freePorts(PFO_DEV_PORTS);
 }

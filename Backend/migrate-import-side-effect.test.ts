@@ -20,11 +20,11 @@ const TEST_DB = "aos_test_migrate_side_effect";
 
 async function adminClient() {
   const client = new pg.Client({
-    host: process.env.AOS_DB_HOST ?? "127.0.0.1",
-    port: Number(process.env.AOS_DB_PORT ?? 5432),
+    host: process.env.PFO_DB_HOST ?? "127.0.0.1",
+    port: Number(process.env.PFO_DB_PORT ?? 5432),
     database: "postgres",
-    user: process.env.AOS_DB_USER ?? "postgres",
-    password: process.env.AOS_DB_PASSWORD ?? "",
+    user: process.env.PFO_DB_USER ?? "postgres",
+    password: process.env.PFO_DB_PASSWORD ?? "",
   });
   await client.connect();
   return client;
@@ -51,11 +51,11 @@ afterAll(async () => {
 
 async function schemaMigrationsRowCount(): Promise<number> {
   const client = new pg.Client({
-    host: process.env.AOS_DB_HOST ?? "127.0.0.1",
-    port: Number(process.env.AOS_DB_PORT ?? 5432),
+    host: process.env.PFO_DB_HOST ?? "127.0.0.1",
+    port: Number(process.env.PFO_DB_PORT ?? 5432),
     database: TEST_DB,
-    user: process.env.AOS_DB_USER ?? "postgres",
-    password: process.env.AOS_DB_PASSWORD ?? "",
+    user: process.env.PFO_DB_USER ?? "postgres",
+    password: process.env.PFO_DB_PASSWORD ?? "",
   });
   await client.connect();
   try {
@@ -76,8 +76,8 @@ describe("importing the migration module has no side effects", () => {
     // migration is pending. This is the failure mode the bug produced.
     expect(await schemaMigrationsRowCount()).toBe(0);
 
-    const previousDbName = process.env.AOS_DB_NAME;
-    process.env.AOS_DB_NAME = TEST_DB;
+    const previousDbName = process.env.PFO_DB_NAME;
+    process.env.PFO_DB_NAME = TEST_DB;
     try {
       // What backup.mjs and restore.mjs do: import the config helper.
       const dbConfig = await import("./db-config.mjs");
@@ -88,8 +88,8 @@ describe("importing the migration module has no side effects", () => {
       const migrate = await import("./migrate.mjs");
       expect(typeof migrate.connectionConfig).toBe("function");
     } finally {
-      if (previousDbName === undefined) delete process.env.AOS_DB_NAME;
-      else process.env.AOS_DB_NAME = previousDbName;
+      if (previousDbName === undefined) delete process.env.PFO_DB_NAME;
+      else process.env.PFO_DB_NAME = previousDbName;
     }
 
     // The pending migration must still be pending: nothing ran.

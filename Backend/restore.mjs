@@ -8,9 +8,9 @@
  *
  *   - The target database and target storage root are always explicit
  *     arguments. There is no default that points at "aos" or
- *     AOS_STORAGE_ROOT.
- *   - If the target database name is "aos" (or matches AOS_DB_NAME), it also
- *     requires AOS_RESTORE_CONFIRM to equal that name.
+ *     PFO_STORAGE_ROOT.
+ *   - If the target database name is "aos" (or matches PFO_DB_NAME), it also
+ *     requires PFO_RESTORE_CONFIRM to equal that name.
  *   - The target database must not already exist unless --drop-existing is
  *     given, so a restore can never silently merge into or replace a live
  *     database by mistake.
@@ -31,7 +31,7 @@
  *
  * Usage — disaster recovery onto the real office database (after it has
  * been dropped or is otherwise empty; never run against a live one):
- *   $env:AOS_RESTORE_CONFIRM="aos"
+ *   $env:PFO_RESTORE_CONFIRM="aos"
  *   node Backend/restore.mjs --backup <run> --db aos --storage-root C:\AOS\Data --create-db
  */
 
@@ -84,11 +84,11 @@ async function main() {
   }
 
   const config = connectionConfig();
-  const office = process.env.AOS_DB_NAME ?? "aos";
-  if (targetDb === office && process.env.AOS_RESTORE_CONFIRM !== targetDb) {
+  const office = process.env.PFO_DB_NAME ?? "aos";
+  if (targetDb === office && process.env.PFO_RESTORE_CONFIRM !== targetDb) {
     fail(
       `--db "${targetDb}" matches the office database name.\n` +
-        `  Re-run with AOS_RESTORE_CONFIRM=${targetDb} if you intend to restore onto it.`,
+        `  Re-run with PFO_RESTORE_CONFIRM=${targetDb} if you intend to restore onto it.`,
     );
   }
 

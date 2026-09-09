@@ -32,7 +32,7 @@ import {
   switchUser,
 } from "../support/helpers";
 
-const MAIL_BASE_URL = process.env.AOS_MAIL_BASE_URL ?? "http://127.0.0.1:4320";
+const MAIL_BASE_URL = process.env.PFO_MAIL_BASE_URL ?? "http://127.0.0.1:4320";
 const MB = 1024 * 1024;
 
 interface CapturedEmail {
@@ -50,7 +50,7 @@ async function capturedEmails(request: APIRequestContext): Promise<CapturedEmail
   expect(
     response.ok(),
     "The mail backend is not running in capture mode. Stop any dev server started without " +
-      "AOS_MAIL_PROVIDER=capture and let Playwright start its own.",
+      "PFO_MAIL_PROVIDER=capture and let Playwright start its own.",
   ).toBe(true);
   return (await response.json()) as CapturedEmail[];
 }
