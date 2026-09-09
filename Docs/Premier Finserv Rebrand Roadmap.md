@@ -218,9 +218,8 @@ deferred to Phase 3 — cosmetic only, doesn't affect the live sender identity.
 
 ## PHASE 4 — Env var prefix rename (`AOS_*` → `<SLUG>_*`)
 
-**STATUS: UNFOLD PC SIDE COMPLETE. HOME PC `.env` STILL OUTSTANDING**
-(2026-09-09). Slug confirmed: `pfo`. Ran on Unfold Media Corp PC (the
-production server).
+**STATUS: COMPLETE, BOTH PCS** (2026-09-09). Slug confirmed: `pfo`. Ran on
+Unfold Media Corp PC (the production server) and home PC.
 **Complexity: Medium-High — Model: Sonnet 5 — Effort: High**
 
 - Renamed every `AOS_*` env var identifier to `PFO_*` across 48 files:
@@ -259,24 +258,17 @@ production server).
   `http://127.0.0.1:4300` → HTTP 200. Grep confirms zero `AOS_[A-Z_]+`
   references left in `Backend/`, `Frontend/`, `src/`, `Scripts/`, or
   `.env.example`.
-- **Home PC's `.env`: STILL OUTSTANDING.** Not reachable from any session
-  running on Unfold PC — needs to be done from home PC directly. The
-  rename is a pure 1:1 key-prefix swap (no value changes), all 20 keys
-  listed in `.env.example`'s diff at commit `b1a0384`
-  (`AOS_API_HOST`, `AOS_API_PORT`, `AOS_BACKUP_RETENTION`,
-  `AOS_BACKUP_ROOT`, `AOS_DB_HOST`, `AOS_DB_NAME`, `AOS_DB_PASSWORD`,
-  `AOS_DB_PORT`, `AOS_DB_USER`, `AOS_GMAIL_CLIENT_ID`,
-  `AOS_GMAIL_CLIENT_SECRET`, `AOS_GMAIL_REFRESH_TOKEN`, `AOS_MAIL_PORT`,
-  `AOS_MAIL_PROVIDER`, `AOS_MAIL_SENDER_ADDRESS`, `AOS_MAIL_SENDER_NAME`,
-  `AOS_MAIL_TIMEOUT_MS`, `AOS_STORAGE_PORT`, `AOS_STORAGE_ROOT`,
-  `AOS_WEB_HOST`, `AOS_WEB_PORT`) each become their `PFO_*` counterpart,
-  same value. `git pull` on home PC brings the renamed code and the
-  updated `.env.example` (both tracked); `.env` itself is git-ignored and
-  per-machine, so it will NOT update itself from a pull — someone with
-  access to home PC must edit its `.env` by hand (or via a small
-  find-replace script) before running `npm run dev` there again, or the
-  new code will read unset `PFO_*` vars against an `.env` that still only
-  defines the old `AOS_*` names.
+- **Home PC's `.env`: DONE** (2026-09-09, reported from the home PC
+  session, not independently verified from Unfold PC — no session on
+  Unfold PC has access to home PC's filesystem to double-check). `git
+  pull` brought home PC to `efef9a3`. All keys home PC's `.env` actually
+  defines (14 of them — this file never carried the backup/Gmail keys
+  that only apply to the production mail/backup path) renamed from
+  `AOS_*` to `PFO_*`, same values, no leftover `AOS_*` lines. `npm run
+  migrate` reported running clean against home PC's local dev Postgres
+  afterward. `npm run dev` itself was not run/confirmed as of this
+  checkpoint — optional further verification, not required for this
+  phase to be considered done.
 - **Coordination requirement**: `.env` is git-ignored and per-machine. Both
   the home PC's `.env` and Unfold PC's production `.env` must be updated
   to the new var names in the same maintenance window the code ships,
