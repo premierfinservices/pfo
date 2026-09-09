@@ -31,7 +31,7 @@
  *   node Backend/backup.mjs               back up, verify, then prune
  *   node Backend/backup.mjs --no-verify   skip verification (not recommended)
  *
- * Destination: PFO_BACKUP_ROOT (default C:\AOS\Backups), one subfolder per
+ * Destination: PFO_BACKUP_ROOT (default C:\PFO\Backups), one subfolder per
  * run named by timestamp. Retention: PFO_BACKUP_RETENTION runs are kept
  * (default 14); older ones are deleted after a new backup succeeds AND
  * verifies, never before.
@@ -63,8 +63,8 @@ async function main() {
   const binDir = requirePgBinDir("pg_dump");
   const pgDump = path.join(binDir, "pg_dump.exe");
 
-  const storageRoot = process.env.PFO_STORAGE_ROOT?.trim() || "C:\\AOS\\Data";
-  const backupRoot = process.env.PFO_BACKUP_ROOT?.trim() || "C:\\AOS\\Backups";
+  const storageRoot = process.env.PFO_STORAGE_ROOT?.trim() || "C:\\PFO\\Data";
+  const backupRoot = process.env.PFO_BACKUP_ROOT?.trim() || "C:\\PFO\\Backups";
   const retention = Number(process.env.PFO_BACKUP_RETENTION ?? 14);
 
   const runDir = path.join(backupRoot, timestamp());

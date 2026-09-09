@@ -94,7 +94,7 @@ export interface StorageConfig {
   readonly root: string;
 }
 
-/** The configured storage root (e.g. `C:\AOS\Data`), for display alongside a
+/** The configured storage root (e.g. `C:\PFO\Data`), for display alongside a
  * document's storage path. Falls back to a message explaining the backend
  * isn't reachable rather than throwing, since this is read for display only. */
 export async function getStorageConfig(): Promise<StorageConfig> {

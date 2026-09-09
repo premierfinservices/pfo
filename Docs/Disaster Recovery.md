@@ -10,7 +10,7 @@ afternoon, is worth more than reading it twice.
 
 ## First: do not make it worse
 
-1. **Do not delete anything.** Not the database, not `C:\AOS\Data`, not a
+1. **Do not delete anything.** Not the database, not `C:\PFO\Data`, not a
    backup folder that "looks corrupt". A damaged database is often still
    partially readable and is evidence about what happened.
 2. **Do not run migrations** against a database you are unsure about.
@@ -29,7 +29,7 @@ Two halves that must be restored **from the same backup run**:
 | | Where | What it is |
 |---|---|---|
 | Operational database | PostgreSQL `pfo` | Customers, cases, requirements, document *metadata*, verification, submissions, users, permissions, the event log |
-| Document bytes | `PFO_STORAGE_ROOT` (`C:\AOS\Data`) | The actual PDFs and photos |
+| Document bytes | `PFO_STORAGE_ROOT` (`C:\PFO\Data`) | The actual PDFs and photos |
 
 `document.file_path` in the database is a *pointer*. A database restored
 without its matching documents is a system that believes in files it cannot
@@ -48,7 +48,7 @@ offline. Everything else can be rebuilt from this repository.
 1. Confirm what you are restoring from:
 
    ```powershell
-   cd C:\AOS\App
+   cd C:\PFO\App
    npm run backup:verify -- --all
    ```
 
@@ -62,9 +62,9 @@ offline. Everything else can be rebuilt from this repository.
    ```powershell
    $env:PFO_RESTORE_CONFIRM="pfo"
    node Backend/restore.mjs `
-       --backup "D:\AOS-Backups\2026-08-10_20-30-00" `
+       --backup "D:\PFO-Backups\2026-08-10_20-30-00" `
        --db pfo `
-       --storage-root C:\AOS\Data `
+       --storage-root C:\PFO\Data `
        --create-db --drop-existing --overwrite-storage
    ```
 
@@ -103,7 +103,7 @@ You need the backup folder (from wherever `PFO_BACKUP_ROOT` pointed) and the
    $env:PFO_RESTORE_CONFIRM="pfo"
    node Backend/restore.mjs `
        --backup "<backup folder>" --db pfo `
-       --storage-root C:\AOS\Data --create-db
+       --storage-root C:\PFO\Data --create-db
    ```
 4. `npm run build`, then continue from Installation step 7.
 5. `npm run migrate:status` — if the checkout is newer than the backup, some
@@ -129,13 +129,13 @@ What to do instead:
 
    ```powershell
    node Backend/restore.mjs --backup "<run>" --db aos_recovery `
-       --storage-root C:\AOS\Recovery --create-db --drop-existing
+       --storage-root C:\PFO\Recovery --create-db --drop-existing
    ```
 2. Read what you need out of `aos_recovery` with `psql`, and copy the document
-   files you need out of `C:\AOS\Recovery\Documents`.
+   files you need out of `C:\PFO\Recovery\Documents`.
 3. Re-enter the work in the live system through the normal screens, so it
    carries correct events and ownership.
-4. Drop `aos_recovery` and delete `C:\AOS\Recovery` when done.
+4. Drop `aos_recovery` and delete `C:\PFO\Recovery` when done.
 
 Note that most "deletions" in AOS are not deletions: cases are marked lost and
 can be reopened, requirements become `not_applicable` rather than disappearing,
@@ -168,7 +168,7 @@ targets — it builds a synthetic case with a real uploaded document through the
 ordinary code paths, backs it up, **deliberately corrupts a copy to confirm the
 verifier rejects it**, restores into a scratch database and folder, and checks
 that the case, the document metadata, the requirement linkage, the audit trail
-and the document bytes all came back. It never touches `pfo` or `C:\AOS\Data`.
+and the document bytes all came back. It never touches `pfo` or `C:\PFO\Data`.
 
 Last run: 16/16 checks passed, including both damage-detection cases. The
 report is written to `<PFO_BACKUP_ROOT>\..\DrillBackups\last-drill-report.md`.

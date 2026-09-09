@@ -27,12 +27,12 @@
  * the document bytes.
  *
  * Usage — a restore drill, into an isolated database and folder:
- *   node Backend/restore.mjs --backup C:\AOS\Backups\<run> --db pfo_restore_drill --storage-root C:\AOS\RestoreDrill --create-db
+ *   node Backend/restore.mjs --backup C:\PFO\Backups\<run> --db pfo_restore_drill --storage-root C:\PFO\RestoreDrill --create-db
  *
  * Usage — disaster recovery onto the real office database (after it has
  * been dropped or is otherwise empty; never run against a live one):
  *   $env:PFO_RESTORE_CONFIRM="pfo"
- *   node Backend/restore.mjs --backup <run> --db pfo --storage-root C:\AOS\Data --create-db
+ *   node Backend/restore.mjs --backup <run> --db pfo --storage-root C:\PFO\Data --create-db
  */
 
 import { existsSync } from "node:fs";
@@ -93,7 +93,7 @@ async function main() {
   }
 
   // The document tree gets the same protection the database has. Without this,
-  // a drill pointed at C:\AOS\Data by a slip of the finger merges the backup's
+  // a drill pointed at C:\PFO\Data by a slip of the finger merges the backup's
   // files into the live store, and versioned paths mean the mixture is
   // indistinguishable from a legitimate history afterwards.
   const targetDocuments = path.join(targetStorageRoot, "Documents");

@@ -42,8 +42,8 @@ $settings = @{
     PFO_DB_NAME       = "pfo"
     PFO_WEB_HOST      = "127.0.0.1"
     PFO_LAN_IP        = ""
-    PFO_STORAGE_ROOT  = "C:\AOS\Data"
-    PFO_BACKUP_ROOT   = "C:\AOS\Backups"
+    PFO_STORAGE_ROOT  = "C:\PFO\Data"
+    PFO_BACKUP_ROOT   = "C:\PFO\Backups"
     PFO_MAIL_PROVIDER = "unconfigured"
 }
 if (Test-Path $EnvFile) {

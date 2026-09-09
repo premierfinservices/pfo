@@ -5,7 +5,7 @@
  * WHY THIS IS A SCRIPT AND NOT A PARAGRAPH IN A RUNBOOK: a backup that has
  * never been restored is not a backup, it is a folder. Stage 4's audit found
  * `backup.mjs` and `restore.mjs` written, reviewed, and never once executed —
- * `C:\AOS\Backups` did not exist. A procedure nobody has run is a hypothesis.
+ * `C:\PFO\Backups` did not exist. A procedure nobody has run is a hypothesis.
  *
  * WHAT IT PROVES, end to end, against real PostgreSQL and the real storage
  * backend — never against a mock, and never against office data:
@@ -30,9 +30,9 @@
  *
  *   database  pfo_drill_source     the synthetic source
  *   database  pfo_restore_drill    the restore target
- *   folder    C:\AOS\DrillData     synthetic document bytes
- *   folder    C:\AOS\DrillBackups  the drill's backups
- *   folder    C:\AOS\RestoreDrill  restored document bytes
+ *   folder    C:\PFO\DrillData     synthetic document bytes
+ *   folder    C:\PFO\DrillBackups  the drill's backups
+ *   folder    C:\PFO\RestoreDrill  restored document bytes
  *
  * It refuses to start if any of those names collides with the configured
  * office database, and its cleanup drops databases ONLY by exact match
@@ -66,9 +66,9 @@ import path from "node:path";
 
 const SOURCE_DB = "pfo_drill_source";
 const RESTORE_DB = "pfo_restore_drill";
-const DRILL_STORAGE = "C:\\AOS\\DrillData";
-const DRILL_BACKUPS = "C:\\AOS\\DrillBackups";
-const RESTORE_STORAGE = "C:\\AOS\\RestoreDrill";
+const DRILL_STORAGE = "C:\\PFO\\DrillData";
+const DRILL_BACKUPS = "C:\\PFO\\DrillBackups";
+const RESTORE_STORAGE = "C:\\PFO\\RestoreDrill";
 const STORAGE_PORT = "4339";
 
 const DRILL_DATABASES = [SOURCE_DB, RESTORE_DB];
@@ -85,7 +85,7 @@ if (DRILL_DATABASES.includes(officeDatabase)) {
   );
   process.exit(1);
 }
-const officeStorage = (process.env.PFO_STORAGE_ROOT ?? "C:\\AOS\\Data").replace(/\\+$/, "");
+const officeStorage = (process.env.PFO_STORAGE_ROOT ?? "C:\\PFO\\Data").replace(/\\+$/, "");
 if (DRILL_FOLDERS.some((folder) => folder.toLowerCase() === officeStorage.toLowerCase())) {
   console.error(
     `\n  Refusing to run: PFO_STORAGE_ROOT ("${officeStorage}") is one of the drill's\n` +

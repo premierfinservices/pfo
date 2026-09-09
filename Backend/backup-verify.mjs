@@ -255,7 +255,7 @@ export function printReport(report) {
 
 async function main() {
   const argv = process.argv.slice(2);
-  const backupRoot = process.env.PFO_BACKUP_ROOT?.trim() || "C:\\AOS\\Backups";
+  const backupRoot = process.env.PFO_BACKUP_ROOT?.trim() || "C:\\PFO\\Backups";
 
   const explicitIndex = argv.indexOf("--backup");
   const explicit = explicitIndex >= 0 ? argv[explicitIndex + 1] : null;

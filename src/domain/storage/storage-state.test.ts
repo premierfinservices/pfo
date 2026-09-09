@@ -6,8 +6,8 @@ describe("classifyStorageState", () => {
   test("ok when the object exists under the current root", () => {
     expect(
       classifyStorageState({
-        documentStorageRoot: "C:\\AOS\\Data",
-        currentStorageRoot: "C:\\AOS\\Data",
+        documentStorageRoot: "C:\\PFO\\Data",
+        currentStorageRoot: "C:\\PFO\\Data",
         exists: true,
       }),
     ).toBe("ok");
@@ -16,8 +16,8 @@ describe("classifyStorageState", () => {
   test("missing when the object does not exist under a matching root", () => {
     expect(
       classifyStorageState({
-        documentStorageRoot: "C:\\AOS\\Data",
-        currentStorageRoot: "C:\\AOS\\Data",
+        documentStorageRoot: "C:\\PFO\\Data",
+        currentStorageRoot: "C:\\PFO\\Data",
         exists: false,
       }),
     ).toBe("missing");
@@ -26,7 +26,7 @@ describe("classifyStorageState", () => {
   test("root-changed when the configured root no longer matches the one recorded at upload", () => {
     expect(
       classifyStorageState({
-        documentStorageRoot: "C:\\AOS\\Data",
+        documentStorageRoot: "C:\\PFO\\Data",
         currentStorageRoot: "D:\\Moved\\Data",
         exists: false,
       }),
@@ -38,7 +38,7 @@ describe("classifyStorageState", () => {
     // relative path — the mismatch itself is the actionable fact.
     expect(
       classifyStorageState({
-        documentStorageRoot: "C:\\AOS\\Data",
+        documentStorageRoot: "C:\\PFO\\Data",
         currentStorageRoot: "D:\\Moved\\Data",
         exists: true,
       }),
@@ -48,13 +48,13 @@ describe("classifyStorageState", () => {
   test("documents uploaded before root-tracking existed fall back to ok/missing", () => {
     expect(
       classifyStorageState({
-        currentStorageRoot: "C:\\AOS\\Data",
+        currentStorageRoot: "C:\\PFO\\Data",
         exists: true,
       }),
     ).toBe("ok");
     expect(
       classifyStorageState({
-        currentStorageRoot: "C:\\AOS\\Data",
+        currentStorageRoot: "C:\\PFO\\Data",
         exists: false,
       }),
     ).toBe("missing");

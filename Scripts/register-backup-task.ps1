@@ -72,7 +72,7 @@ if (-not (Test-Path $EnvFile)) {
 
 # Read PFO_BACKUP_ROOT out of .env so the log lands beside the backups rather
 # than somewhere only this script knows about.
-$BackupRoot = "C:\AOS\Backups"
+$BackupRoot = "C:\PFO\Backups"
 foreach ($line in Get-Content $EnvFile) {
     if ($line -match '^\s*PFO_BACKUP_ROOT\s*=\s*(.+?)\s*$') {
         $BackupRoot = $Matches[1].Trim('"').Trim("'")

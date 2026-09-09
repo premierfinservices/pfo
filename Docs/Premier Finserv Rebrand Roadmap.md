@@ -373,32 +373,126 @@ independent of every rebrand phase.
 
 ---
 
-## PHASE 6 — Storage & backup path rename (`C:\AOS\...` → `C:\<Slug>\...`)
+## PHASE 6 — Storage & backup path rename (`C:\AOS\...` → `C:\PFO\...`)
 
-**STATUS: NOT STARTED.** Blocked on: slug decision, timing decision.
-**Requires a downtime window. Handles real customer documents — highest
-care of any phase.**
+**STATUS: COMPLETE** (2026-09-09, Unfold Media Corp PC). Done live with the
+user watching, per the timing decision. **~3 minutes of downtime**
+(16:52–16:55 local / 10:52–10:55 UTC).
 **Complexity: High — Model: Opus 5 — Effort: High (max care)**
 
-- Fresh verified backup first (same as Phase 5 — can be the same
-  maintenance window).
-- Stop the `AOS Server` task and confirm no process still has
-  `C:\AOS\Data` open (Task 21 in the cutover gate already flagged 24
-  orphaned files here — resolve or account for those before moving the
-  folder, not after).
-- Move (not copy-then-delete) `C:\AOS\Data` → `C:\<Slug>\Data` and
-  `C:\AOS\Backups` → `C:\<Slug>\Backups`.
-- Update `AOS_STORAGE_ROOT` / `AOS_BACKUP_ROOT` in production `.env`.
-- Verify file count and total size match before/after
-  (`Scripts/aos-status.ps1` already reports both).
-- Run `npm run backup:verify` against the moved backup directory to prove
-  nothing broke.
-- Restart the task, confirm document upload/download still works.
-- Risk: HIGH if the move is interrupted mid-way or done while the storage
-  server still has the old path open. LOW if sequenced as above — this is
-  a filesystem move on the same drive (near-instant, not a slow copy) with
-  a verified backup as the fallback.
-- Rollback: move the folders back, revert `.env`, restart.
+### What was done
+
+- **Pre-flight SHA-256 manifest** of all of `C:\AOS` — 1,562 files — written
+  before anything was touched, so the move could be proven byte-for-byte
+  rather than just count-and-size. This is stronger than the file-count check
+  this phase originally called for; keep the manifest step for Phase 8's
+  folder move.
+- **Fresh verified backup first**: `C:\AOS\Backups\2026-09-09_10-53-12`,
+  self-verified inline (1150 TOC objects, dump checksum matched, all 110
+  document files present and unchanged) plus a separate `npm run backup:verify`
+  pass, both green, with the server still up.
+- **Server stopped for real**: `Stop-ScheduledTask` followed by
+  `taskkill /PID (Get-Content Backend\supervisor.pid).Trim() /T /F` from the
+  elevated session — the supervisor plus all four children, then all four
+  ports (4300/4321/4319/4320) confirmed free before anything moved.
+- **Moved the whole `C:\AOS` tree in one same-volume rename**:
+  `Move-Item C:\AOS C:\PFO`. This covered `Data` and `Backups` as the phase
+  required, and carried `Dev`, `DrillBackups`, `QA-Data`, `QA-Mail` and
+  `RehearsalStorage_0035` with them. Renaming the parent rather than doing
+  three separate moves is one operation instead of several, leaves nothing
+  half-moved, and lets `C:\AOS` disappear entirely — which is what Phase 9's
+  "zero remaining AOS" gate wants. Near-instant, as predicted.
+- **The 24 orphaned files (cutover-gate Task 21) are accounted for, not
+  resolved**: a move carries them along unchanged, so the pre/post manifest
+  proves they are exactly as found. This phase deliberately made no cleanup
+  decision about them — that decision is still open and still separate.
+- **Integrity proof**: re-hashed the whole tree at `C:\PFO`. All 1,562
+  pre-move entries present with **identical SHA-256 and identical size; zero
+  missing, zero changed**. The 112 extra files are the fresh backup run taken
+  after the manifest.
+- **Production `.env`**: `PFO_STORAGE_ROOT=C:\PFO\Data`, and
+  `PFO_BACKUP_ROOT=C:\PFO\Backups` **added** — it had never been set, so
+  backups were silently relying on the hard-coded default in `backup.mjs`.
+  It is now explicit.
+- **`AOS Nightly Backup` task action repointed**: its arguments hard-coded the
+  log path `C:\AOS\Backups\backup-log.txt`. Left unchanged, the 20:30 run
+  would have failed outright (cmd cannot open a log in a directory that no
+  longer exists) — a silent loss of that night's backup. Now
+  `C:\PFO\Backups\backup-log.txt`; S4U / `RunLevel=Highest` / boot-and-daily
+  trigger all preserved and re-verified. The **task name is untouched** —
+  that is Phase 7.
+- **Code/script/doc defaults repointed** (16 files): `.env.example`,
+  `playwright.config.ts` (`C:/AOS/QA-Data`, `C:/AOS/QA-Mail`), `CLAUDE.md`
+  (including the dev-session `PFO_STORAGE_ROOT="C:\AOS\Dev\Data"` example,
+  which the move made wrong), `Backend/backup.mjs`, `Backend/backup-verify.mjs`,
+  `Backend/storage-server.mjs` (`DEFAULT_ROOT`), `Backend/restore-drill.ts`
+  (all three drill folder constants **and the safety guard at line 88** that
+  compares the drill's targets against the real store — that fallback pointing
+  at a stale path was the subtlest hazard in this phase),
+  `Backend/restore.mjs`, `Backend/security.test.ts`, `Scripts/aos-status.ps1`,
+  `Scripts/register-backup-task.ps1`, `Docs/Disaster Recovery.md`,
+  `Docs/Installation.md` (including the `D:\AOS-Backups` different-disk
+  example → `D:\PFO-Backups`), `Frontend/README.md`,
+  `Frontend/src/fake/storage.ts`, `src/domain/storage/storage-state.test.ts`.
+- **Phase 4 remnant found and fixed in production `.env`**: the commented-out
+  `AOS_MAIL_CAPTURE_DIR`, `AOS_WHATSAPP_*` and the `AOS_GMAIL_*` prose
+  reference had kept the old prefix, because `.env` is not in git and Phase 4
+  only renamed tracked files. Uncommenting any of them would have set a
+  variable nothing reads. Now `PFO_*`.
+
+### Verification (all run after the move, all green)
+
+- `npm run backup:verify -- --all` — **11 of 12 runs fully verified**. The one
+  FAIL is `2026-08-10_12-31-34`, the oldest run, written by an older backup
+  with `manifest formatVersion 1` that carries **no checksums at all**; its
+  archive is still readable. This is a pre-existing format limitation, not
+  move damage — the SHA-256 manifest independently proves that run's bytes are
+  identical before and after. Do not read this as a Phase 6 regression.
+- `npm run restore-drill` — **16/16 checks passed** against the moved backups
+  and the rewritten drill constants, including "restored document bytes match
+  the original byte for byte". Disposable databases and folders cleaned up.
+- `Scripts/aos-status.ps1` — every line UP; document store reported as
+  `C:\PFO\Data - 110 file(s), 27.5 MB`.
+- Live storage server `/health` and `/config` both report root `C:\PFO\Data`.
+- **Real document download**: an existing customer PDF fetched through the
+  running storage server, 46,376 bytes, matching its on-disk size exactly.
+- **Upload/download round trip**: PUT then GET of a temp object under
+  `case/_phase6-verification/`, content identical on return, then deleted —
+  store back to exactly **110 files / 28,881,771 bytes**, the pre-move figure.
+- `npm run typecheck` clean; `vitest run src/domain/storage` 20/20 passed.
+
+### Deliberately NOT changed
+
+Same reasoning as Phases 3 and 4 — these still say `C:\AOS\...` on purpose:
+
+- `Docs/Deployment Topology.md` and `AOS Production Readiness Master
+  Roadmap.txt` — both explicitly deferred to Phase 9's wholesale rewrite.
+- `Database/migrations/0033_application_role.sql` — applied migration, treated
+  as immutable history.
+- `Backend/supervisor.log` — a log. It records where the storage root actually
+  was at the time; rewriting it would be falsifying a record.
+- `Docs/Session Checkpoint.md` and `Docs/superpowers/plans/*` — historical
+  checkpoint records.
+- This roadmap's own earlier-phase narrative — historical record of what was
+  literally true then.
+
+### Outstanding
+
+- **Home PC `.env` not updated** — same situation as Phase 4, which needed a
+  separate pass on that machine. Its `PFO_STORAGE_ROOT` still points at
+  whatever local disposable folder it used; if that was `C:\AOS\...` on that
+  machine it must be repointed there before its next `npm run dev`. Nothing on
+  the home PC holds real documents, so this is a dev-convenience fix, not a
+  data risk.
+- `C:\PFO\DrillBackups` was kept deliberately, as the artefact proving the
+  drill ran (the drill's own behaviour, unchanged).
+
+### Rollback (unused, recorded for completeness)
+
+`Move-Item C:\PFO C:\AOS`, revert `PFO_STORAGE_ROOT` and drop the new
+`PFO_BACKUP_ROOT` in `.env`, revert the `AOS Nightly Backup` task argument,
+restart the task. The verified backup taken at the top of the window is the
+fallback if the move itself had been interrupted.
 
 ---
 

@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 import { E2E_API_PORT, E2E_DB, E2E_VITE_PORT } from "./tests/support/e2e-environment";
 
-const STORAGE_ROOT = process.env.PFO_STORAGE_ROOT ?? "C:/AOS/QA-Data";
+const STORAGE_ROOT = process.env.PFO_STORAGE_ROOT ?? "C:/PFO/QA-Data";
 
 /**
  * The suite runs the mail backend in `capture` mode: messages are built the
@@ -15,7 +15,7 @@ const STORAGE_ROOT = process.env.PFO_STORAGE_ROOT ?? "C:/AOS/QA-Data";
  * depends on Google being up is a suite that lies about what it proved. See
  * Docs/Email and WhatsApp Integration.md for the manual check that covers it.
  */
-const MAIL_CAPTURE_DIR = process.env.PFO_MAIL_CAPTURE_DIR ?? "C:/AOS/QA-Mail";
+const MAIL_CAPTURE_DIR = process.env.PFO_MAIL_CAPTURE_DIR ?? "C:/PFO/QA-Mail";
 
 /**
  * ============================================================================

@@ -32,7 +32,7 @@ import { listenOrExplain } from "./listen.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, "storage.config.json");
-const DEFAULT_ROOT = "C:\\AOS\\Data";
+const DEFAULT_ROOT = "C:\\PFO\\Data";
 const PORT = Number(process.env.PFO_STORAGE_PORT ?? 4319);
 
 async function loadConfiguredRoot() {

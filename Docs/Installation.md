@@ -50,10 +50,10 @@ Get-Service postgresql*     # must show Running
 ## 2. Get AOS onto the machine
 
 Put the checkout somewhere permanent — not on the Desktop, not in Downloads.
-`C:\AOS\App` is a reasonable choice.
+`C:\PFO\App` is a reasonable choice.
 
 ```powershell
-cd C:\AOS\App
+cd C:\PFO\App
 npm ci
 ```
 
@@ -78,7 +78,7 @@ Copy `.env.example` to `.env` and edit it. `.env` is git-ignored and must never
 be committed.
 
 ```powershell
-cd C:\AOS\App
+cd C:\PFO\App
 Copy-Item .env.example .env
 notepad .env
 ```
@@ -98,8 +98,8 @@ PFO_DB_PASSWORD=<the password from step 1>
 PFO_WEB_HOST=0.0.0.0
 PFO_WEB_PORT=4300
 
-PFO_STORAGE_ROOT=C:\AOS\Data
-PFO_BACKUP_ROOT=D:\AOS-Backups      # a DIFFERENT disk from the documents
+PFO_STORAGE_ROOT=C:\PFO\Data
+PFO_BACKUP_ROOT=D:\PFO-Backups      # a DIFFERENT disk from the documents
 PFO_BACKUP_RETENTION=14
 
 PFO_MAIL_PROVIDER=unconfigured      # set to gmail in step 9
@@ -292,7 +292,7 @@ Then prove it, rather than waiting for tonight:
 
 ```powershell
 Start-ScheduledTask -TaskName "AOS Nightly Backup"
-Get-Content "D:\AOS-Backups\backup-log.txt" -Tail 30
+Get-Content "D:\PFO-Backups\backup-log.txt" -Tail 30
 npm run backup:verify
 ```
 
@@ -337,4 +337,4 @@ the database password and the login slips.
 
 **Practise a restore before you need one.** `npm run restore-drill` rehearses
 the whole procedure against throwaway databases and folders — it never touches
-`pfo` or `C:\AOS\Data`. `Docs/Disaster Recovery.md` is the real thing.
+`pfo` or `C:\PFO\Data`. `Docs/Disaster Recovery.md` is the real thing.

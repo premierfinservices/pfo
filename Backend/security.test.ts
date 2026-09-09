@@ -306,7 +306,7 @@ describe("the application database role", () => {
   it("cannot execute programs, read server files, or read password hashes", async () => {
     // The three superuser capabilities that made finding H3 a whole-machine
     // compromise rather than a data-access problem. The office server PC is
-    // also where C:\AOS\Data and the backups live.
+    // also where C:\PFO\Data and the backups live.
     await expect(
       appRole.query(`copy (select 1) to program 'cmd.exe /c echo probe'`),
     ).rejects.toThrow();
