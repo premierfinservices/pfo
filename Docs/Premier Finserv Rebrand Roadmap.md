@@ -606,21 +606,69 @@ to any future restart of this task:
 
 ## PHASE 8 — Repository & local folder rename
 
-**STATUS: NOT STARTED.** Blocked on: Open Decision #3 (bundle or defer).
+**STATUS: COMPLETE** (2026-09-09, Unfold Media Corp PC). Open Decision #3
+resolved as "bundle now" — GitHub rename and local folder rename done
+together in one pass.
 **Complexity: Medium — Model: Sonnet 5 — Effort: Medium**
 
-- GitHub repo rename (`tarunrameshphotography/AOS` → new name) — GitHub
-  auto-redirects the old URL, low risk on its own, but both PCs' local
-  `git remote` URLs should be updated to the new URL rather than relying
-  on the redirect indefinitely.
-- Local folder rename on both PCs (`...\Amaze Loans Pvt Ltd\AOS` → new
-  path) — must be done with the `AOS Server` task stopped on Unfold PC
-  (the task's registered Action points at an absolute path in the current
-  folder; moving the folder out from under a running task breaks it), then
-  the task's Action re-pointed at the new path (ties to Phase 7).
-- Risk: LOW for the GitHub side, MEDIUM for the local folder move on the
-  server PC specifically (same "don't move a path a running task depends
-  on" risk as Phase 6, smaller blast radius).
+What was done (Unfold PC):
+- GitHub repo renamed `tarunrameshphotography/AOS` → `tarunrameshphotography/pfo`
+  via `gh repo rename pfo` (GitHub auto-redirects the old URL).
+- Unfold PC's `origin` remote updated to
+  `https://github.com/tarunrameshphotography/pfo.git`; `git fetch` confirmed
+  it resolves and is up to date with `main`.
+- `PFO Server` supervisor tree stopped (`taskkill /PID <supervisor> /T /F`,
+  same pattern as Phase 5/7 — `Stop-ScheduledTask` alone doesn't kill the
+  process tree), ports 4300/4321/4319/4320 confirmed free.
+- Local folder copied `...\Amaze Loans Pvt Ltd\AOS` → `...\Amaze Loans Pvt
+  Ltd\PFO` (`robocopy /E`, 721 dirs / 7167 files / 155.85 MB, 0 failed) —
+  copied rather than renamed in place, because this Claude Code session's
+  own working directory was pinned to the `AOS` folder and held a handle
+  on it that blocked an in-place `Rename-Item`/`Remove-Item`. `.git`,
+  `.env`, and `node_modules` all copied intact — no reinstall needed.
+- `Scripts/register-aos-services.ps1` and `Scripts/register-backup-task.ps1`
+  re-run from the new `PFO` location (`$RepoRoot` is derived from
+  `$PSScriptRoot` at registration time, so this re-points each task's
+  `Action`/working directory to the new path). Both tasks confirmed via
+  `-WhatIf` first, then registered for real.
+- `PFO Server` started from the new path: `aos-status.ps1` showed
+  everything UP (web/API/storage/mail/Postgres, employee LAN access,
+  firewall rule). `PFO Nightly Backup` run manually and verified
+  (`backup-log.txt` shows a fresh checksummed backup, 110/110 documents
+  present and unchanged) rather than waiting for tonight's 20:30 trigger.
+- Old disabled `AOS Server` / `AOS Nightly Backup` tasks (kept as Phase 7
+  fallback) unregistered now that the renamed tasks are proven working
+  from the new path — closes out that Phase 7 outstanding item too.
+
+### Outstanding
+
+- **Old `...\Amaze Loans Pvt Ltd\AOS` folder still on disk, not deleted.**
+  `Remove-Item` failed with "in use" — this Claude Code session's own cwd
+  was rooted there for the whole conversation and Windows won't let a
+  directory be deleted while any process (including this session's shell)
+  has it as a working directory. Content is an exact copy of what's now
+  live at `PFO`, so it is safe to delete once this session (and any other
+  process/terminal/editor with a window open under that path) is closed:
+  ```powershell
+  Remove-Item -LiteralPath "C:\WORK FILES\Amaze Loans Pvt Ltd\AOS" -Recurse -Force
+  ```
+- **Home PC not yet updated** (out of reach from this session — dev-only
+  machine, not touched here). On home PC:
+  1. Close any terminal/editor with the old `AOS` folder open.
+  2. `git remote set-url origin https://github.com/tarunrameshphotography/pfo.git`
+     (run inside the existing folder first, before moving it, so the
+     `.git` config updates while the path is still valid).
+  3. Rename (or robocopy + delete) `...\Amaze Loans Pvt Ltd\AOS` →
+     `...\Amaze Loans Pvt Ltd\PFO`. Home PC runs no scheduled task
+     against this path, so there's no task Action to re-point — this is
+     just a folder rename, lower risk than the Unfold PC side.
+  4. Re-open the project from the new `PFO` path; `npm run dev` (with the
+     usual dev-only env overrides) should work unchanged since nothing
+     inside the repo hardcodes the old absolute path.
+- Risk realized: MEDIUM as predicted for the server-PC folder move, but
+  the actual failure mode was different than anticipated (session cwd
+  lock, not the running task) — worked around with a copy instead of an
+  in-place rename with no data loss.
 
 ---
 
