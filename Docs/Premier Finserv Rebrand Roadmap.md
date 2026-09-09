@@ -173,15 +173,46 @@ deferred to Phase 3 — cosmetic only, doesn't affect the live sender identity.
 
 ## PHASE 3 — Low-risk internal text (docs, comments, package metadata)
 
-**STATUS: NOT STARTED.**
+**STATUS: COMPLETE** (2026-09-09). Legal entity name confirmed as
+"Premier Finservices" (matches the browser title and the
+`premierfinservices.cbe@gmail.com` mailbox already live from Phase 2).
 **Complexity: Low-Medium — Model: Sonnet 5 — Effort: Low-Medium**
 
-- `package.json` `"description"`, `README.md`, code comments referencing
-  "AOS" as the system's own name, `"Amaze Loans"` mentions in docs/tests
-  that aren't the live mail sender.
-- Risk: NONE — text-only, no running-system impact, no downtime.
-- Can be done in an ordinary commit at any time, independent of every
-  other phase.
+- Updated `package.json` `"description"`, `README.md`'s entity line,
+  `Backend/bootstrap-production.ts`, `Backend/seed-users.ts`,
+  `Backend/mail-server.mjs` (comments + the `SENDER_ADDRESS` fallback
+  deferred from Phase 2), `Backend/submissions.ts` (same fallback pattern,
+  missed by Phase 2), `Docs/Email and WhatsApp Integration.md`,
+  `src/domain/communications/email-provider.ts` (a user-facing string Phase
+  1 missed), `src/domain/communications/whatsapp-provider.ts`,
+  `Frontend/src/fake/mail.ts`, `Frontend/src/fake/store.ts`
+  (`DEFAULT_EMAIL_SENDER`), `src/domain/submissions/compose.ts`, and every
+  test asserting the old sender name/address in sync with the above
+  (`compose.test.ts`, `package.test.ts`, `document-submission.test.ts`,
+  `tests/e2e/document-submission.spec.ts`), plus `.env.example`'s mail/
+  WhatsApp comments and defaults for consistency with the live prod values.
+- Deliberately NOT touched (judgment calls):
+  - `DECISIONS.md` ADR-002 — a dated historical decision record, not a
+    live description of the system.
+  - `Docs/Deployment Topology.md` — explicitly deferred to Phase 9 by this
+    roadmap (it's rewritten wholesale there alongside the master roadmap).
+  - `Database/migrations/*.sql` — already-applied migrations are treated
+    as immutable history, not live text.
+  - `document-catalogue.ts`'s `"Amaze Loans Application Form"` document
+    type name — this may refer to an actual physical form name that
+    existing case documents are already matched/tagged against; renaming
+    it is a data/behavior question, not a text-only edit, so it's left for
+    a deliberate decision rather than swept in here.
+  - Comments/log text that still call the system "AOS" as its own name —
+    left alone because the npm package name, database, storage paths,
+    scheduled tasks, GitHub repo, and local folder are all still literally
+    `AOS`/`aos` until Phases 4–8 land; renaming those comments now would
+    make them describe infrastructure that doesn't exist yet. Revisit once
+    Phase 4+ picks the slug.
+- Risk: NONE — text-only, no running-system impact, no downtime. Unit
+  tests and `npm run typecheck` verified green after the change.
+- Verification: `npx vitest run` on the touched test files (59 tests
+  passed) and `npm run typecheck` (clean).
 
 ---
 

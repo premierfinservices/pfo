@@ -122,7 +122,7 @@ export function describeEmailFailure(failure: EmailSendFailure): string {
     case "not_configured":
       return (
         "Premier Finserv One is not connected to a mailbox yet, so nothing was sent. " +
-        "An administrator needs to connect the Amaze Loans mailbox — see Docs/Email and WhatsApp Integration.md."
+        "An administrator needs to connect the Premier Finservices mailbox — see Docs/Email and WhatsApp Integration.md."
       );
     case "authentication":
       return (

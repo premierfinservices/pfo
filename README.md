@@ -1,6 +1,6 @@
 # AOS — Amaze Operating System
 
-The internal operating system for Amaze Loans Pvt Ltd.
+The internal operating system for Premier Finservices.
 
 One system of record for the loan business: the people involved, the cases, the
 documents, the banks, and every event that happens along the way. It replaces

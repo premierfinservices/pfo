@@ -91,7 +91,7 @@ const PROVIDER = (process.env.AOS_MAIL_PROVIDER ?? "unconfigured").trim().toLowe
  * never fakes a From header. If the two disagree, Gmail wins and the header is
  * rewritten by them, not by us.
  */
-const SENDER_ADDRESS = process.env.AOS_MAIL_SENDER_ADDRESS ?? "amazeloans@gmail.com";
+const SENDER_ADDRESS = process.env.AOS_MAIL_SENDER_ADDRESS ?? "premierfinservices.cbe@gmail.com";
 const SENDER_NAME = process.env.AOS_MAIL_SENDER_NAME ?? "Premier Finserv";
 
 const SEND_TIMEOUT_MS = Number(process.env.AOS_MAIL_TIMEOUT_MS ?? 60_000);
@@ -191,10 +191,11 @@ function buildMimeMessage(message) {
 // Gmail.
 //
 // OAuth2 with a long-lived REFRESH TOKEN, which is the correct mechanism for
-// amazeloans@gmail.com specifically: a service account with domain-wide
-// delegation only works against a Google Workspace domain, and a consumer
-// gmail.com mailbox is not one. If Amaze moves to Workspace, the delegation
-// route becomes available and only this section changes.
+// premierfinservices.cbe@gmail.com specifically: a service account with
+// domain-wide delegation only works against a Google Workspace domain, and a
+// consumer gmail.com mailbox is not one. If Premier Finservices moves to
+// Workspace, the delegation route becomes available and only this section
+// changes.
 //
 // No password is involved at any point, and none can be — Gmail has not
 // accepted one from an application since 2022.
@@ -539,16 +540,17 @@ const server = createServer((req, res) => {
  * LOOPBACK, ALWAYS — the same rule `storage-server.mjs` states, for the same
  * reason and one worse consequence.
  *
- * This process holds the Gmail refresh token for the Amaze Loans mailbox and
- * has no authentication: anything that can reach `/send` can send email AS
- * Amaze Loans, to anyone, including the banks. The API server is the only
+ * This process holds the Gmail refresh token for the Premier Finservices
+ * mailbox and has no authentication: anything that can reach `/send` can
+ * send email AS Premier Finservices, to anyone, including the banks. The
+ * API server is the only
  * caller, and it checks `submission.create` first.
  */
 const requestedMailHost = process.env.AOS_MAIL_HOST?.trim();
 if (requestedMailHost && requestedMailHost !== "127.0.0.1" && requestedMailHost !== "localhost") {
   console.error(
     `\n  Refusing to start: AOS_MAIL_HOST is "${requestedMailHost}".\n` +
-      `  The mail backend can send as the Amaze Loans mailbox and has no\n` +
+      `  The mail backend can send as the Premier Finservices mailbox and has no\n` +
       `  authentication. It must never listen beyond loopback.\n`,
   );
   process.exit(1);
@@ -571,6 +573,6 @@ listenOrExplain(server, PORT, "127.0.0.1", "mail backend", () => {
     );
   } else {
     console.log("  Provider: unconfigured. Every send will be refused, on purpose.");
-    console.log("  See .env.example to connect the Amaze Loans mailbox.");
+    console.log("  See .env.example to connect the Premier Finservices mailbox.");
   }
 });

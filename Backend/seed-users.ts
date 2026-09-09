@@ -59,7 +59,7 @@ const EMPLOYEES: readonly { username: string; fullName: string; role: Role }[] =
 ];
 
 /**
- * The real Amaze Loans employees, from `bootstrap-production.ts`.
+ * The real Premier Finservices employees, from `bootstrap-production.ts`.
  *
  * Duplicated deliberately rather than imported: importing would make this
  * script depend on the production bootstrap, and the coupling that matters

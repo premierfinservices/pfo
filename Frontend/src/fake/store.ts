@@ -2599,7 +2599,7 @@ export function acceptOffer(offerId: Id, actorUserId: Id): ActionResult {
  * A display default only. The backend sends as whichever account it is
  * authenticated to, and never fakes a From header — see mail-server.mjs.
  */
-export const DEFAULT_EMAIL_SENDER = { name: "Amaze Loans", address: "amazeloans@gmail.com" };
+export const DEFAULT_EMAIL_SENDER = { name: "Premier Finserv", address: "premierfinservices.cbe@gmail.com" };
 
 /** One row in the "which documents are we sending?" list. */
 export interface SendableDocumentRow {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Stand up the real Amaze Loans accounts, and clear the throwaway ones.
+ * Stand up the real Premier Finservices accounts, and clear the throwaway ones.
  *
  * WHY THIS IS NOT `seed-users.ts`: that script exists to make a development
  * database usable, and every account it creates shares one password. It is
@@ -53,7 +53,7 @@ import { closeAdminPool, withAdmin } from "./db.js";
 import { disableDevelopmentAccounts } from "./dev-accounts.js";
 
 /**
- * The six people who work at Amaze Loans, and what they do.
+ * The six people who work at Premier Finservices, and what they do.
  *
  * Manager and Managing Partner currently resolve to the same grants
  * (`MANAGING_PARTNER_GRANTS` in src/domain/permissions/roles.ts) — the roles

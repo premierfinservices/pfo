@@ -383,7 +383,7 @@ describe("what the email says, built from the case", () => {
     const email = plan.emails[0];
     expect(email?.subject).toContain("Ravi Kumar - Machinery and Equipment Loan - ");
     expect(email?.body).toContain("Dear Karthik,");
-    expect(email?.body).toContain("Regards,\nAmaze Loans");
+    expect(email?.body).toContain("Regards,\nPremier Finserv");
   });
 
   it("sends one email when everything fits and several when it does not", async () => {
@@ -467,7 +467,7 @@ describe("sending", () => {
     expect(email).toBeDefined();
     expect(email?.to.map((address) => address.email)).toEqual(["karthik@examplebank.com"]);
     expect(email?.cc?.map((address) => address.email)).toEqual(["homeloans.cbe@examplebank.com"]);
-    expect(email?.from.email).toBe("amazeloans@gmail.com");
+    expect(email?.from.email).toBe("premierfinservices.cbe@gmail.com");
     expect(email?.attachments).toHaveLength(2);
     for (const attachment of email?.attachments ?? []) {
       expect(attachment.bytes.byteLength).toBeGreaterThan(0);

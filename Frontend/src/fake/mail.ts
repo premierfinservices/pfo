@@ -10,7 +10,8 @@
  * connector or an SMTP relay later.
  *
  * WHY THE BROWSER DOES NOT TALK TO GMAIL DIRECTLY. It would need the refresh
- * token, which would mean shipping a credential for the Amaze Loans mailbox to
+ * token, which would mean shipping a credential for the Premier Finservices
+ * mailbox to
  * every machine in the office inside a JavaScript bundle. That is not a
  * configuration mistake to be careful about; it is not a thing that can be
  * done safely at all.

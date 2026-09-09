@@ -44,7 +44,7 @@ anybody raises the number.
 
 ---
 
-## Connecting the Amaze Loans mailbox
+## Connecting the Premier Finservices mailbox
 
 Done once, by an administrator, signed in as the sending mailbox. Nothing below
 is a developer task and nothing below goes in the repository.
@@ -54,16 +54,16 @@ is a developer task and nothing below goes in the repository.
 Google stopped accepting account passwords from applications in 2022, and AOS
 must not store one regardless. **A service account will not work here**: domain-
 wide delegation only impersonates users in a Google *Workspace* domain, and
-`amazeloans@gmail.com` is a consumer account. If Amaze moves to Workspace on its
-own domain, the service-account route becomes available and only
+`premierfinservices.cbe@gmail.com` is a consumer account. If Premier Finservices
+moves to Workspace on its own domain, the service-account route becomes available and only
 `Backend/mail-server.mjs` changes.
 
 ### Steps
 
 1. `console.cloud.google.com` → create or pick a project.
 2. **APIs & Services → Library** → enable **Gmail API**.
-3. **OAuth consent screen** → *External*, add `amazeloans@gmail.com` as a Test
-   user.
+3. **OAuth consent screen** → *External*, add `premierfinservices.cbe@gmail.com`
+   as a Test user.
    **Then publish it.** While the app sits in "Testing", Google expires refresh
    tokens after 7 days and the office will be reconnecting weekly. Moving it to
    "In production" needs no Google review while the only users are your own.
@@ -85,7 +85,7 @@ own domain, the service-account route becomes available and only
 7. `npm run dev`. The mail backend prints which provider it is using at startup.
    `GET http://127.0.0.1:4320/health` says the same thing.
 
-The refresh token is a long-lived credential for the Amaze Loans mailbox. Treat
+The refresh token is a long-lived credential for the Premier Finservices mailbox. Treat
 it as you would the password: never commit it, never paste it into a ticket, and
 revoke it at `myaccount.google.com/permissions` if it leaks. `.env` is
 git-ignored.

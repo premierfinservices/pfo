@@ -41,7 +41,7 @@ const CONTEXT: SubmissionContext = {
   caseNumber: "AL-2026-00051",
 };
 
-const SENDER = { name: "Amaze Loans", address: "amazeloans@gmail.com" };
+const SENDER = { name: "Premier Finserv", address: "premierfinservices.cbe@gmail.com" };
 
 function batch(documents: readonly CandidateDocument[], sequence = 1): AttachmentBatch {
   return {
@@ -168,7 +168,7 @@ describe("body", () => {
     expect(body).toContain(
       "Please review the attached documents and let us know if anything further is required from our end.",
     );
-    expect(body).toContain("Regards,\nAmaze Loans\namazeloans@gmail.com");
+    expect(body).toContain("Regards,\nPremier Finserv\npremierfinservices.cbe@gmail.com");
   });
 
   it("does not invent an honorific for the customer", () => {

@@ -238,7 +238,7 @@ test.describe("Send documents to the banker", () => {
     await expect(summary.filter({ hasText: "Ravi Kumar" })).toBeVisible();
     await expect(summary.filter({ hasText: "Machinery and Equipment Loan" })).toBeVisible();
     await expect(summary.filter({ hasText: "3 verified documents" })).toBeVisible();
-    await expect(summary.filter({ hasText: "amazeloans@gmail.com" })).toBeVisible();
+    await expect(summary.filter({ hasText: "premierfinservices.cbe@gmail.com" })).toBeVisible();
     await expect(page.getByText("Email 1 of 1")).toBeVisible();
     await expect(
       page.getByText(/^Ravi Kumar - Machinery and Equipment Loan - /),
@@ -264,9 +264,9 @@ test.describe("Send documents to the banker", () => {
     expect(sent).toHaveLength(1);
     const email = sent[0]!;
     expect(email.to[0]?.email).toBe("karthik@examplebank.com");
-    expect(email.from.email).toBe("amazeloans@gmail.com");
+    expect(email.from.email).toBe("premierfinservices.cbe@gmail.com");
     expect(email.body).toContain("Dear Karthik,");
-    expect(email.body).toContain("Regards,\nAmaze Loans");
+    expect(email.body).toContain("Regards,\nPremier Finserv");
     expect(email.attachments).toHaveLength(3);
     // The MIME message was genuinely built, not shortcut past.
     expect(email.mimeBytes).toBeGreaterThan(0);

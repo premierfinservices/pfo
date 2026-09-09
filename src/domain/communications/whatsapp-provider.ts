@@ -103,7 +103,7 @@ export const WHATSAPP_REQUIRED_CONFIGURATION: readonly {
 }[] = [
   {
     key: "Meta Business Account",
-    what: "A verified Meta Business account for Amaze Loans Pvt Ltd. Business verification requires company documents and takes days, not minutes.",
+    what: "A verified Meta Business account for Premier Finservices. Business verification requires company documents and takes days, not minutes.",
   },
   {
     key: "WhatsApp Business Account (WABA)",

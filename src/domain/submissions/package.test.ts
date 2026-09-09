@@ -39,7 +39,7 @@ const CONTEXT: SubmissionContext = {
   caseNumber: "AL-2026-00051",
 };
 
-const SENDER = { name: "Amaze Loans", address: "amazeloans@gmail.com" };
+const SENDER = { name: "Premier Finserv", address: "premierfinservices.cbe@gmail.com" };
 
 /** The milestone's worked example. 16.2 MB, so it cannot be one email. */
 function workedExample(): CandidateDocument[] {

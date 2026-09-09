@@ -38,7 +38,7 @@ import type { CandidateDocument } from "./attachments.js";
 
 /** Who the email comes from. Configuration, never hard-coded (ADR-039). */
 export interface EmailSender {
-  /** "Amaze Loans" — the display name on the From line. */
+  /** "Premier Finserv" — the display name on the From line. */
   readonly name: string;
   /** The authenticated mailbox. Never a spoofed address. */
   readonly address: string;
@@ -204,7 +204,7 @@ export interface BodyInput {
  *                           This is the line that ends "did you get the
  *                           FY 2023-24 return?" as a phone call.
  *   The ask               — one sentence, and it is the real one.
- *   Sign-off              — Amaze Loans and the mailbox that sent it.
+ *   Sign-off              — the sender name and the mailbox that sent it.
  */
 export function composeBody(input: BodyInput): string {
   const { context, recipient, batch, batchCount, sender } = input;
