@@ -325,14 +325,27 @@ Verification — all green:
   `C:\AOS\Backups6-09-09_10-33-16` — 1150 objects, dump checksum
   matches, all 110 documents present and unchanged.
 
-**Known outstanding — pre-existing, NOT caused by this phase:**
-`npm run test:integration` cannot run. `pfo_test` holds a stale
+**Test databases — RESOLVED after the cutover.** `pfo_test` had a stale
 `0037_practice_cases.sql` (applied 13:54:31, checksum `a3c8311…`) while the
 file was edited at 14:08:36 and production applied the current version at
-14:10:09 (`6913c52…`); `pfo_e2e` never received 0037 at all (36 of 37).
-Both databases are disposable and need a drop-and-rebuild. Production `pfo`
-is unaffected and consistent with git. This drift predates the cutover by
-~2 hours and is unrelated to the rename.
+14:10:09 (`6913c52…`); `pfo_e2e` had never received 0037 at all (36 of 37).
+That drift predated the cutover by ~2 hours and was unrelated to the rename.
+Both databases were dropped and left to rebuild themselves — each suite's
+globalSetup creates the database if absent and runs the real migrations.
+`npm run test:integration` now passes: **15 files, 215 tests**, against a
+freshly migrated `pfo_test`.
+
+**Separate pre-existing issue, NOT a rebrand problem — the e2e suite is
+stale.** `npm run test:e2e` rebuilds `pfo_e2e` correctly and the app works
+(sign-in succeeds, 13 tests pass, the banner renders the rebranded
+"PFONE Premier Finserv One"), but 26 tests fail on one assertion:
+`Frontend/src/App.tsx:88` returns `isFounder(session) ? "All Cases" : "My Cases"`,
+so Telecaller and Manager now see a `My Cases` nav link while the specs still
+expect `All Cases` unconditionally (8 occurrences across 5 spec files). The
+nav label became role-dependent in `d7d440c` on **2026-08-18**; the failing
+specs were last written **2026-08-11/12**. The suite has therefore been stale
+since three weeks before the rebrand began. Fixing it is test maintenance
+independent of every rebrand phase.
 
 **Complexity: High — Model: Opus 5 — Effort: High**
 
