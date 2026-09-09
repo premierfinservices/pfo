@@ -7,9 +7,9 @@
  * must not be able to land on the office's real ones by accident.
  *
  *   - The target database and target storage root are always explicit
- *     arguments. There is no default that points at "aos" or
+ *     arguments. There is no default that points at "pfo" or
  *     PFO_STORAGE_ROOT.
- *   - If the target database name is "aos" (or matches PFO_DB_NAME), it also
+ *   - If the target database name is "pfo" (or matches PFO_DB_NAME), it also
  *     requires PFO_RESTORE_CONFIRM to equal that name.
  *   - The target database must not already exist unless --drop-existing is
  *     given, so a restore can never silently merge into or replace a live
@@ -27,12 +27,12 @@
  * the document bytes.
  *
  * Usage — a restore drill, into an isolated database and folder:
- *   node Backend/restore.mjs --backup C:\AOS\Backups\<run> --db aos_restore_drill --storage-root C:\AOS\RestoreDrill --create-db
+ *   node Backend/restore.mjs --backup C:\AOS\Backups\<run> --db pfo_restore_drill --storage-root C:\AOS\RestoreDrill --create-db
  *
  * Usage — disaster recovery onto the real office database (after it has
  * been dropped or is otherwise empty; never run against a live one):
- *   $env:PFO_RESTORE_CONFIRM="aos"
- *   node Backend/restore.mjs --backup <run> --db aos --storage-root C:\AOS\Data --create-db
+ *   $env:PFO_RESTORE_CONFIRM="pfo"
+ *   node Backend/restore.mjs --backup <run> --db pfo --storage-root C:\AOS\Data --create-db
  */
 
 import { existsSync } from "node:fs";
@@ -84,7 +84,7 @@ async function main() {
   }
 
   const config = connectionConfig();
-  const office = process.env.PFO_DB_NAME ?? "aos";
+  const office = process.env.PFO_DB_NAME ?? "pfo";
   if (targetDb === office && process.env.PFO_RESTORE_CONFIRM !== targetDb) {
     fail(
       `--db "${targetDb}" matches the office database name.\n` +

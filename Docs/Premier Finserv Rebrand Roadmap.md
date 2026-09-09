@@ -284,8 +284,56 @@ Unfold Media Corp PC (the production server) and home PC.
 
 ## PHASE 5 — Database rename (`aos` → `<slug>`)
 
-**STATUS: NOT STARTED.** Blocked on: slug decision, timing decision.
-**Requires a downtime window.**
+**STATUS: COMPLETE** (2026-09-09, Unfold Media Corp PC). Slug `pfo`.
+Executed live in an ELEVATED session with a human watching, per the timing
+decision. **Total outage ≈ 1 minute (16:01:20 → 16:02:2x IST).**
+
+What was done:
+- Pre-cutover verified backup `C:\AOS\Backups6-09-09_10-14-59` (1150
+  objects, 110 documents / 27.5 MB), plus a freshly captured row-count
+  baseline of all 63 public tables taken from `aos` immediately before the
+  rename (the checkpoint's transcribed baseline omitted
+  `lender_submission_rule|0`, listing 62 entries while correctly stating 63).
+- An `npm run dev` stack was found running on this PC (PID 10024, started
+  14:01) — not accounted for in the checkpoint. It was confirmed properly
+  isolated: loopback-only dev ports 4419/4420/4421/5173 and pointed at
+  `aos_dev`, **not** production (proved by hitting its API 25 times and
+  watching `pg_stat_database` counters move on `aos_dev` while `aos` stayed
+  frozen at 3022 commits). It was stopped before Step 3 so its pool could not
+  reconnect to `aos_dev` between `pg_terminate_backend` and `ALTER DATABASE`.
+- Elevated `Stop-ScheduledTask` + `taskkill /T /F` on supervisor PID 37584
+  took production down cleanly. Elevation was precisely what the previous
+  session lacked.
+- All five databases renamed, zero backends needing termination:
+  `aos`→`pfo`, `aos_test`→`pfo_test`, `aos_e2e`→`pfo_e2e`,
+  `aos_dev`→`pfo_dev`, `aos_rehearsal_0035`→`pfo_rehearsal_0035`.
+  Sizes unchanged.
+- `.env`: exactly one line changed (diff-verified), `PFO_DB_NAME=aos` →
+  `PFO_DB_NAME=pfo`. `PFO_DB_USER=aos_app` and `PFO_STORAGE_ROOT=C:\AOS\Data`
+  deliberately untouched; `PFO_REQUIRE_DB_NAME` still unset.
+- Elevated `Start-ScheduledTask`; the supervisor cleared the stale PID-37584
+  lock by itself and came up reporting `database "pfo"`.
+
+Verification — all green:
+- `{"ok":true,"database":"up","storage":"up","mail":"up"}`, web HTTP 200,
+  employee access live at `http://192.168.0.101:4300`.
+- Row counts in `pfo` **identical to the pre-rename baseline across all 63
+  tables**; 0001–0037 applied, no CHANGED checksums.
+- `Scripts/aos-status.ps1`: every check UP, `database 'pfo'`, document store
+  110 files / 27.5 MB.
+- Fresh verified backup under the new name:
+  `C:\AOS\Backups6-09-09_10-33-16` — 1150 objects, dump checksum
+  matches, all 110 documents present and unchanged.
+
+**Known outstanding — pre-existing, NOT caused by this phase:**
+`npm run test:integration` cannot run. `pfo_test` holds a stale
+`0037_practice_cases.sql` (applied 13:54:31, checksum `a3c8311…`) while the
+file was edited at 14:08:36 and production applied the current version at
+14:10:09 (`6913c52…`); `pfo_e2e` never received 0037 at all (36 of 37).
+Both databases are disposable and need a drop-and-rebuild. Production `pfo`
+is unaffected and consistent with git. This drift predates the cutover by
+~2 hours and is unrelated to the rename.
+
 **Complexity: High — Model: Opus 5 — Effort: High**
 
 - Take a fresh verified backup immediately before starting
@@ -360,6 +408,38 @@ self-elevate — same limitation noted in the production cutover gate).
   old one is already removed, the server won't survive a reboot until
   fixed. Keep the old task disabled-but-present as a fallback for one
   verification cycle rather than deleting it immediately.
+
+
+**Exact verified `AOS Server` config** — captured live 2026-09-09 from the
+task as it was running healthily after the Phase 5 cutover. Ported here from
+`Docs/Premier Finserv Phase 5 CHECKPOINT.md` before that file was deleted;
+the new task must reproduce every one of these:
+
+```
+UserId             : ADMIN
+LogonType          : S4U
+RunLevel           : Highest
+Trigger            : MSFT_TaskBootTrigger
+Execute            : cmd.exe
+Arguments          : /c ""C:\Program Files
+odejs
+ode.exe" "…\AOS\Backend\supervisor.mjs" >> "…\AOS\Backend\supervisor.log" 2>&1"
+WorkingDirectory   : C:\WORK FILES\Amaze Loans Pvt Ltd\AOS
+MultipleInstances  : IgnoreNew
+ExecutionTimeLimit : PT0S
+```
+
+Two operational notes learned during the Phase 5 cutover, both of which apply
+to any future restart of this task:
+- `Stop-ScheduledTask` alone is a **no-op** against the running supervisor
+  tree — the task flips to `Ready` while the supervisor and its four children
+  keep serving. Stopping it for real needs
+  `taskkill /PID (Get-Content Backend\supervisor.pid).Trim() /T /F`.
+- Because of `MultipleInstances: IgnoreNew`, that `taskkill` is also what
+  clears the stale single-instance lock; on the next `Start-ScheduledTask` the
+  supervisor logs `clearing a stale lock from PID <old>` and starts cleanly.
+- Both commands require an **elevated** session (S4U / `RunLevel=Highest`);
+  a non-elevated session gets `Access is denied` on every child.
 
 ---
 

@@ -23,7 +23,7 @@
  * with them, which is the only disposal the product supports — there is no
  * delete, deliberately (BR-062, and the note at the top of Backend/users.ts).
  * Usernames carry a run-unique suffix so repeat runs never collide. All of it
- * lands in `aos_e2e`; the office database is unreachable from this suite (see
+ * lands in `pfo_e2e`; the office database is unreachable from this suite (see
  * playwright.config.ts).
  */
 
@@ -37,7 +37,7 @@ const TELECALLER = "e2e.telecaller";
 const LOGIN_EXEC = "e2e.loginexec";
 
 /** A password that satisfies the server's eight-character minimum. Only ever
- * valid in `aos_e2e`. */
+ * valid in `pfo_e2e`. */
 const CONTROLLED_PASSWORD = "Controlled#Pass1";
 
 function uniqueUsername(): string {

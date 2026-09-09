@@ -38,7 +38,7 @@ export default defineConfig({
     include: ["Backend/**/*.test.ts"],
     globalSetup: ["Backend/test-globalsetup.ts"],
     env: {
-      PFO_DB_NAME: "aos_test",
+      PFO_DB_NAME: "pfo_test",
       PFO_DB_USER: testDbUser,
       PFO_DB_PASSWORD: testDbPassword ?? "",
       // Never leak the office admin-fallback pair into the suite itself —

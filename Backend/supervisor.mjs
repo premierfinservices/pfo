@@ -193,7 +193,7 @@ async function waitForPostgres() {
   const config = {
     host: process.env.PFO_DB_HOST ?? "127.0.0.1",
     port: Number(process.env.PFO_DB_PORT ?? 5432),
-    database: process.env.PFO_DB_NAME ?? "aos",
+    database: process.env.PFO_DB_NAME ?? "pfo",
     user: process.env.PFO_DB_USER ?? "postgres",
     password: process.env.PFO_DB_PASSWORD ?? "",
     connectionTimeoutMillis: 3000,
@@ -308,7 +308,7 @@ async function main() {
       `  api         ${process.env.PFO_API_HOST ?? "127.0.0.1"}:${API_PORT}\n` +
       `  storage     127.0.0.1:${STORAGE_PORT} (loopback only, always)\n` +
       `  mail        127.0.0.1:${MAIL_PORT} (loopback only, always)\n` +
-      `  database    ${process.env.PFO_DB_NAME ?? "aos"} on ${process.env.PFO_DB_HOST ?? "127.0.0.1"}\n`,
+      `  database    ${process.env.PFO_DB_NAME ?? "pfo"} on ${process.env.PFO_DB_HOST ?? "127.0.0.1"}\n`,
   );
 
   claimSingleInstance();

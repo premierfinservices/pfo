@@ -8,15 +8,15 @@
   Removed from the topology. The only two machines now are the home PC and
   Unfold Media Corp PC.
 - **Unfold Media Corp PC** is the one real server, always — Postgres (the
-  real `aos` database), documents (`C:\AOS\Data`), mail, running via the
+  real `pfo` database), documents (`C:\AOS\Data`), mail, running via the
   `AOS Server` scheduled task (boot trigger) / `Backend/supervisor.mjs`. This
   stays true until an actual dedicated server is bought. See
   `Docs/Deployment Topology.md` for the full rule.
 - **Unfold Media Corp PC also does development work now** (it is the only
   machine reliably available besides home). This is only safe under strict
   isolation:
-  - Dev work here MUST use a separate disposable database (e.g. `aos_dev`,
-    same pattern as `aos_test`/`aos_e2e`) — never the real `aos` database.
+  - Dev work here MUST use a separate disposable database (e.g. `pfo_dev`,
+    same pattern as `pfo_test`/`pfo_e2e`) — never the real `pfo` database.
   - Dev `.env` (or `.env.local`) MUST use `PFO_WEB_HOST=127.0.0.1`
     (loopback only) and ports distinct from production's 4300/4321/4319/4320
     — never `0.0.0.0`, never the production ports.
@@ -35,7 +35,7 @@
     ```powershell
     $env:PFO_VITE_PORT=5273; $env:PFO_API_PORT=4421
     $env:PFO_STORAGE_PORT=4419; $env:PFO_MAIL_PORT=4420
-    $env:PFO_WEB_HOST="127.0.0.1"; $env:PFO_DB_NAME="aos_dev"
+    $env:PFO_WEB_HOST="127.0.0.1"; $env:PFO_DB_NAME="pfo_dev"
     $env:PFO_STORAGE_ROOT="C:\AOS\Dev\Data"
     npm run dev
     ```
@@ -52,6 +52,6 @@
   must run `npm run migrate` and restart the `AOS Server` task before the
   change is live.
 - Regardless of which PC: never point a `npm run dev` session's `.env` at the
-  real `aos` database or `C:\AOS\Data`, and never run the production
+  real `pfo` database or `C:\AOS\Data`, and never run the production
   supervisor against disposable dev data — mixing these is the
   "most damaging misconfiguration" the topology doc warns about.

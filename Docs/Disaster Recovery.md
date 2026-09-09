@@ -28,7 +28,7 @@ Two halves that must be restored **from the same backup run**:
 
 | | Where | What it is |
 |---|---|---|
-| Operational database | PostgreSQL `aos` | Customers, cases, requirements, document *metadata*, verification, submissions, users, permissions, the event log |
+| Operational database | PostgreSQL `pfo` | Customers, cases, requirements, document *metadata*, verification, submissions, users, permissions, the event log |
 | Document bytes | `PFO_STORAGE_ROOT` (`C:\AOS\Data`) | The actual PDFs and photos |
 
 `document.file_path` in the database is a *pointer*. A database restored
@@ -60,15 +60,15 @@ offline. Everything else can be rebuilt from this repository.
    to the office database at all.
 
    ```powershell
-   $env:PFO_RESTORE_CONFIRM="aos"
+   $env:PFO_RESTORE_CONFIRM="pfo"
    node Backend/restore.mjs `
        --backup "D:\AOS-Backups\2026-08-10_20-30-00" `
-       --db aos `
+       --db pfo `
        --storage-root C:\AOS\Data `
        --create-db --drop-existing --overwrite-storage
    ```
 
-   `--drop-existing` destroys the current `aos` database. That is the intent
+   `--drop-existing` destroys the current `pfo` database. That is the intent
    here, and it is why the confirmation variable exists. **Only run this when
    you have decided the current database is not worth keeping.**
 
@@ -100,9 +100,9 @@ You need the backup folder (from wherever `PFO_BACKUP_ROOT` pointed) and the
 3. Create the database and restore:
 
    ```powershell
-   $env:PFO_RESTORE_CONFIRM="aos"
+   $env:PFO_RESTORE_CONFIRM="pfo"
    node Backend/restore.mjs `
-       --backup "<backup folder>" --db aos `
+       --backup "<backup folder>" --db pfo `
        --storage-root C:\AOS\Data --create-db
    ```
 4. `npm run build`, then continue from Installation step 7.
@@ -168,7 +168,7 @@ targets — it builds a synthetic case with a real uploaded document through the
 ordinary code paths, backs it up, **deliberately corrupts a copy to confirm the
 verifier rejects it**, restores into a scratch database and folder, and checks
 that the case, the document metadata, the requirement linkage, the audit trail
-and the document bytes all came back. It never touches `aos` or `C:\AOS\Data`.
+and the document bytes all came back. It never touches `pfo` or `C:\AOS\Data`.
 
 Last run: 16/16 checks passed, including both damage-detection cases. The
 report is written to `<PFO_BACKUP_ROOT>\..\DrillBackups\last-drill-report.md`.

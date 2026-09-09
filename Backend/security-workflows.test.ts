@@ -113,8 +113,8 @@ async function startAppRoleServer(): Promise<void> {
     {
       env: {
         ...process.env,
-        PFO_DB_NAME: "aos_test",
-        PFO_REQUIRE_DB_NAME: "aos_test",
+        PFO_DB_NAME: "pfo_test",
+        PFO_REQUIRE_DB_NAME: "pfo_test",
         PFO_DB_USER: "aos_app",
         PFO_DB_PASSWORD: APP_ROLE_PASSWORD,
         PFO_API_PORT: String(port),
@@ -229,7 +229,7 @@ beforeAll(async () => {
   appRole = new pg.Client({
     host: process.env.PFO_DB_HOST ?? "127.0.0.1",
     port: Number(process.env.PFO_DB_PORT ?? 5432),
-    database: "aos_test",
+    database: "pfo_test",
     user: "aos_app",
     password: APP_ROLE_PASSWORD,
   });

@@ -45,7 +45,7 @@ const PASSWORD = "integration-test-password";
  * it opens nothing — an office sets one out of band. This suite has to be able
  * to connect as it, so it sets one for the duration of the run. Random, so
  * nothing about this file is a credential anybody could reuse, and set on the
- * throwaway `aos_test` cluster role rather than anywhere near the office.
+ * throwaway `pfo_test` cluster role rather than anywhere near the office.
  */
 const APP_ROLE_PASSWORD = randomBytes(18).toString("base64url");
 
@@ -54,7 +54,7 @@ let appRole: pg.Client;
 
 /** Whatever `aos_app`'s password was before this file touched it — a raw
  * SCRAM verifier, or `null` if none was set — restored in `afterAll`. Roles
- * are cluster-wide, not per-database: on a machine where an office `aos`
+ * are cluster-wide, not per-database: on a machine where an office `pfo`
  * install has already set a real password for `aos_app`, unconditionally
  * nulling it out at teardown (the old behaviour) would silently lock that
  * office out until someone re-ran Docs/Installation.md §5a. */
@@ -138,7 +138,7 @@ async function signIn(api_: typeof api, username: string): Promise<{ token: stri
  * child process is the honest way to get a second connection identity, and it
  * has the side benefit of proving the real entry point boots — including
  * `PFO_REQUIRE_DB_NAME`, which is set here so a misconfiguration cannot point
- * this at anything but `aos_test`.
+ * this at anything but `pfo_test`.
  */
 async function startAppRoleServer(): Promise<void> {
   const port = 4331;
@@ -153,8 +153,8 @@ async function startAppRoleServer(): Promise<void> {
     {
       env: {
         ...process.env,
-        PFO_DB_NAME: "aos_test",
-        PFO_REQUIRE_DB_NAME: "aos_test",
+        PFO_DB_NAME: "pfo_test",
+        PFO_REQUIRE_DB_NAME: "pfo_test",
         PFO_DB_USER: "aos_app",
         PFO_DB_PASSWORD: APP_ROLE_PASSWORD,
         PFO_API_PORT: String(port),
@@ -194,7 +194,7 @@ beforeAll(async () => {
   appRole = new pg.Client({
     host: process.env.PFO_DB_HOST ?? "127.0.0.1",
     port: Number(process.env.PFO_DB_PORT ?? 5432),
-    database: "aos_test",
+    database: "pfo_test",
     user: "aos_app",
     password: APP_ROLE_PASSWORD,
   });

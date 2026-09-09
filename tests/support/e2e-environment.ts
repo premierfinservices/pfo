@@ -15,9 +15,9 @@
 import type { Role } from "../../src/domain/permissions/index.js";
 
 /** The suite's database. Created and migrated by globalSetup; owned by nobody
- * else. Not `aos` (the office), not `aos_test` (the vitest integration suite,
+ * else. Not `pfo` (the office), not `pfo_test` (the vitest integration suite,
  * which truncates and reseeds). */
-export const E2E_DB = "aos_e2e";
+export const E2E_DB = "pfo_e2e";
 
 /** Ports for the stack Playwright starts. Deliberately NOT 5173/4321 — those
  * belong to whatever the office has running, and the whole point is that the
@@ -25,7 +25,7 @@ export const E2E_DB = "aos_e2e";
 export const E2E_VITE_PORT = 5174;
 export const E2E_API_PORT = 4322;
 
-/** A test credential and nothing else. It exists only in `aos_e2e`, which is
+/** A test credential and nothing else. It exists only in `pfo_e2e`, which is
  * created by the suite and holds no real data. The office accounts are made by
  * `Backend/bootstrap-production.ts` and share nothing with this. */
 export const E2E_PASSWORD = "e2e-test-password";
@@ -50,13 +50,23 @@ export const E2E_USERS: readonly { username: string; fullName: string; roles: Ro
 /**
  * The names that mean "the office database", refused outright.
  *
- * `aos` is the live one. The check is a belt-and-braces companion to
+ * `pfo` is the live one. The check is a belt-and-braces companion to
  * `PFO_REQUIRE_DB_NAME` in `Backend/db.ts`: that one stops a SERVER connecting
  * to the wrong place, this one stops the SETUP — which creates databases, runs
  * migrations and inserts accounts — from doing so, and it runs before the
  * server exists.
+ *
+ * The pre-rebrand `aos*` names stay listed: a backup restored under the old
+ * name is still real customer data, and a stale `.env` still points at it.
  */
-const OFFICE_DATABASES = ["aos", "aos_production", "aos_prod"];
+const OFFICE_DATABASES = [
+  "pfo",
+  "pfo_production",
+  "pfo_prod",
+  "aos",
+  "aos_production",
+  "aos_prod",
+];
 
 export function assertNotOfficeDatabase(database: string): void {
   if (OFFICE_DATABASES.includes(database.trim().toLowerCase())) {

@@ -13,10 +13,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import pg from "pg";
 
-// A dedicated throwaway database, separate from `aos_test` (shared by the
+// A dedicated throwaway database, separate from `pfo_test` (shared by the
 // rest of the integration suite), so this test can assert on an empty
 // migration ledger without racing anything else.
-const TEST_DB = "aos_test_migrate_side_effect";
+const TEST_DB = "pfo_test_migrate_side_effect";
 
 async function adminClient() {
   const client = new pg.Client({

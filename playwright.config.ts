@@ -23,11 +23,11 @@ const MAIL_CAPTURE_DIR = process.env.PFO_MAIL_CAPTURE_DIR ?? "C:/AOS/QA-Mail";
  * ============================================================================
  *
  * This is the correction Stage 3C-0 exists partly to make. The previous
- * configuration set `PFO_DB_NAME: "aos_e2e"` on the server it started, and
+ * configuration set `PFO_DB_NAME: "pfo_e2e"` on the server it started, and
  * `reuseExistingServer: true` — so if a developer had `npm run dev` already
  * running (which, in an office where this is the app people work in, is most
  * of the time), Playwright quietly adopted THAT server instead. That server is
- * connected to `aos`. The suite creates customers, opens cases, and — as of
+ * connected to `pfo`. The suite creates customers, opens cases, and — as of
  * this stage — creates employees, resets passwords and deactivates accounts.
  * All of it would have landed in the live office database, and nothing would
  * have said so.
@@ -41,7 +41,7 @@ const MAIL_CAPTURE_DIR = process.env.PFO_MAIL_CAPTURE_DIR ?? "C:/AOS/QA-Mail";
  *   3. `strictPort` in vite.config.ts. A port already in use is an error, not
  *      a silent shift onto a neighbour's server.
  *   4. `PFO_REQUIRE_DB_NAME`. The API process refuses to start against any
- *      database but `aos_e2e` (Backend/db.ts), whatever else is set.
+ *      database but `pfo_e2e` (Backend/db.ts), whatever else is set.
  *
  * It also runs `dev:e2e` rather than `dev`: vite and the API only. The storage
  * and mail backends belong to the document and submission features, which have

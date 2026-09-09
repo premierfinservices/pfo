@@ -3,9 +3,9 @@
  *
  * WHY A SEPARATE DATABASE: the browser suite creates customers and cases for
  * real, and as of Stage 3C-0 it also creates employees, assigns roles, resets
- * passwords and deactivates accounts. Pointed at `aos` it would administer the
- * office; pointed at `aos_test` it would race the vitest integration suite,
- * which truncates and reseeds. `aos_e2e` belongs to this suite alone.
+ * passwords and deactivates accounts. Pointed at `pfo` it would administer the
+ * office; pointed at `pfo_test` it would race the vitest integration suite,
+ * which truncates and reseeds. `pfo_e2e` belongs to this suite alone.
  *
  * WHY IT SEEDS ITS OWN USERS: authentication is server-side as of Stage 3B, so
  * "log in as a Telecaller" means a row in `app_user` with a password hash. The

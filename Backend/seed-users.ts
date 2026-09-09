@@ -65,7 +65,7 @@ const EMPLOYEES: readonly { username: string; fullName: string; role: Role }[] =
  * script depend on the production bootstrap, and the coupling that matters
  * runs the other way. The list is the STRONGEST available signal that a
  * database is the office one — far better than its name, since the office
- * database is called `aos` and so is every developer's.
+ * database is called `pfo` and so is every developer's.
  */
 const PRODUCTION_USERNAMES = [
   "chinna",
@@ -96,7 +96,7 @@ function generatePassword(): string {
 }
 
 async function main(): Promise<void> {
-  const database = process.env.PFO_DB_NAME ?? "aos";
+  const database = process.env.PFO_DB_NAME ?? "pfo";
   const confirmed = process.env.PFO_SEED_CONFIRM === database;
 
   // ── Guard 1: does this database already hold the real employees? ──────────
@@ -121,10 +121,10 @@ async function main(): Promise<void> {
 
   // ── Guard 2: is the name obviously a development one? ────────────────────
   //
-  // `aos_test`, `aos_e2e`, `aos_dev`, `aos_local`, `aos_scratch` pass silently
+  // `pfo_test`, `pfo_e2e`, `pfo_dev`, `pfo_local`, `pfo_scratch` pass silently
   // — that is the whole integration and E2E fleet, so no test workflow gains a
-  // step. Anything else, INCLUDING the bare `aos` a developer uses on their own
-  // machine, needs PFO_SEED_CONFIRM. That is deliberate: `aos` is also the
+  // step. Anything else, INCLUDING the bare `pfo` a developer uses on their own
+  // machine, needs PFO_SEED_CONFIRM. That is deliberate: `pfo` is also the
   // office database's name, and this script cannot tell the two apart from the
   // outside. One environment variable, once, is the cost of that ambiguity.
   const looksLikeDevelopment = /_(test|e2e|dev|local|scratch)$/i.test(database);

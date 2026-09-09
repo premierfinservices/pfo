@@ -18,7 +18,7 @@ import { loadDotEnv } from "./env.mjs";
 
 loadDotEnv();
 
-const DATABASE = process.env.PFO_DB_NAME ?? "aos";
+const DATABASE = process.env.PFO_DB_NAME ?? "pfo";
 
 /**
  * A backend process may be told which database it is REQUIRED to be talking to,
@@ -26,12 +26,12 @@ const DATABASE = process.env.PFO_DB_NAME ?? "aos";
  *
  * WHAT THIS PREVENTS (Stage 3C-0). The Playwright suite creates customers,
  * opens cases, deactivates users and resets passwords. It is supposed to do
- * all of that against `aos_e2e`. Before this guard, the only thing standing
+ * all of that against `pfo_e2e`. Before this guard, the only thing standing
  * between it and the OFFICE database was a `PFO_DB_NAME` set on a server
  * process that Playwright might or might not have started itself — and with
  * `reuseExistingServer` it frequently did not. An office dev server left
  * running on the same port was silently adopted, complete with its connection
- * to `aos`, and the suite happily administered real employee accounts.
+ * to `pfo`, and the suite happily administered real employee accounts.
  *
  * A misconfiguration must fail at startup, loudly, rather than succeed against
  * the wrong data. Nothing in the office environment sets this variable, so

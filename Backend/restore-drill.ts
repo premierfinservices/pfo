@@ -28,8 +28,8 @@
  * SAFETY. Everything this script touches is named for the drill and created
  * by the drill:
  *
- *   database  aos_drill_source     the synthetic source
- *   database  aos_restore_drill    the restore target
+ *   database  pfo_drill_source     the synthetic source
+ *   database  pfo_restore_drill    the restore target
  *   folder    C:\AOS\DrillData     synthetic document bytes
  *   folder    C:\AOS\DrillBackups  the drill's backups
  *   folder    C:\AOS\RestoreDrill  restored document bytes
@@ -37,7 +37,7 @@
  * It refuses to start if any of those names collides with the configured
  * office database, and its cleanup drops databases ONLY by exact match
  * against that list. `PFO_STORAGE_ROOT` and `PFO_BACKUP_ROOT` from `.env` are
- * never read; the office `aos` database is never connected to.
+ * never read; the office `pfo` database is never connected to.
  *
  * The synthetic customer is obviously synthetic ("Drill Testcase") and carries
  * no real personal data. The document is `tests/fixtures/pan-card.pdf`, a
@@ -64,8 +64,8 @@ import path from "node:path";
 // without the caller having to remember an env prefix.
 // ---------------------------------------------------------------------------
 
-const SOURCE_DB = "aos_drill_source";
-const RESTORE_DB = "aos_restore_drill";
+const SOURCE_DB = "pfo_drill_source";
+const RESTORE_DB = "pfo_restore_drill";
 const DRILL_STORAGE = "C:\\AOS\\DrillData";
 const DRILL_BACKUPS = "C:\\AOS\\DrillBackups";
 const RESTORE_STORAGE = "C:\\AOS\\RestoreDrill";
@@ -77,7 +77,7 @@ const DRILL_FOLDERS = [DRILL_STORAGE, DRILL_BACKUPS, RESTORE_STORAGE];
 const { loadDotEnv } = await import("./env.mjs");
 loadDotEnv();
 
-const officeDatabase = process.env.PFO_DB_NAME ?? "aos";
+const officeDatabase = process.env.PFO_DB_NAME ?? "pfo";
 if (DRILL_DATABASES.includes(officeDatabase)) {
   console.error(
     `\n  Refusing to run: the configured database "${officeDatabase}" is one of the\n` +
@@ -462,7 +462,7 @@ async function cleanUp(): Promise<void> {
   try {
     for (const database of DRILL_DATABASES) {
       // Exact-match only. There is no pattern here and there must never be
-      // one: a `like 'aos%'` would match the office database.
+      // one: a `like 'pfo%'` would match the office database.
       await admin.query(
         `select pg_terminate_backend(pid) from pg_stat_activity where datname = $1 and pid <> pg_backend_pid()`,
         [database],

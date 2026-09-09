@@ -65,7 +65,7 @@ npm ci
 ## 3. Create the database
 
 ```powershell
-& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -c "create database aos"
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -c "create database pfo"
 ```
 
 It will prompt for the `postgres` password from step 1.
@@ -88,7 +88,7 @@ The values that matter on the server:
 ```ini
 PFO_DB_HOST=127.0.0.1
 PFO_DB_PORT=5432
-PFO_DB_NAME=aos
+PFO_DB_NAME=pfo
 # Superuser. Correct for the migration in step 5 and WRONG to leave here —
 # step 5a replaces these two lines once the schema exists.
 PFO_DB_USER=postgres
@@ -136,7 +136,7 @@ Pick a long random password. It is typed twice, here and into `.env`, and never
 again; nobody has to remember it.
 
 ```powershell
-& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -d aos -c `
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -d pfo -c `
   "alter role aos_app password 'PASTE-A-LONG-RANDOM-PASSWORD-HERE'"
 ```
 
@@ -272,7 +272,7 @@ reverses it.
 Confirm none are left active:
 
 ```powershell
-& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -d aos -c `
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -d pfo -c `
   "select username, is_active from app_user order by username"
 ```
 
@@ -337,4 +337,4 @@ the database password and the login slips.
 
 **Practise a restore before you need one.** `npm run restore-drill` rehearses
 the whole procedure against throwaway databases and folders — it never touches
-`aos` or `C:\AOS\Data`. `Docs/Disaster Recovery.md` is the real thing.
+`pfo` or `C:\AOS\Data`. `Docs/Disaster Recovery.md` is the real thing.

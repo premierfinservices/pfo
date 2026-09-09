@@ -98,7 +98,7 @@ async function main(): Promise<void> {
   const args = new Set(process.argv.slice(2));
   const reset = args.has("--reset");
   const dryRun = args.has("--dry-run");
-  const database = process.env.PFO_DB_NAME ?? "aos";
+  const database = process.env.PFO_DB_NAME ?? "pfo";
 
   // A suite that truncates tables must never be one typo away from the real
   // data — and neither must this, in the other direction.

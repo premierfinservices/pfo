@@ -25,7 +25,7 @@ export function connectionConfig() {
   return {
     host: process.env.PFO_DB_HOST ?? "127.0.0.1",
     port: Number(process.env.PFO_DB_PORT ?? 5432),
-    database: process.env.PFO_DB_NAME ?? "aos",
+    database: process.env.PFO_DB_NAME ?? "pfo",
     user: adminUser || process.env.PFO_DB_USER || "postgres",
     password: adminUser
       ? (process.env.PFO_DB_ADMIN_PASSWORD ?? "")

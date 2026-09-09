@@ -7,7 +7,7 @@
  * about whether the persistence layer works, which is the whole question
  * Stage 2 is asking.
  *
- * It is a SEPARATE database (`aos_test`) from the office one (`aos`) — a suite
+ * It is a SEPARATE database (`pfo_test`) from the office one (`pfo`) — a suite
  * that truncates tables must never be one connection-string typo away from the
  * real customer data.
  */
@@ -27,7 +27,7 @@ loadDotEnv();
  * whole suite at the OFFICE database. It did exactly that on the first run.
  * The name must match `vitest.integration.config.ts`.
  */
-const TEST_DB = "aos_test";
+const TEST_DB = "pfo_test";
 
 export async function setup(): Promise<void> {
   // Creating a database needs CREATEDB, which `aos_app` (migration 0033) does
