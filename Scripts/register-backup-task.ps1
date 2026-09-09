@@ -27,7 +27,7 @@
     prompted for its password by Windows (this script never handles it).
 
 .PARAMETER TaskName
-    Default "AOS Nightly Backup".
+    Default "PFO Nightly Backup".
 
 .PARAMETER WhatIf
     Show exactly what would be registered and change nothing. Start here.
@@ -41,9 +41,9 @@
     .\Scripts\register-backup-task.ps1 -Time 20:30 -User "AMAZE-SERVER\aos"
 
 .NOTES
-    To inspect afterwards:   Get-ScheduledTask -TaskName "AOS Nightly Backup" | Get-ScheduledTaskInfo
-    To run it by hand:       Start-ScheduledTask -TaskName "AOS Nightly Backup"
-    To remove it:            Unregister-ScheduledTask -TaskName "AOS Nightly Backup" -Confirm:$false
+    To inspect afterwards:   Get-ScheduledTask -TaskName "PFO Nightly Backup" | Get-ScheduledTaskInfo
+    To run it by hand:       Start-ScheduledTask -TaskName "PFO Nightly Backup"
+    To remove it:            Unregister-ScheduledTask -TaskName "PFO Nightly Backup" -Confirm:$false
     Logs:                    <PFO_BACKUP_ROOT>\backup-log.txt
 #>
 
@@ -51,7 +51,7 @@
 param(
     [string]$Time = "20:30",
     [string]$User = "$env:USERDOMAIN\$env:USERNAME",
-    [string]$TaskName = "AOS Nightly Backup"
+    [string]$TaskName = "PFO Nightly Backup"
 )
 
 $ErrorActionPreference = "Stop"

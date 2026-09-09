@@ -9,7 +9,7 @@
   Unfold Media Corp PC.
 - **Unfold Media Corp PC** is the one real server, always — Postgres (the
   real `pfo` database), documents (`C:\PFO\Data`), mail, running via the
-  `AOS Server` scheduled task (boot trigger) / `Backend/supervisor.mjs`. This
+  `PFO Server` scheduled task (boot trigger) / `Backend/supervisor.mjs`. This
   stays true until an actual dedicated server is bought. See
   `Docs/Deployment Topology.md` for the full rule.
 - **Unfold Media Corp PC also does development work now** (it is the only
@@ -22,7 +22,7 @@
     — never `0.0.0.0`, never the production ports.
   - Dev processes must never read or write `C:\PFO\Data` — point
     `PFO_STORAGE_ROOT` at a disposable local folder.
-  - The production `AOS Server` scheduled task keeps running throughout;
+  - The production `PFO Server` scheduled task keeps running throughout;
     `npm run dev` here is a second, separate process tree, not a replacement
     for it.
   - **`npm run dev`'s `predev` hook (`Backend/free-dev-ports.mjs`) kills any
@@ -49,7 +49,7 @@
   `.env` at Unfold PC's database or storage over the network.
 - Git is the only sync channel between the two machines. A push from home
   does **not** deploy anything by itself — after pulling on Unfold PC, someone
-  must run `npm run migrate` and restart the `AOS Server` task before the
+  must run `npm run migrate` and restart the `PFO Server` task before the
   change is live.
 - Regardless of which PC: never point a `npm run dev` session's `.env` at the
   real `pfo` database or `C:\PFO\Data`, and never run the production

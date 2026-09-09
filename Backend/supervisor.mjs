@@ -135,7 +135,7 @@ function claimSingleInstance() {
           `\n  An AOS supervisor is already running on this machine (PID ${previous}).\n\n` +
             `  Two supervisors fight over the same ports and repeatedly kill each\n` +
             `  other's services. Stop the running one first:\n\n` +
-            `      Stop-ScheduledTask -TaskName 'AOS Server'\n` +
+            `      Stop-ScheduledTask -TaskName 'PFO Server'\n` +
             `      taskkill /PID ${previous} /T /F\n\n` +
             `  If you are certain nothing is running, delete ${LOCK_FILE}.\n`,
         );

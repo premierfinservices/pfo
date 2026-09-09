@@ -79,7 +79,7 @@ offline. Everything else can be rebuilt from this repository.
 4. Start AOS and check it:
 
    ```powershell
-   Start-ScheduledTask -TaskName "AOS Server"
+   Start-ScheduledTask -TaskName "PFO Server"
    .\Scripts\aos-status.ps1
    ```
 

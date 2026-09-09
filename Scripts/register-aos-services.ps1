@@ -29,7 +29,7 @@
     read the repo, read/write PFO_STORAGE_ROOT, and reach PostgreSQL.
 
 .PARAMETER TaskName
-    Default "AOS Server".
+    Default "PFO Server".
 
 .PARAMETER WhatIf
     Show what would be registered and change nothing. Start here.
@@ -42,16 +42,16 @@
 
 .NOTES
     Status:   .\Scripts\aos-status.ps1
-    Start:    Start-ScheduledTask -TaskName "AOS Server"
-    Stop:     Stop-ScheduledTask  -TaskName "AOS Server"
-    Remove:   Unregister-ScheduledTask -TaskName "AOS Server" -Confirm:$false
+    Start:    Start-ScheduledTask -TaskName "PFO Server"
+    Stop:     Stop-ScheduledTask  -TaskName "PFO Server"
+    Remove:   Unregister-ScheduledTask -TaskName "PFO Server" -Confirm:$false
     Log:      <repo>\Backend\supervisor.log
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$User = "$env:USERDOMAIN\$env:USERNAME",
-    [string]$TaskName = "AOS Server"
+    [string]$TaskName = "PFO Server"
 )
 
 $ErrorActionPreference = "Stop"

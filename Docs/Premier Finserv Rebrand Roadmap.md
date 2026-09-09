@@ -498,23 +498,76 @@ fallback if the move itself had been interrupted.
 
 ## PHASE 7 — Scheduled task rename
 
-**STATUS: NOT STARTED.** Blocked on: slug decision.
-**Requires an ELEVATED PowerShell session** (this session could not
-self-elevate — same limitation noted in the production cutover gate).
+**STATUS: COMPLETE** (2026-09-09, Unfold Media Corp PC). Executed live in
+an ELEVATED session with a human watching. **~1 minute of downtime**
+(11:07 UTC window, matching the Phase 5/6 pattern) while the supervisor
+tree restarted under the new task.
 **Complexity: Medium — Model: Sonnet 5 — Effort: Medium**
 
-- Re-run `Scripts/register-aos-services.ps1` (or its renamed successor)
-  under the new task name(s), pointed at the renamed `.env`/paths from
-  Phases 4–6.
-- Confirm the new task has the same `BootTrigger` / `RunLevel=Highest` /
-  S4U configuration verified for the current `AOS Server` task before
-  removing the old one.
-- Remove the old `AOS Server` / `AOS Nightly Backup` tasks only after the
-  new ones are confirmed working — don't delete-then-create.
-- Risk: LOW-MEDIUM — if the new task fails to register correctly and the
-  old one is already removed, the server won't survive a reboot until
-  fixed. Keep the old task disabled-but-present as a fallback for one
-  verification cycle rather than deleting it immediately.
+What was done:
+- Updated the default `$TaskName` in `Scripts/register-aos-services.ps1`
+  (`AOS Server` → `PFO Server`) and `Scripts/register-backup-task.ps1`
+  (`AOS Nightly Backup` → `PFO Nightly Backup`), plus every reference to
+  those task names in their own doc comments, `Scripts/aos-status.ps1`,
+  `Backend/supervisor.mjs`'s stop-instructions message, `CLAUDE.md`,
+  `Docs/Installation.md`, and `Docs/Disaster Recovery.md` — 8 files.
+  Deliberately left `Docs/Deployment Topology.md`, `AOS Production
+  Readiness Master Roadmap.txt` (both deferred to Phase 9), and
+  `Docs/superpowers/plans/*` (historical checkpoints) untouched, same
+  reasoning as every prior phase.
+- Registered `PFO Server` with `register-aos-services.ps1 -WhatIf` first,
+  then for real. Verified its `Principal` (S4U / Highest), trigger
+  (`MSFT_TaskBootTrigger`), action (identical `cmd.exe` wrapper, same
+  `node`/`supervisor.mjs`/log paths), and settings (`MultipleInstances
+  IgnoreNew`, no execution time limit) match the golden `AOS Server`
+  config transcribed into this file — byte-for-byte on every field that
+  matters. Registering a new task under a boot trigger did not start it
+  immediately (confirmed `State: Ready` right after registration), so the
+  old task kept serving with no overlap risk.
+- Cutover: `taskkill /PID <old PID> /T /F` on the `AOS Server` supervisor
+  (`Stop-ScheduledTask` alone confirmed a no-op again, as in Phase 5),
+  confirmed ports 4300/4321/4319/4320 free, then `Start-ScheduledTask
+  -TaskName "PFO Server"`. New PID came up clean — `supervisor.log` shows
+  the same storage → mail → api → web healthy sequence — and
+  `/api/health/detail` returned `{"ok":true,"database":"up","storage":"up","mail":"up"}`
+  with web HTTP 200 within seconds.
+- Registered `PFO Nightly Backup` the same way (`-WhatIf` then for real),
+  confirmed it targets `C:\PFO\Backups` at 20:30 daily — matching the
+  already-live `PFO_BACKUP_ROOT`. Ran it immediately rather than waiting
+  for tonight: `Start-ScheduledTask -TaskName "PFO Nightly Backup"`
+  produced a fresh self-verified backup
+  (`C:\PFO\Backups\2026-09-09_11-08-17`, 1150 TOC objects, dump checksum
+  matched, all 110 documents present/unchanged), and a separate `npm run
+  backup:verify` pass confirmed the same run independently.
+- `Scripts/aos-status.ps1` (already updated to look for the new names)
+  reports everything UP: web/API/storage/mail, `PFO Server` Running,
+  `PFO Nightly Backup` Ready with a clean last run, document store 110
+  files / 27.5 MB, backup 0h old.
+- Old tasks kept, not deleted, per the roadmap's own caution: `AOS Server`
+  and `AOS Nightly Backup` are now `Disabled` (not removed) as a
+  fallback for one verification cycle. Delete them once the new tasks
+  have survived a real reboot and the next scheduled 20:30 backup run.
+
+### Outstanding
+
+- **Reboot verification not yet done.** Same caveat every boot-trigger
+  registration carries (see Phase-general note in Installation.md): an
+  auto-start that has never survived a real reboot is not known to work.
+  Reboot Unfold PC at a convenient time, then re-run `aos-status.ps1`
+  before deleting the disabled `AOS Server`/`AOS Nightly Backup` tasks.
+- **Tonight's 20:30 scheduled run of `PFO Nightly Backup` not yet
+  observed** — today's verification was a manual `Start-ScheduledTask`,
+  not the trigger firing on its own. Check `C:\PFO\Backups\backup-log.txt`
+  tomorrow morning.
+- Once both of the above are confirmed, remove the disabled `AOS Server`
+  / `AOS Nightly Backup` tasks: `Unregister-ScheduledTask -TaskName "AOS
+  Server" -Confirm:$false` (and the backup equivalent).
+
+### Rollback (unused, recorded for completeness)
+
+Re-enable and start the disabled `AOS Server` task, stop `PFO Server` the
+same way (`taskkill` on its supervisor PID, `Stop-ScheduledTask` alone is
+a no-op), confirm health. Same for the backup task pair.
 
 
 **Exact verified `AOS Server` config** — captured live 2026-09-09 from the

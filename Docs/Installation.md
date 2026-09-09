@@ -291,7 +291,7 @@ all read `f`. **Do not put real customer data in AOS until they do.**
 Then prove it, rather than waiting for tonight:
 
 ```powershell
-Start-ScheduledTask -TaskName "AOS Nightly Backup"
+Start-ScheduledTask -TaskName "PFO Nightly Backup"
 Get-Content "D:\PFO-Backups\backup-log.txt" -Tail 30
 npm run backup:verify
 ```
@@ -306,7 +306,7 @@ not been verified is a folder.
 ```powershell
 .\Scripts\register-aos-services.ps1 -WhatIf
 .\Scripts\register-aos-services.ps1
-Start-ScheduledTask -TaskName "AOS Server"
+Start-ScheduledTask -TaskName "PFO Server"
 .\Scripts\aos-status.ps1
 ```
 
@@ -329,7 +329,7 @@ the database password and the login slips.
 | Task | Command |
 |---|---|
 | Is it working? | `.\Scripts\aos-status.ps1` |
-| Restart AOS | `Stop-ScheduledTask -TaskName "AOS Server"` then `Start-ScheduledTask ...` |
+| Restart AOS | `Stop-ScheduledTask -TaskName "PFO Server"` then `Start-ScheduledTask ...` |
 | Read the log | `Get-Content Backend\supervisor.log -Tail 50` |
 | Back up now | `npm run backup` |
 | Check backups are restorable | `npm run backup:verify --all` |

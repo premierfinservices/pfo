@@ -147,7 +147,7 @@ if ($loopbackOnly) {
 
 # --- Scheduled tasks ------------------------------------------------------
 Write-Host ("-" * 72)
-foreach ($name in @("AOS Server", "AOS Nightly Backup")) {
+foreach ($name in @("PFO Server", "PFO Nightly Backup")) {
     $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
     if ($task) {
         $info = $task | Get-ScheduledTaskInfo
