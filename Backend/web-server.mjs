@@ -37,8 +37,9 @@
  *   PFO_API_PORT   default 4321 — where /api is forwarded, always loopback
  */
 
-import { createServer, request as httpRequest } from "node:http";
-import { createReadStream, existsSync } from "node:fs";
+import { createServer as createHttpServer, request as httpRequest } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
+import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,6 +55,20 @@ const DIST = path.join(__dirname, "..", "Frontend", "dist");
 const PORT = Number(process.env.PFO_WEB_PORT ?? 4300);
 const HOST = process.env.PFO_WEB_HOST?.trim() || "127.0.0.1";
 const API_PORT = Number(process.env.PFO_API_PORT ?? 4321);
+
+/**
+ * TLS is optional: set both PFO_WEB_TLS_CERT and PFO_WEB_TLS_KEY (paths to a
+ * PEM cert/key pair) to serve HTTPS instead of plain HTTP. Left unset,
+ * behavior is unchanged — this is what a developer's `npm run dev` still
+ * gets. The office server sets both so employees on the LAN aren't sending
+ * credentials and case data in cleartext.
+ */
+const TLS_CERT_PATH = process.env.PFO_WEB_TLS_CERT?.trim();
+const TLS_KEY_PATH = process.env.PFO_WEB_TLS_KEY?.trim();
+const TLS_OPTIONS =
+  TLS_CERT_PATH && TLS_KEY_PATH
+    ? { cert: readFileSync(TLS_CERT_PATH), key: readFileSync(TLS_KEY_PATH) }
+    : null;
 
 /**
  * The API is reached over loopback even when this server is on the LAN.
@@ -168,7 +183,9 @@ function proxyToApi(req, res) {
   req.pipe(upstream);
 }
 
-const server = createServer((req, res) => {
+const server = TLS_OPTIONS ? createHttpsServer(TLS_OPTIONS, requestHandler) : createHttpServer(requestHandler);
+
+function requestHandler(req, res) {
   void (async () => {
     const url = req.url ?? "/";
 
@@ -204,7 +221,7 @@ const server = createServer((req, res) => {
       res.end("Something went wrong.");
     }
   });
-});
+}
 
 if (!existsSync(path.join(DIST, "index.html"))) {
   console.error(
@@ -215,14 +232,19 @@ if (!existsSync(path.join(DIST, "index.html"))) {
   process.exit(1);
 }
 
+const SCHEME = TLS_OPTIONS ? "https" : "http";
+
 listenOrExplain(server, PORT, HOST, "web server", () => {
-  console.log(`PFO web server listening on http://${HOST}:${PORT}`);
+  console.log(`PFO web server listening on ${SCHEME}://${HOST}:${PORT}`);
   console.log(`  Serving ${DIST}`);
   console.log(`  /api -> http://${API_HOST}:${API_PORT}`);
+  if (!TLS_OPTIONS) {
+    console.log("  TLS disabled — set PFO_WEB_TLS_CERT and PFO_WEB_TLS_KEY to serve HTTPS.");
+  }
   if (HOST === "127.0.0.1" || HOST === "localhost") {
     console.log("  Loopback only — no other PC can reach this. Set PFO_WEB_HOST=0.0.0.0 on the office server.");
   } else {
-    console.log(`\n  *** EMPLOYEES REACH PFO AT http://<this PC's LAN IP>:${PORT} ***`);
+    console.log(`\n  *** EMPLOYEES REACH PFO AT ${SCHEME}://<this PC's LAN IP>:${PORT} ***`);
     console.log("  Only the designated PFO server PC should be doing this — see Docs/Deployment Topology.md.\n");
   }
 });
