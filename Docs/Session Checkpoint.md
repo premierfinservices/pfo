@@ -1,9 +1,11 @@
 # Session Checkpoint — 2026-09-12
 
 **Office Server Production Cutover Gate — 4 of 21 steps remain.**
+**Also pending: GitHub repo ownership transfer — see bottom of this file.**
 
-Last commit: `94802ff` (not yet pushed as of this checkpoint — check
-`git log origin/main -1` before assuming it's live on the server).
+Last commit: `7859678` (pushed to `origin/main` this session — confirm
+with `git log origin/main -1` before assuming it's still current, since
+work continues on a different machine next).
 
 Everything else — all 6 development phases (column masking, admin-screen
 honesty, concurrency/audit hardening, case completeness, loan outcome
@@ -109,3 +111,44 @@ on UNFOLDMEDIACORP with production's own `.env`, exactly as this
 checkpoint already said. The next session should read `Docs/Which PC Is
 This.md` first, confirm it is actually on UNFOLDMEDIACORP with
 production's `.env`, then resume at "What's left" below.
+
+## Pending, separate from the cutover gate: move the repo to premierfinserv.cbe@gmail.com's GitHub account
+
+Raised 2026-09-12, home PC. User wants the repo transferred out of
+`tarunrameshphotography`'s GitHub account into one owned by
+`premierfinserv.cbe@gmail.com`, and wants to do this work from
+UNFOLDMEDIACORP next, not home. Nothing has been transferred yet — no
+GitHub-side action was taken this session, informational only.
+
+Current remote (both machines should have the same, modulo the redirect
+noted below): `https://github.com/tarunrameshphotography/AOS` — this
+redirects to the repo's current actual location,
+`https://github.com/tarunrameshphotography/pfo` (renamed earlier in the
+rebrand). Confirmed clean of committed secrets in the current tree: `.env`
+is gitignored, only `.env.example` is tracked; a full-history secret scan
+was recommended but not run.
+
+Procedure agreed on (GitHub's built-in ownership transfer, not a
+mirror/re-clone — preserves issues/PRs/stars/wiki and leaves a redirect):
+
+1. **Prerequisite** — `premierfinserv.cbe@gmail.com` needs an existing
+   GitHub account or org with a known username; GitHub transfers target a
+   username, not an email address. Not yet confirmed to exist.
+2. On `github.com/tarunrameshphotography/pfo` → Settings → Danger Zone →
+   Transfer ownership → enter the new owner's username + repo name to
+   confirm. GitHub emails the new owner, who must accept.
+3. After acceptance, update the `origin` remote on **both** machines:
+   `git remote set-url origin https://github.com/<new-owner>/pfo.git`
+   (a transfer does not update either machine's local remote by itself).
+4. Decide whether `tarunrameshphotography` should be re-added as a
+   collaborator on the new repo — a transfer removes the old owner's
+   owner-level access by default, and pushes from this identity would
+   otherwise stop working.
+5. Verify (don't assume) that GitHub Actions secrets/variables, branch
+   protection rules, and webhooks carried over correctly after transfer.
+
+Nothing here is UNFOLDMEDIACORP-specific in the sense of production
+data/database — this is a GitHub account operation, doable from a browser
+on either machine. The user chose to do it from UNFOLDMEDIACORP anyway;
+next session there should pick up at step 1 (confirm the target account
+exists) once ready.
