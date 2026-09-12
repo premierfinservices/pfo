@@ -602,6 +602,63 @@ STATUS as of 2026-08-12, office PC, this checkpoint
   backup/restore tooling (never previously exercised under aos_app on any
   machine) were found and fixed the same way — see the commit for detail.
 
+------------------------------------------------------------
+STATUS as of 2026-09-12, reconciled from the repo (home PC)
+------------------------------------------------------------
+  The block above is history. Since then the server moved to
+  UNFOLDMEDIACORP (2026-09-07, Docs/Deployment Topology.md) and the
+  Premier Finserv rebrand (Docs/Premier Finserv Rebrand Roadmap.md,
+  2026-09-09) closed most of what it listed as open. This reconciliation
+  was done from the home PC with the server powered off; nothing here was
+  re-verified live.
+
+  DONE (in addition to 1-8, 14, 16-19 above):
+   9. Windows service startup — `PFO Server` boot task registered (S4U,
+      Highest, BootTrigger). Rebrand roadmap, Phase 7.
+  11. Firewall — `PFO web (4300)`, Private profile, verified live by
+      Scripts/pfo-status.ps1 (rebrand roadmap, Phase 9).
+  13. Reboot and automatic recovery — 2026-09-09 16:45, `PFO Server`
+      auto-started, all services UP (commit e67533b).
+  15. Real employee sign-in — confirmed in the browser by the user
+      (rebrand roadmap, Phase 9).
+  Also closed: the #20 note about IP detection picking the VPN address —
+  Scripts/pfo-lan-address.ps1 now picks only physical adapters (b3064c9).
+  The server's address is now 192.168.0.101, not .102.
+
+  STILL OPEN — run on UNFOLDMEDIACORP with production's own .env (never a
+  dev shell with overridden PFO_* vars, never `npm run dev`):
+  10. Scheduled backup — registered and run manually, but the 20:30
+      trigger firing on its own has never been observed. Check
+      `Get-ScheduledTaskInfo "PFO Nightly Backup"` (a 20:30 LastRunTime,
+      LastTaskResult 0), C:\PFO\Backups\backup-log.txt, and
+      .\Scripts\pfo-status.ps1.
+  12. Verify from a second office PC — browse to http://192.168.0.101:4300
+      (https:// if TLS is on — see below; that PC then first needs
+      Scripts/install-pfo-root-ca.ps1), sign in as a real employee, open a
+      case, view one document.
+  20. Topology — Docs/Deployment Topology.md's "Still to be recorded"
+      table: asset tag / location, DHCP reservation of 192.168.0.101 in the
+      router (against the server's MAC), offsite/physical backup copy, and
+      who holds the database password and login slips. Human facts only.
+  21. Orphaned files — procedure and tooling now exist
+      (`npm run storage:orphans`, Docs/Disaster Recovery.md "Orphaned
+      document files"). Expected on the server: 24 files = 12 "prototype"
+      orphans with sidecars under person/per_001 and person/per_002, 0
+      unreferenced-uuid, 43/43 referenced present. Run: backup → report →
+      `-- --quarantine` → report → backup. Moves, never deletes; stop and
+      review if the counts differ.
+  After each: record the result here, commit and push from the server.
+
+  NOT PART OF THIS GATE: HTTPS. Commit f7331bd (2026-09-10) added
+  optional TLS on PFO_WEB_PORT and committed an office root CA. Whether
+  the server's .env already sets PFO_WEB_TLS_CERT/PFO_WEB_TLS_KEY could
+  not be checked (server off) — the topology doc still records an http://
+  URL. First thing on the server: check. If TLS is ON, the site works but
+  Scripts/pfo-status.ps1 will show the web line DOWN and supervisor.log
+  will say web "did NOT become healthy" — a known reporting gap, not an
+  outage (see "AFTER INITIAL PRODUCTION"). If it is OFF, initial
+  production runs plain HTTP on the office LAN.
+
 ============================================================
 WHAT "PRODUCTION READY" MEANS
 ============================================================
@@ -775,12 +832,10 @@ REMAINING DEVELOPMENT:
   None currently defined.
 
 THEN:
-  Office Server Production Cutover Gate (unstarted — see the 21-step
-  checklist above; nothing in Phase 6 advances or substitutes for it.
-  Migration 0035 is now confirmed applied to the office `pfo` database
-  itself, not only pfo_test/pfo_e2e — see the 2026-08-12 office-PC
-  verification note at the end of this Phase 6 section. This does not
-  advance the cutover gate; the remaining 21 steps are still unstarted)
+  Office Server Production Cutover Gate — IN PROGRESS. As of 2026-09-12
+  only #10 (unattended 20:30 backup), #12 (second-PC check), #20
+  (topology facts) and #21 (orphan quarantine) remain, all on
+  UNFOLDMEDIACORP. See "STATUS as of 2026-09-12" in the cutover section.
 
 THEN:
   INITIAL PRODUCTION
@@ -789,6 +844,14 @@ AFTER INITIAL PRODUCTION:
   Inbound bank-email ingestion (Gmail polling, AI classification, OCR) and
   any later roadmap items, based on actual business priorities. Explicitly
   NOT started as part of Phase 5 or Phase 6.
+
+  HTTPS completion (TLS support exists since f7331bd; server state
+  unverified as of 2026-09-12). With TLS on, Backend/supervisor.mjs's
+  startup health check and Scripts/pfo-status.ps1 still call
+  http://127.0.0.1:<port>/health and report the web server DOWN; the
+  URLs those scripts print are hard-coded http://; .env.example points at
+  Docs/Deployment Topology.md for how the cert was made, but no doc covers
+  TLS yet; and each office PC needs Scripts/install-pfo-root-ca.ps1.
 
 ============================================================
 ANTI-SCOPE-CREEP RULE

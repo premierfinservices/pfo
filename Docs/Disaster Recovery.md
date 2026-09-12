@@ -161,6 +161,55 @@ with a document that cannot be downloaded.
 
 ---
 
+## Orphaned document files
+
+The opposite of partial loss: files under `<PFO_STORAGE_ROOT>\Documents` that no
+`document` row points at. They are inert — nothing can reach them through the
+app — but they are backed up forever and confuse every storage audit.
+`npm run storage:orphans` finds and classifies them
+(`src/domain/storage/orphans.ts`):
+
+- **prototype** — owner id is not a UUID (e.g. `person/per_001/...`). Sample
+  files from the retired in-browser prototype; the API only ever builds paths
+  from UUIDs, so no row can reference them. The only kind the script will move.
+- **unreferenced-uuid** — most likely bytes from an upload whose transaction
+  rolled back (bytes are stored before the row is inserted). Could be a real
+  customer's file. Listed for human review; never moved by the script.
+- **unrecognised** — not shaped like a document path. Review by hand.
+
+Nothing in this procedure deletes anything. On the server, with production's
+own `.env`:
+
+1. `npm run backup` — must end with a verified backup.
+2. `npm run storage:orphans` — read-only. Check the first two lines name `pfo`
+   and `C:\PFO\Data`, and that the counts are what you expect. Stop and ask if
+   they are not.
+3. `npm run storage:orphans -- --quarantine` — moves the prototype orphans (and
+   their `.meta.json` sidecars) to `<PFO_STORAGE_ROOT>\Quarantine\<timestamp>\`,
+   hash-checked before and after, with a `manifest.json` listing every file.
+4. Run step 2 again: 0 prototype orphans.
+5. `npm run backup` again — verified.
+6. Record the quarantine folder and counts in the master roadmap. Deleting that
+   folder later is its own, separate decision.
+
+To undo, in PowerShell (set `$q` to the quarantine folder):
+
+```powershell
+$m = Get-Content "$q\manifest.json" -Raw | ConvertFrom-Json
+foreach ($f in $m.files) {
+  $rel = $f.path -replace '/', '\'
+  $to = Join-Path "$($m.storageRoot)\Documents" $rel
+  New-Item -ItemType Directory -Force (Split-Path $to) | Out-Null
+  Move-Item (Join-Path "$q\Documents" $rel) $to
+}
+```
+
+The script refuses to run as a role that row-level security filters (e.g.
+`aos_app` alone): a filtered `document` table would make real files look
+orphaned. It uses `PFO_DB_ADMIN_USER` when set, the same as backup and restore.
+
+---
+
 ## Proof this works
 
 `npm run restore-drill` runs the entire procedure end to end against throwaway

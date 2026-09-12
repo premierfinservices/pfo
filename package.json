@@ -30,6 +30,7 @@
     "backup:verify": "node Backend/backup-verify.mjs",
     "restore": "node Backend/restore.mjs",
     "restore-drill": "vite-node --config vite.server.config.ts Backend/restore-drill.ts",
+    "storage:orphans": "vite-node --config vite.server.config.ts Backend/storage-orphans.ts",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck:frontend": "tsc --noEmit -p Frontend/tsconfig.json"
