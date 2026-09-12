@@ -87,3 +87,25 @@ gate and reaches **INITIAL PRODUCTION**.
   (`PFO_Production_Readiness_Master_Roadmap.txt`,
   `PFO_Roadmap_Model_Effort_Plan.txt`) — superseded by the tracked roadmap,
   never committed. Safe to delete once noticed.
+
+## 2026-09-12 update — machine check added, nothing else changed
+
+A later session on this same date was asked to run steps #10/#12/#20/#21
+and, per this checkpoint's own instruction, checked machine identity
+first: hostname `DESKTOP-2KVRC8D`, `.env` reading `PFO_DB_NAME=pfo_dev` —
+this is the home PC, not UNFOLDMEDIACORP. No cutover step was attempted.
+That session instead:
+- Added `Docs/Which PC Is This.md` — the identity check to run before any
+  task that could touch production, plus why it exists.
+- Pointed to it from `CLAUDE.md` so it loads every session.
+- Added a "WHICH PC CAN DO WHAT" section to the master roadmap (right
+  after the cutover-gate status) classifying every remaining step, and
+  the post-cutover backlog, by which of the two machines (or neither) can
+  do it.
+- Updated `Milestones.txt` with a short pointer to both.
+
+**Nothing in "What's left" below changed.** All 4 steps still need to run
+on UNFOLDMEDIACORP with production's own `.env`, exactly as this
+checkpoint already said. The next session should read `Docs/Which PC Is
+This.md` first, confirm it is actually on UNFOLDMEDIACORP with
+production's `.env`, then resume at "What's left" below.

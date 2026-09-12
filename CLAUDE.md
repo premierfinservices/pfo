@@ -2,6 +2,14 @@
 
 - Always invoke the `andrej-karpathy-skills:karpathy-guidelines` skill when writing, reviewing, or refactoring any code in this project.
 
+## Which PC is this, right now
+
+Before running anything that touches the real database, `C:\PFO\Data`,
+scheduled tasks, the firewall, or a "verify on the server" style step,
+check which machine this session is actually on: **`Docs/Which PC Is This.md`**.
+Hostname alone is not enough on UNFOLDMEDIACORP, which does both roles —
+check its `.env` too. Do this first, not after attempting the task.
+
 ## Dev topology (two-PC setup)
 
 - MAIN-PC (the former office PC) crashed and is unrecoverable, 2026-09.

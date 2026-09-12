@@ -649,6 +649,90 @@ STATUS as of 2026-09-12, reconciled from the repo (home PC)
       review if the counts differ.
   After each: record the result here, commit and push from the server.
 
+------------------------------------------------------------
+WHICH PC CAN DO WHAT — cutover steps #10/#12/#20/#21
+------------------------------------------------------------
+See Docs/Which PC Is This.md for how to tell the two machines apart
+before starting any session. Summary of the remaining gate steps:
+
+  #10 Scheduled backup verification — UNFOLDMEDIACORP ONLY. Reads that
+      machine's own Task Scheduler state (`Get-ScheduledTaskInfo`) and
+      `C:\PFO\Backups\backup-log.txt`, neither of which exists anywhere
+      else.
+  #12 Verify from a second office PC — needs UNFOLDMEDIACORP running
+      production (the thing being reached) PLUS a THIRD, separate
+      physical machine on the office LAN (neither home nor
+      UNFOLDMEDIACORP) with a browser, to prove reachability from
+      somewhere that isn't the server itself. Home PC cannot substitute
+      for that third machine — it is not on the office LAN.
+  #20 Topology facts — human-only (asset tag, DHCP reservation, backup
+      custodian, password holder). Whoever knows these answers can
+      record them from either machine by editing
+      Docs/Deployment Topology.md — no code or server access required,
+      but the facts themselves come from the physical office, not from
+      a checkout.
+  #21 Orphan quarantine — UNFOLDMEDIACORP ONLY. Must run against the
+      real `C:\PFO\Data` and the real `pfo` database; the tooling
+      (`npm run storage:orphans`) was already built and tested against
+      disposable `pfo_dev` fixtures on the home PC in an earlier
+      session — that dev-side work is done, only the real run remains.
+
+  2026-09-12 (later same day, home PC, DESKTOP-2KVRC8D): a session
+  attempted to run #10/#12/#20/#21 here by mistake. Caught before any
+  command ran, because this machine's own `.env` reads
+  PFO_DB_NAME=pfo_dev / PFO_WEB_HOST=127.0.0.1 / PFO_STORAGE_ROOT=
+  C:\PFO\Dev\Data — none of which match production. No files were
+  touched, nothing was quarantined, no commit was made. This entry and
+  Docs/Which PC Is This.md exist so the next session checks machine
+  identity BEFORE attempting any of these four steps, not after.
+
+------------------------------------------------------------
+WHICH PC CAN DO WHAT — everything after cutover
+------------------------------------------------------------
+General rule, for triaging any future task without re-deriving it:
+
+  HOME PC (dev-only) can do:
+    - All code changes, new features, bug fixes, refactors, tests,
+      docs — against pfo_dev/pfo_test/pfo_e2e, never pfo.
+    - Building and testing tooling before it ever touches real data
+      (e.g. the storage:orphans tooling was built and proven here
+      first).
+    - git commit / git push. This is the only way work done here
+      reaches production — there is no other sync channel.
+
+  UNFOLDMEDIACORP (production server, and also dev) can do:
+    - Everything home PC can do, PLUS:
+    - Anything that must read/write the real `pfo` database or the
+      real `C:\PFO\Data` (backups, restores, orphan quarantine, live
+      verification, real employee sign-in).
+    - Deploying a pushed change: `git pull`, `npm run migrate`,
+      restart the `PFO Server` scheduled task. A `git push` from home
+      does not deploy anything by itself.
+    - Scheduled-task / firewall / Windows-service state that only
+      exists on that machine.
+    - Serving employees at http://192.168.0.101:4300 for real use or
+      for a second-PC verification test.
+    - Its own disposable dev work (pfo_dev-equivalent, isolated per
+      Docs/Deployment Topology.md's "also does development" section)
+      — but this must NEVER touch pfo or C:\PFO\Data, same rule as
+      home.
+
+  NEITHER PC alone can do:
+    - #12's second-office-PC check — needs a third physical machine.
+    - #20's topology facts — needs a human who knows the physical
+      answers, not a machine at all.
+
+  AFTER INITIAL PRODUCTION (not started, for later triage the same
+  way):
+    - Inbound bank-email ingestion (Gmail polling, AI classification,
+      OCR): ordinary development — HOME PC, then push, then deploy on
+      UNFOLDMEDIACORP.
+    - HTTPS completion (health-check/status-script gaps, missing TLS
+      doc, `install-pfo-root-ca.ps1` on other office PCs): the code/doc
+      fixes are HOME PC work; confirming the live server's actual
+      PFO_WEB_TLS_CERT/KEY state and rolling the root CA out to office
+      PCs is UNFOLDMEDIACORP-and-LAN work.
+
   NOT PART OF THIS GATE: HTTPS. Commit f7331bd (2026-09-10) added
   optional TLS on PFO_WEB_PORT and committed an office root CA. Whether
   the server's .env already sets PFO_WEB_TLS_CERT/PFO_WEB_TLS_KEY could

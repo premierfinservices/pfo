@@ -74,6 +74,15 @@ firewall, reboot recovery and a real employee sign-in were done during the
 2026-09-09 rebrand. See the master roadmap's "STATUS as of 2026-09-12". The
 paragraph below is the 2026-08-12 state, kept as history.
 
+UPDATE 2026-09-12 (later same day): a session on the home PC
+(DESKTOP-2KVRC8D) nearly attempted #10/#12/#20/#21 there before checking
+machine identity — caught before anything ran. See the master roadmap's
+"WHICH PC CAN DO WHAT" section (right after the cutover-gate status) for
+the per-step machine assignment, and Docs/Which PC Is This.md for the
+identity check to run before starting any session's work. Short version:
+all four remaining steps need UNFOLDMEDIACORP; #12 additionally needs a
+third physical office PC; #20 needs a human, not a machine.
+
 Current active work: the Office Server Production Cutover Gate, in progress
 on the real office PC as of 2026-08-12 — see the master roadmap's "STATUS as
 of 2026-08-12" note under that section for the full 21-item state. Database
