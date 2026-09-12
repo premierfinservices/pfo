@@ -1,128 +1,89 @@
-# Session Checkpoint — 2026-08-11
+# Session Checkpoint — 2026-09-12
 
-**Stage 4, Item 3 — Authentication and Security. Complete and verified.**
+**Office Server Production Cutover Gate — 4 of 21 steps remain.**
 
-Commits: `e0a1b25` (implementation), `702f203` (review pass + verification),
-`1a4c79b` (previous checkpoint), plus this session's commit (workflow
-verification + dev-database rebuild — see below for the hash).
+Last commit: `94802ff` (not yet pushed as of this checkpoint — check
+`git log origin/main -1` before assuming it's live on the server).
 
-Tree green: typecheck clean, 616 unit tests, 134 integration tests, restore
-drill 16/16, build green.
-
----
-
-## What this session closed
-
-The previous checkpoint left one blocking gap: document upload/download,
-bank submissions and mail had never been driven through an `PFO_DB_USER=aos_app`
-connection. Everything else in Item 3 (the role itself, RLS, the auth
-lifecycle, CORS, throttling, bootstrap) was already verified.
-
-**`Backend/security-workflows.test.ts`** — new. Against a disposable
-`aos_test` database (0001→0033, the same database `security.test.ts` and the
-rest of the integration suite share), with a real out-of-process API server
-connected as `aos_app` (mirroring `security.test.ts`'s
-`startAppRoleServer`), a real throwaway `storage-server.mjs`, and a real
-`mail-server.mjs` in `capture` mode (writes to a temp directory, never
-reaches Gmail):
-
-1. Created a synthetic customer and case.
-2. Listed rule-generated requirements.
-3. Uploaded a synthetic document (`tests/fixtures/pan-card.pdf`) through the
-   real API → `documents.ts` → storage backend path, for every requirement.
-4. Verified each document (`document.verify`, as a Login Executive).
-5. Downloaded the document back and confirmed the bytes and SHA-256 hash
-   match the original exactly — the full round trip through the real storage
-   backend as `aos_app`.
-6. Ran the real bank submission path: branch lookup, submission +
-   recipient inserts, `sendable-documents`, `prepare` (pure), `send` (package
-   / email / document inserts, per-email status updates, then the
-   submission and case updates) — all against Postgres as `aos_app`.
-7. `send` went through the real (capture-mode) mail backend — proving the
-   database interactions the mail path depends on work as `aos_app`, without
-   sending anything or touching a real credential.
-8. Confirmed the specific `event` rows this workflow produced
-   (`document.uploaded`, `document.verified`, `submission.created`,
-   `submission.documents_sent`, `case.stage_changed`) exist, and that
-   `aos_app` can neither `UPDATE` nor `DELETE` them — checked against those
-   exact rows, not a generic probe.
-9. Confirmed requirements, document metadata and submissions read back
-   exactly as the application expects after the whole flow (outstanding
-   requirement count is 0; the submission shows `status = "submitted"`).
-
-No missing grant was found. `0033_application_role.sql` was not changed this
-session — the earlier review pass had already covered everything these three
-paths needed.
-
-**The Home-PC `aos` checksum mismatch is resolved.** `aos` (confirmed local:
-`127.0.0.1`, not the office) was dropped and recreated, migrated 0001→0033
-clean (no `CHANGED` entries), reseeded with the standard five development
-accounts (`PFO_SEED_CONFIRM=aos npm run seed-users`), and the real
-`api-server` was started against it and a login exercised successfully
-before being stopped. `.env` was not modified; `PFO_DB_USER` is still
-`postgres` on this machine, as it was before.
+Everything else — all 6 development phases (column masking, admin-screen
+honesty, concurrency/audit hardening, case completeness, loan outcome
+tracking, case intake & document workflow) and 17 of the 21 cutover steps —
+is done. See `PFO Production Readiness Master Roadmap.txt`, "STATUS as of
+2026-09-12" section, for full detail and evidence per step.
 
 ---
 
-## Verification actually performed, this session
+## Why this checkpoint exists
 
-- **26 security integration tests** (`security.test.ts` + the new
-  `security-workflows.test.ts`) — the full role/RLS/lifecycle/CORS/throttle/
-  bootstrap suite from the last checkpoint, plus the three newly-covered
-  workflows, run together against the same `aos_test` database. All 26 pass.
-- **`npm run typecheck`** — clean.
-- **`npm test`** — 616/616 unit tests.
-- **`npm run test:integration`** — 134/134 (133 previously + the new
-  workflow test), across all 8 integration files including
-  `security-workflows.test.ts`.
-- **`npm run build`** — clean (pre-existing >500kB chunk-size warning,
-  unrelated to this item).
-- **`npm run restore-drill`** — 16/16.
-- **File review** — `git status` shows exactly one new file
-  (`Backend/security-workflows.test.ts`) and no other changes. No duplicate
-  imports, no dead code, no stale comments, no secrets, no broad grants.
-  (One dead field — `Session.authIdentityId`, set but never read — was
-  caught and removed before commit.)
+The previous session (home PC, DESKTOP-2KVRC8D) built and tested the
+tooling for step #21 (orphaned document files) on disposable `pfo_dev`
+data, and reconciled the roadmap/Milestones docs against work that had
+already landed during the 2026-09-09 rebrand but was never marked done.
+It could not run any of the remaining 4 steps itself — they all require
+the real UNFOLDMEDIACORP server, powered on, reachable, running production's
+own `.env` (never a dev shell with overridden `PFO_*` vars, never
+`npm run dev`).
 
----
+## What's left (in the order to do them)
 
-## Known limitations, deferred on purpose (unchanged from the last checkpoint)
+### 1. Check HTTPS state first
+Commit `f7331bd` (2026-09-10, made from the server's own account) added
+optional TLS. Check whether `PFO_WEB_TLS_CERT`/`PFO_WEB_TLS_KEY` are already
+set in the server's `.env`. If yes: the site works, but
+`Backend/supervisor.mjs`'s startup health check and `Scripts/pfo-status.ps1`
+still call `http://127.0.0.1/health` and will wrongly report the web
+service DOWN — known gap, not a real outage, don't "fix" it by disabling
+TLS. If no: initial production runs plain HTTP on the office LAN, which is
+fine (firewall already restricts to the Private profile).
 
-1. **Column masking (ADR-026) is still unbuilt.** 0033 did row visibility and
-   privileges. Masked views were never started; `Database/README.md` says so.
-2. **RLS is not a per-user boundary.** By design. Ownership is decided in
-   `Backend/authorize.ts`; anything claiming RLS enforces it is wrong.
-3. **Login timing leaks username existence** (~1ms unknown vs ~80ms wrong
-   password). LAN-only system, judged marginal.
-4. **The throttle is in-process.** A restart clears counters; not shared
-   across processes. Honest for a one-process-on-one-PC deployment.
-5. **`Backend/customers.ts` contains a NUL byte** (a deliberate composite-key
-   separator, predating this work) — out of scope, unchanged.
+### 2. Step #21 — quarantine the orphaned files
+```
+npm run backup
+npm run storage:orphans
+```
+Expect: 24 files = 12 "prototype" orphans (with sidecars) under
+`person/per_001` and `person/per_002`, 0 `unreferenced-uuid`, 43/43
+referenced documents present. **If the counts differ, stop and investigate
+before quarantining anything.**
+```
+npm run storage:orphans -- --quarantine
+npm run storage:orphans          # confirm 0 prototype orphans
+npm run backup                   # fresh verified backup, post-quarantine
+```
+Procedure and undo instructions: `Docs/Disaster Recovery.md`, "Orphaned
+document files".
 
----
+### 3. Step #10 — confirm the unattended nightly backup
+```
+Get-ScheduledTaskInfo "PFO Nightly Backup"
+```
+Expect a `LastRunTime` around 20:30 (not from a manual `Start-ScheduledTask`)
+and `LastTaskResult` = 0. Also check `C:\PFO\Backups\backup-log.txt`.
 
-## Still to execute on the office server — none of it done, none of it touched
+### 4. Step #12 — verify from a second office PC
+Browse to `http://192.168.0.101:4300` (or `https://` if TLS is on — install
+`Scripts/install-pfo-root-ca.ps1` on that PC first), sign in as a real
+employee, open a case, view one document.
 
-1. `npm run migrate` (applies 0033; must run as a superuser).
-2. `psql -c "alter role aos_app password '<long random>'"`.
-3. `.env`: `PFO_DB_USER=aos_app`, `PFO_DB_PASSWORD=…`,
-   `PFO_DB_ADMIN_USER=postgres`, `PFO_DB_ADMIN_PASSWORD=…`.
-4. Restart; sign in, open a case, upload a document, send a submission —
-   this session's tests prove the code path works as `aos_app`; the office
-   server still needs its own live check once the switch is made there, per
-   `Docs/Installation.md` §5a (recommended: against a restored copy of the
-   office database first, not the live one).
-5. `npm run bootstrap-production` — disables the five dev accounts on its
-   own.
-6. Confirm `is_active = f` for all five.
+### 5. Step #20 — record topology facts
+Fill in the blanks in `Docs/Deployment Topology.md`, "Still to be recorded"
+table:
+- server asset tag / physical location
+- DHCP reservation of `192.168.0.101` in the router, against the server's MAC
+- offsite/physical backup copy arrangement
+- who holds the database password and login slips
 
-Untouched throughout, per instruction: firewall, Windows services, the office
-server, Gmail credentials, the 188 orphaned `C:\AOS\Data` files, production
-data, and the Home PC `.env` (still `postgres`/`aos`, deliberately — the task
-was to fix the checksum, not to switch this machine to `aos_app`).
+These are human facts — don't guess or infer them.
 
----
+### 6. Close out
+Update `PFO Production Readiness Master Roadmap.txt` and `Milestones.txt`
+with the results of steps 2-5, commit, and push. That closes the cutover
+gate and reaches **INITIAL PRODUCTION**.
 
-## Not started
-
-**Stage 4 Item 4.** Deliberately untouched.
+## Deliberately not in scope here
+- HTTPS completion (health-check/doc gaps) — recorded under "AFTER INITIAL
+  PRODUCTION" in the roadmap, not a cutover blocker.
+- Two stale untracked files from a previous session's confusion
+  (`PFO_Production_Readiness_Master_Roadmap.txt`,
+  `PFO_Roadmap_Model_Effort_Plan.txt`) — superseded by the tracked roadmap,
+  never committed. Safe to delete once noticed.
