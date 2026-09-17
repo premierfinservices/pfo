@@ -282,8 +282,10 @@ What happened, in order:
    - Branch protection: none configured before or after.
    - Webhooks: none configured before or after.
 
-**Still open — home PC's `origin` remote has NOT been updated yet.** Next
-session on the home PC (`DESKTOP-2KVRC8D`) must run:
+**Still open — home PC's `origin` remote has NOT been updated yet.** User
+said (2026-09-17) they'll do this themselves later this evening. Next
+session on the home PC (`DESKTOP-2KVRC8D`) — verify it was actually done
+before assuming so; if not, must run:
 ```
 git remote set-url origin https://github.com/premierfinservices/pfo.git
 ```
