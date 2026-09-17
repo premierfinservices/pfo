@@ -14,7 +14,7 @@
  *    category), matching words in any order. Nobody should have to know
  *    which field a word lives in.
  *  - Filters as plain dropdowns of master data, never hardcoded lists. Every
- *    option on this screen comes out of a table someone at Amaze can edit.
+ *    option on this screen comes out of a table someone at Premier Finserv can edit.
  *  - The list shows what a person actually asks about a product — is it
  *    secured, does it need a property, what tenure, what amount — rather
  *    than every column.

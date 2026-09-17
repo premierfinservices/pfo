@@ -91,7 +91,7 @@ export interface Organisation {
   /** Does this organisation still exist? Absent means yes, matching the
    * column's default (Database/migrations/0003). For a lender this is
    * deliberately NOT panel status: Lakshmi Vilas Bank is inactive because it
-   * ceased to exist, while a lender Amaze has stopped using is merely off
+   * ceased to exist, while a lender Premier Finserv has stopped using is merely off
    * panel — see LenderProfile.isOnPanel (Milestone 8). */
   isActive?: boolean;
 }
@@ -208,7 +208,7 @@ export interface PermissionOverride {
 }
 
 /**
- * A lending product — Amaze's own, bank-independent (ADR-016, ADR-032, ADR-033).
+ * A lending product — Premier Finserv's own, bank-independent (ADR-016, ADR-032, ADR-033).
  *
  * The middle layer of the catalogue: `customerProductId` groups it commercially,
  * `bank_product` (not yet in the prototype) is a lender's version of it.
@@ -296,7 +296,7 @@ export interface LenderProfile {
   /** Free text, as staff say it: "Tamil Nadu and Kerala", "Pan-India". */
   primaryServiceRegion?: string;
   websiteUrl?: string;
-  /** Does Amaze currently work with this lender? Distinct from the
+  /** Does Premier Finserv currently work with this lender? Distinct from the
    * organisation's own active flag, which is whether it still exists. */
   isOnPanel: boolean;
   /** Calendar days, as the office observes it. Informational, never an SLA. */

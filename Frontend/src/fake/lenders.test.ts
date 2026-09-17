@@ -27,7 +27,7 @@ const db = buildSeed();
 const view = lendersAsDomain(db);
 
 describe("the seeded lender catalogue", () => {
-  it("holds the lenders Amaze realistically works with", () => {
+  it("holds the lenders Premier Finserv realistically works with", () => {
     expect(db.lenderProfiles.length).toBeGreaterThan(25);
     const names = db.organisations
       .filter((org) => org.roles.includes("lender"))
@@ -206,7 +206,7 @@ describe("the Coimbatore catalogue", () => {
       "Equitas Small Finance Bank",
       "Coimbatore District Central Co-operative Bank",
       // Tamil Nadu housing financiers, which compete directly for the
-      // self-construction files Amaze arranges.
+      // self-construction files Premier Finserv arranges.
       "Repco Home Finance",
       "Sundaram Home Finance",
       // Gold loans are a mainstream short-term route in this market.
@@ -279,7 +279,7 @@ describe("what the seed deliberately does not claim", () => {
   // offers catalogued contacts as recipients at the exact moment somebody is
   // about to send a real customer's file — so a seeded banker email would not
   // merely look plausible, it would be sent to. Every address in this system
-  // is typed in by somebody at Amaze holding that person's card.
+  // is typed in by somebody at Premier Finserv holding that person's card.
   it("invents no banker email addresses, and no submission recipients", () => {
     expect(db.submissionRecipients).toEqual([]);
     for (const contact of db.bankContacts) {
@@ -288,7 +288,7 @@ describe("what the seed deliberately does not claim", () => {
   });
 
   // "Excellent for textile businesses" is only worth storing when it is
-  // Amaze's own observation. A seeded one would be an invented opinion
+  // Premier Finserv's own observation. A seeded one would be an invented opinion
   // attributed to the team — worse than an invented phone number, because
   // nobody can check it.
   it("invents no institutional knowledge", () => {

@@ -3,7 +3,7 @@
  *
  * These are not unit tests of the engine — `src/domain/requirements` already
  * has those. They are an audit of the thing a human actually reads: run the
- * real seed, open one case of each product family Amaze sells, and assert the
+ * real seed, open one case of each product family Premier Finserv sells, and assert the
  * result is something you could read down a phone without apologising for it.
  *
  * The one that matters most is `no two rows say the same thing`. A checklist
@@ -159,7 +159,7 @@ describe("the checklist every product family generates", () => {
     for (const label of itr) expect(label).toMatch(/ – AY \d{4}-\d{2}$/);
   });
 
-  it("asks a business loan for Amaze's standard business set on the day it is created", () => {
+  it("asks a business loan for Premier Finserv's standard business set on the day it is created", () => {
     resetDatabase();
     const labels = checklistFor("bl_working_capital").map((r) => r.label);
 

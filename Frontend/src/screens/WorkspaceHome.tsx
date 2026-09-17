@@ -101,26 +101,32 @@ function needsAttention(loanCase: ApiCase): boolean {
 function CaseRow({ loanCase }: { loanCase: ApiCase }): ReactNode {
   const reference = useReference();
   const users = useUsers();
+  const idleDays = (Date.now() - new Date(loanCase.updatedAt).getTime()) / 86400000;
 
   return (
     <li className="py-2.5 first:pt-0 last:pb-0">
       <Link to={`/cases/${loanCase.id}`} className="flex flex-wrap items-center gap-2">
-        <span className="tnum text-sm font-medium hover:underline">{loanCase.caseNumber}</span>
-        <span className="text-sm text-ink-700">{loanCase.applicantName ?? "No applicant"}</span>
-        {loanCase.applicantPhone && (
-          <span className="tnum text-xs text-ink-500">{loanCase.applicantPhone}</span>
-        )}
-        {loanCase.isOnHold && <Badge tone="warn">Hold</Badge>}
-        <span className="ml-auto flex items-center gap-2">
-          <span className="tnum text-xs text-ink-500">
-            {lakhs(loanCase.requestedAmount ?? undefined)}
-          </span>
-          <StageBadge stage={loanCase.stage} label={CASE_STAGE_LABELS[loanCase.stage]} />
+        <span className="tnum shrink-0 text-sm font-medium hover:underline">{loanCase.caseNumber}</span>
+        <StageBadge stage={loanCase.stage} label={CASE_STAGE_LABELS[loanCase.stage]} />
+        <span className="min-w-0 truncate text-sm text-ink-700">
+          {loanCase.applicantName ?? "No applicant"}
+        </span>
+        <span className="tnum ml-auto shrink-0 text-xs text-ink-500">
+          {lakhs(loanCase.requestedAmount ?? undefined)}
         </span>
       </Link>
       <p className="mt-0.5 text-xs text-ink-500">
-        {reference.productLabel(loanCase.loanProductId)} ·{" "}
-        {users.ownerName(loanCase.ownerUserId)} · last touched {when(loanCase.updatedAt)}
+        {reference.productLabel(loanCase.loanProductId)} · {users.ownerName(loanCase.ownerUserId)} ·{" "}
+        <span className={idleDays >= 3 ? "font-medium text-amber-700" : undefined}>
+          last touched {when(loanCase.updatedAt)}
+        </span>
+        {loanCase.applicantPhone && <> · {loanCase.applicantPhone}</>}
+        {loanCase.isOnHold && (
+          <>
+            {" · "}
+            <Badge tone="warn">Hold</Badge>
+          </>
+        )}
       </p>
     </li>
   );
@@ -150,13 +156,15 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 }
 
 /** One consistent way of saying "this panel is waiting on a later stage", so
- * an empty queue and an unmigrated queue never look alike. */
+ * an empty queue and an unmigrated queue never look alike. Collapsed by
+ * default — an honest disclosure that isn't real content shouldn't carry the
+ * same visual weight as a Card of actual cases on a screen staff open daily. */
 function Pending({ title, what }: { title: string; what: string }): ReactNode {
   return (
-    <Card title={title}>
-      <p className="text-sm font-medium text-ink-900">Not yet migrated.</p>
-      <p className="mt-1 text-sm text-ink-700">{what}</p>
-    </Card>
+    <details className="rounded-lg bg-ink-50 px-4 py-2 text-sm ring-1 ring-ink-150">
+      <summary className="cursor-pointer font-medium text-ink-600">{title} — not yet migrated</summary>
+      <p className="mt-2 text-ink-500">{what}</p>
+    </details>
   );
 }
 
@@ -234,7 +242,7 @@ function LoginDeskWorkspace({ active }: { active: readonly ApiCase[] }): ReactNo
 }
 
 function FinanceWorkspace({ all }: { all: readonly ApiCase[] }): ReactNode {
-  // A case sitting in Disbursed is money owed to Amaze. Collapsing Disbursed
+  // A case sitting in Disbursed is money owed to Premier Finserv. Collapsing Disbursed
   // and Closed would hide exactly this (PRD/Loan Lifecycle.md).
   const awaitingCloseOut = all.filter((c) => c.stage === "disbursed");
   const closed = all.filter((c) => c.stage === "closed");

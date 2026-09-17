@@ -34,6 +34,7 @@ import {
   Button,
   Card,
   Empty,
+  Input,
   ProgressBar,
   Select,
   StageBadge,
@@ -70,6 +71,7 @@ export function CaseList(): ReactNode {
     return "active";
   });
   const [owner, setOwner] = useState<string>(() => searchParams.get("owner") ?? "all");
+  const [query, setQuery] = useState("");
 
   // "New leads" on the Founders Dashboard means "created within N days" —
   // cross-stage, so it is not one of the CaseStage values above. Read once,
@@ -84,6 +86,7 @@ export function CaseList(): ReactNode {
 
   const filtered = useMemo(() => {
     const createdCutoff = createdWithinDays !== null ? Date.now() - createdWithinDays * 86400000 : null;
+    const needle = query.trim().toLowerCase();
     return (cases.data ?? [])
       .filter((c) => {
         if (stage === "active") return c.stage !== "closed" && c.stage !== "lost";
@@ -91,8 +94,15 @@ export function CaseList(): ReactNode {
         return c.stage === stage;
       })
       .filter((c) => owner === "all" || c.ownerUserId === owner)
-      .filter((c) => createdCutoff === null || new Date(c.createdAt).getTime() >= createdCutoff);
-  }, [cases.data, stage, owner, createdWithinDays]);
+      .filter((c) => createdCutoff === null || new Date(c.createdAt).getTime() >= createdCutoff)
+      .filter(
+        (c) =>
+          needle === "" ||
+          c.caseNumber.toLowerCase().includes(needle) ||
+          (c.applicantName ?? "").toLowerCase().includes(needle) ||
+          (c.applicantPhone ?? "").includes(needle),
+      );
+  }, [cases.data, stage, owner, createdWithinDays, query]);
 
   return (
     <div className="space-y-4">
@@ -108,6 +118,15 @@ export function CaseList(): ReactNode {
         </div>
 
         <div className="flex items-end gap-2">
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search case number, applicant, phone…"
+            className="w-64"
+            aria-label="Search cases"
+          />
+
           <Select
             value={stage}
             onChange={(event) => setStage(event.target.value as CaseStage | "all" | "active")}
@@ -156,7 +175,9 @@ export function CaseList(): ReactNode {
           <Empty>
             {(cases.data ?? []).length === 0
               ? "You cannot see any cases with the permissions this user holds."
-              : "No cases match this filter."}
+              : query.trim() !== ""
+                ? `No cases match "${query.trim()}".`
+                : "No cases match this filter."}
           </Empty>
         ) : (
           <Table className="min-w-4xl">

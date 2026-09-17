@@ -298,7 +298,7 @@ export function buildSeed(): Database {
   // modelled what a telecaller calls a "Customer Product" (Home Loan,
   // Business Loan, LAP), grouping the lending products underneath it.
   // Business Loan is ordered ahead of Home Loan (Coimbatore-first, Part 5 of
-  // the milestone brief): Amaze's stated footprint (Database/migrations/0014)
+  // the milestone brief): Premier Finserv's stated footprint (Database/migrations/0014)
   // is an engineering, textile and transport ecosystem more than a
   // metros-first, purely-residential one.
   const customerProducts: Database["customerProducts"] = [
@@ -356,8 +356,8 @@ export function buildSeed(): Database {
     { id: id("rfs", 7), code: "social_media", name: "Social Media", isActive: true, displayOrder: 70 },
   ];
 
-  // Amaze's actual operating footprint (Milestone 6, Part 1) — Coimbatore,
-  // Tiruppur and Erode districts, and the towns Amaze works cases in day to
+  // Premier Finserv's actual operating footprint (Milestone 6, Part 1) — Coimbatore,
+  // Tiruppur and Erode districts, and the towns Premier Finserv works cases in day to
   // day. Extending into Kerala, Karnataka or the rest of India later is
   // purely more rows here, never a structural change (Database/migrations/
   // 0014): city already carries district_id, district already carries a free
@@ -395,7 +395,7 @@ export function buildSeed(): Database {
 
   // ---------------------------------------------------------------------
   // Lending Product Catalogue (Milestone 7) — Database/migrations/0015, 0016.
-  // Mirrors the DB seed, so the prototype and the schema agree on what Amaze
+  // Mirrors the DB seed, so the prototype and the schema agree on what Premier Finserv
   // lends against.
   // ---------------------------------------------------------------------
 
@@ -546,7 +546,7 @@ export function buildSeed(): Database {
   // numbers, turnaround days, rates and limits — and every lender insight.
   // The insight table is the most valuable one in this milestone and it
   // starts empty on purpose: "excellent for textile businesses" is only
-  // worth storing when it is Amaze's own observation, and a seeded one would
+  // worth storing when it is Premier Finserv's own observation, and a seeded one would
   // be an invented opinion attributed to the team.
   //
   // The four Madurai lenders seeded above (HDFC Bank, IIFL, LIC HFL,

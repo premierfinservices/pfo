@@ -4145,7 +4145,7 @@ export function updateInstitution(
 /**
  * Whether the lender still exists at all â€” deliberately distinct from panel
  * status, which is on the form above. Lakshmi Vilas Bank is inactive because
- * it ceased to exist; a lender Amaze has simply stopped using is off panel
+ * it ceased to exist; a lender Premier Finserv has simply stopped using is off panel
  * and could be back next month.
  */
 export function setInstitutionActive(

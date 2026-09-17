@@ -15,8 +15,8 @@
  * Milestone 6 groups every section into three categories (ADR-031):
  *
  *   System      — rarely changes, administrator-level reference data.
- *   Business    — business-controlled, defines Amaze's lending ecosystem.
- *   Operational — frequently-changing entities: people and firms Amaze
+ *   Business    — business-controlled, defines Premier Finserv's lending ecosystem.
+ *   Operational — frequently-changing entities: people and firms Premier Finserv
  *                 works with day to day. None are implemented as editable
  *                 master data yet — they are richer entities than a
  *                 code/name row (a Relationship Manager is a person with a
@@ -131,7 +131,7 @@ const SECTIONS: Section[] = [
   { kind: "simple", key: "cities", label: "Cities", hint: "Cities Premier Finserv operates in or lends against, each within a district.", category: "system" },
   { kind: "simple", key: "requirementApplicabilities", label: "Requirement Applicability", hint: "Mandatory, optional, not applicable. Used wherever a product says how strongly it needs something.", category: "system" },
 
-  // Business — business-controlled, defines Amaze's lending ecosystem.
+  // Business — business-controlled, defines Premier Finserv's lending ecosystem.
   { kind: "simple", key: "customerProducts", label: "Customer Products", hint: "What a telecaller thinks of first — Home Loan, Business Loan, LAP — grouping the lending products underneath it.", category: "business" },
   { kind: "simple", key: "borrowerTypes", label: "Borrower Types", hint: "Who can borrow — resident individual, NRI, or a firm in its own name.", category: "business" },
   { kind: "simple", key: "securityTypes", label: "Security Types", hint: "What secures a lending product — a mortgage, pledged gold, hypothecated stock, a guarantee.", category: "business" },

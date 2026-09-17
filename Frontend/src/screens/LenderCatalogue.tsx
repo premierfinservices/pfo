@@ -1,7 +1,7 @@
 /**
  * The Lender Catalogue (Milestone 8, ADR-034).
  *
- * Not a list of banks — the office's working knowledge of who Amaze lends
+ * Not a list of banks — the office's working knowledge of who Premier Finserv lends
  * through, in one place. Five things kept apart on the screen because they are
  * five different things in the schema:
  *
@@ -15,7 +15,7 @@
  *  - One search box that searches everything — name, short name, region, head
  *    office. Nobody should have to know which field a word lives in.
  *  - Filters as plain dropdowns of master data, never hardcoded lists. Every
- *    option on this screen comes out of a table someone at Amaze can edit,
+ *    option on this screen comes out of a table someone at Premier Finserv can edit,
  *    including the list of lender types.
  *  - The vocabulary is the office's. "Do we work with them?" not "panel
  *    status". "What we know" not "unstructured qualitative attributes".
