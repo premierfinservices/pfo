@@ -30,4 +30,10 @@ playwright-report/
 # subdirectory is ignored too.
 Google OAuth Web.txt
 Google Mail Server Details.txt
+
+# Same issue as above: live Amaze mailbox OAuth credentials and a user's
+# login/password sat untracked but unignored at the repository root.
+Premier FinServ Mail Server Details.txt
+USER ID.txt
+
 Backend/supervisor.pid
