@@ -3,7 +3,7 @@
  *
  * Source of truth: ADR-024
  *
- * `AL-2026-00042`. Quoted on the phone, printed on a login form, and nothing
+ * `PF-2026-00042`. Quoted on the phone, printed on a login form, and nothing
  * joins on it. The case's identity is its UUID; this exists for humans.
  *
  * The format is a constant, deliberately not configuration. A configurable
@@ -12,7 +12,7 @@
  * mid-case — which is a supported operation (`Workflow.md`).
  */
 
-export const CASE_NUMBER_PREFIX = "AL";
+export const CASE_NUMBER_PREFIX = "PF";
 
 /** Zero-padded width of the within-year counter. Five digits, so `00042`. */
 export const CASE_NUMBER_SEQUENCE_WIDTH = 5;
@@ -21,7 +21,7 @@ export const CASE_NUMBER_SEQUENCE_WIDTH = 5;
  * Canonical form. Anchored, and the year is four digits so that a two-digit
  * year can never be mistaken for a short sequence.
  */
-export const CASE_NUMBER_PATTERN = /^AL-(\d{4})-(\d{5,})$/;
+export const CASE_NUMBER_PATTERN = /^PF-(\d{4})-(\d{5,})$/;
 
 export interface CaseNumberParts {
   readonly year: number;
@@ -64,7 +64,7 @@ export function parseCaseNumber(value: string): CaseNumberParts | null {
  * Normalise what somebody actually typed into a case number, if it plausibly is
  * one.
  *
- * People quote these back partially and inconsistently: `AL-2026-00042`,
+ * People quote these back partially and inconsistently: `PF-2026-00042`,
  * `2026-00042`, `00042`, `42`, and — from the display handle this format
  * replaces — `#42`. All must find the case. A bare sequence needs a year, which
  * the caller supplies as the search context; defaulting to the current year is

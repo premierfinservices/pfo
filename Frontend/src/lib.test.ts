@@ -59,7 +59,7 @@ function baseDb(): Database {
 function baseCase(overrides: Partial<LoanCase> = {}): LoanCase {
   return {
     id: "cas_1",
-    caseNumber: "AL-2026-00001",
+    caseNumber: "PF-2026-00001",
     loanProductId: "lpr_1",
     stage: "documents_pending",
     ownerUserId: "usr_1",

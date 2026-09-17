@@ -141,7 +141,7 @@ describe("creating a case and opening it", () => {
     const { caseId, userId, productId } = setup();
     const loanCase = caseById(caseId);
 
-    expect(loanCase.caseNumber).toMatch(/^AL-\d{4}-\d{5}$/);
+    expect(loanCase.caseNumber).toMatch(/^PF-\d{4}-\d{5}$/);
     expect(loanCase.ownerUserId).toBe(userId);
     expect(loanCase.stage).toBe("new");
     expect(loanCase.loanProductId).toBe(productId);

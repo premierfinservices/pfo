@@ -100,7 +100,7 @@ describe("regenerateRequirements — financial-year scoping", () => {
     db.people = [{ id: "per_1", fullName: "Arun Prasad", aliases: [], identifiers: [] }];
     db.cases = [
       {
-        id: "cas_1", caseNumber: "AL-2026-00001", loanProductId: "lpr_pl", stage: "documents_pending",
+        id: "cas_1", caseNumber: "PF-2026-00001", loanProductId: "lpr_pl", stage: "documents_pending",
         ownerUserId: "usr_1", isOnHold: false, isInvoiceRaised: false, tags: [], createdAt: new Date().toISOString(),
       },
     ];
@@ -118,7 +118,7 @@ describe("regenerateRequirements — financial-year scoping", () => {
     db.people = [{ id: "per_1", fullName: "Deepa Krishnan", aliases: [], identifiers: [] }];
     db.cases = [
       {
-        id: "cas_1", caseNumber: "AL-2026-00001", loanProductId: "lpr_bl", stage: "documents_pending",
+        id: "cas_1", caseNumber: "PF-2026-00001", loanProductId: "lpr_bl", stage: "documents_pending",
         ownerUserId: "usr_1", isOnHold: false, isInvoiceRaised: false, tags: [], createdAt: new Date().toISOString(),
       },
     ];
@@ -153,7 +153,7 @@ describe("regenerateRequirements — financial-year scoping", () => {
     ];
     db.cases = [
       {
-        id: "cas_1", caseNumber: "AL-2026-00001", loanProductId: "lpr_bl", stage: "documents_pending",
+        id: "cas_1", caseNumber: "PF-2026-00001", loanProductId: "lpr_bl", stage: "documents_pending",
         ownerUserId: "usr_1", isGstRegistered: true, isOnHold: false, isInvoiceRaised: false,
         tags: [], createdAt: new Date().toISOString(),
       },
@@ -183,7 +183,7 @@ describe("regenerateRequirements — financial-year scoping", () => {
     db.people = [{ id: "per_1", fullName: "Deepa Krishnan", aliases: [], identifiers: [] }];
     db.cases = [
       {
-        id: "cas_1", caseNumber: "AL-2026-00001", loanProductId: "lpr_bl", stage: "documents_pending",
+        id: "cas_1", caseNumber: "PF-2026-00001", loanProductId: "lpr_bl", stage: "documents_pending",
         ownerUserId: "usr_1", isOnHold: false, isInvoiceRaised: false, tags: [], createdAt: new Date().toISOString(),
       },
     ];
@@ -215,7 +215,7 @@ describe("regenerateRequirements — financial-year scoping", () => {
     db.people = [{ id: "per_1", fullName: "Deepa Krishnan", aliases: [], identifiers: [] }];
     db.cases = [
       {
-        id: "cas_1", caseNumber: "AL-2026-00001", loanProductId: "lpr_bl", stage: "documents_pending",
+        id: "cas_1", caseNumber: "PF-2026-00001", loanProductId: "lpr_bl", stage: "documents_pending",
         ownerUserId: "usr_1", isOnHold: false, isInvoiceRaised: false, tags: [], createdAt: new Date().toISOString(),
       },
     ];
@@ -320,7 +320,7 @@ describe("the engine reads the case's actual composition", () => {
     db.people = [{ id: "per_1", fullName: "Ravi Kumar", aliases: [], identifiers: [] }];
     db.cases = [
       {
-        id: "cas_1", caseNumber: "AL-2026-00001", loanProductId: "lpr_hl", stage: "documents_pending",
+        id: "cas_1", caseNumber: "PF-2026-00001", loanProductId: "lpr_hl", stage: "documents_pending",
         ownerUserId: "usr_1", isOnHold: false, isInvoiceRaised: false, tags: [], createdAt: new Date().toISOString(),
       },
     ];

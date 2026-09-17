@@ -36,7 +36,7 @@ const CONTEXT: SubmissionContext = {
   customerName: "Ravi Kumar",
   loanTypeName: "Machinery and Equipment Loan",
   counterparty: "HDFC Bank — RS Puram",
-  caseNumber: "AL-2026-00051",
+  caseNumber: "PF-2026-00051",
 };
 
 const SENDER = { name: "Premier Finserv", address: "premierfinservices.cbe@gmail.com" };
