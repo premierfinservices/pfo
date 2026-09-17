@@ -348,7 +348,7 @@ function Greeting({ name }: { name: string }): ReactNode {
       <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900 sm:text-4xl">
         {greetingWord(hour)}, {name}
       </h1>
-      <p className="mt-2 text-sm text-ink-500">Here's what's happening across Amaze today.</p>
+      <p className="mt-2 text-sm text-ink-500">Here's what's happening across Premier Finserv today.</p>
     </div>
   );
 }
