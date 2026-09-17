@@ -27,6 +27,13 @@
  * be unreadable would therefore have cost you a good one — the exact opposite
  * of what retention is for.
  *
+ * OFFSITE COPY (optional). If PFO_BACKUP_OFFSITE_ROOT is set, the verified
+ * run is also copied there — a second physical drive, so a single-drive
+ * failure can't take out both the live data's backup and its only copy. The
+ * copy happens after verification, same ordering guarantee as local
+ * retention. If the drive isn't attached, this is a warning, not a failure:
+ * the already-verified local backup is still a successful run.
+ *
  * Usage:
  *   node Backend/backup.mjs               back up, verify, then prune
  *   node Backend/backup.mjs --no-verify   skip verification (not recommended)
@@ -34,7 +41,7 @@
  * Destination: PFO_BACKUP_ROOT (default C:\PFO\Backups), one subfolder per
  * run named by timestamp. Retention: PFO_BACKUP_RETENTION runs are kept
  * (default 14); older ones are deleted after a new backup succeeds AND
- * verifies, never before.
+ * verifies, never before. Same retention count applies to the offsite copy.
  */
 
 import { existsSync } from "node:fs";
@@ -55,6 +62,21 @@ loadDotEnv();
 
 function timestamp() {
   return new Date().toISOString().replace(/[:.]/g, "-").replace("T", "_").slice(0, 19);
+}
+
+// Prunes `root` down to the newest `retention` entries, deleting the rest.
+// Used for both the primary backup root and the optional offsite root, so
+// both age out on the same schedule.
+async function pruneOldRuns(root, retention, label) {
+  const entries = (await readdir(root, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  const stale = entries.slice(0, Math.max(0, entries.length - retention));
+  for (const name of stale) {
+    await rm(path.join(root, name), { recursive: true, force: true });
+    console.log(`\n        retention${label ? ` (${label})` : ""} — removed old backup ${name}`);
+  }
 }
 
 async function main() {
@@ -139,14 +161,25 @@ async function main() {
     return;
   }
 
-  const entries = (await readdir(backupRoot, { withFileTypes: true }))
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
-  const stale = entries.slice(0, Math.max(0, entries.length - retention));
-  for (const name of stale) {
-    await rm(path.join(backupRoot, name), { recursive: true, force: true });
-    console.log(`\n        retention — removed old backup ${name}`);
+  await pruneOldRuns(backupRoot, retention);
+
+  // ── Offsite copy (optional) ──────────────────────────────────────────────
+  const offsiteRoot = process.env.PFO_BACKUP_OFFSITE_ROOT?.trim();
+  if (offsiteRoot) {
+    const offsiteDrive = path.parse(offsiteRoot).root;
+    if (!existsSync(offsiteDrive)) {
+      console.warn(
+        `\n  Offsite copy SKIPPED — ${offsiteDrive} is not attached. The verified\n` +
+          `  local backup above is still a successful run.\n`,
+      );
+    } else {
+      const offsiteRunDir = path.join(offsiteRoot, path.basename(runDir));
+      console.log(`\n  Offsite copy -> ${offsiteRunDir}`);
+      await mkdir(offsiteRoot, { recursive: true });
+      await cp(runDir, offsiteRunDir, { recursive: true });
+      await pruneOldRuns(offsiteRoot, retention, "offsite");
+      console.log(`  Offsite copy done.`);
+    }
   }
 
   console.log(`\nDone. Verified backup at:\n  ${runDir}\n`);

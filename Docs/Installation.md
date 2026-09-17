@@ -101,6 +101,7 @@ PFO_WEB_PORT=4300
 PFO_STORAGE_ROOT=C:\PFO\Data
 PFO_BACKUP_ROOT=D:\PFO-Backups      # a DIFFERENT disk from the documents
 PFO_BACKUP_RETENTION=14
+# PFO_BACKUP_OFFSITE_ROOT=E:\PFO-Backups-Offsite   # optional, see below
 
 PFO_MAIL_PROVIDER=unconfigured      # set to gmail in step 9
 ```
@@ -108,6 +109,15 @@ PFO_MAIL_PROVIDER=unconfigured      # set to gmail in step 9
 > **`PFO_BACKUP_ROOT` on the same disk as `PFO_STORAGE_ROOT` protects you
 > against database corruption and against nothing else.** That disk failing
 > takes both. Use a second disk, an external drive, or a network share.
+
+> **`PFO_BACKUP_OFFSITE_ROOT` (optional) writes a second copy of every
+> verified backup run to a third location** — `npm run backup` logs a
+> warning and continues if it isn't attached, so it's safe to leave
+> configured even on a drive that isn't always plugged in. Note that a
+> drive left permanently attached to this same PC protects against a
+> single-drive failure, not against something that takes the whole
+> machine (fire, theft, power surge) — for that, the drive needs to
+> periodically leave the premises, or use a cloud destination instead.
 
 ---
 

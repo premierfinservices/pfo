@@ -91,7 +91,10 @@ offline. Everything else can be rebuilt from this repository.
 ## Scenario B — the server PC is dead
 
 You need the backup folder (from wherever `PFO_BACKUP_ROOT` pointed) and the
-`.env` copy.
+`.env` copy. If the machine itself — not just its `C:` drive — is gone, use
+the offsite copy at `PFO_BACKUP_OFFSITE_ROOT` instead, if one is configured;
+it holds the same run folders (timestamp, `aos.dump`, `Data\Documents`,
+`manifest.json`) so the rest of this procedure is identical either way.
 
 1. Follow `Docs/Installation.md` steps 1–4 on the replacement PC — Node,
    PostgreSQL, the checkout, `npm ci`, and `.env`.

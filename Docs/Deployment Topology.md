@@ -142,7 +142,7 @@ answer in this table is worse than a blank one.
 | Server PC (make / asset tag / location) | **UNFOLDMEDIACORP** — no formal asset tag; located at the Premier Finservices office |
 | Server LAN IP, static or DHCP-reserved | `192.168.0.101` on the `192.168.0.0/24` office LAN — DHCP-reserved in the router against this PC's MAC address |
 | URL employees use | `http://192.168.0.101:4300` |
-| Backup destination (physical location) | `C:\PFO\Backups` on UNFOLDMEDIACORP only — no offsite or separate physical copy exists yet; this is a known gap |
+| Backup destination (physical location) | `C:\PFO\Backups` on UNFOLDMEDIACORP's `C:` drive, with a second copy on the always-attached Toshiba external drive (`D:\PFO-Backups-Offsite`, `PFO_BACKUP_OFFSITE_ROOT` in `.env`) — protects against a `C:` drive failure, but since `D:` stays physically at the office, this is not protection against fire/theft/office-level loss. A true offsite copy would need a drive (or cloud destination) that periodically leaves the premises. |
 | Who holds the database password and the login slips | Tarun Ramesh, Manager — Premier Finservices |
 
 **2026-09-07 — server moved to UNFOLDMEDIACORP.** This PC now runs PostgreSQL
