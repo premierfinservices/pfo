@@ -630,11 +630,9 @@ STATUS as of 2026-09-12, reconciled from the repo (home PC)
   12. Verify from a second office PC — browse to http://192.168.0.101:4300
       (https:// if TLS is on — see below; that PC then first needs
       Scripts/install-pfo-root-ca.ps1), sign in as a real employee, open a
-      case, view one document.
-  20. Topology — Docs/Deployment Topology.md's "Still to be recorded"
-      table: asset tag / location, DHCP reservation of 192.168.0.101 in the
-      router (against the server's MAC), offsite/physical backup copy, and
-      who holds the database password and login slips. Human facts only.
+      case, view one document. Blocked: no second physical office PC
+      exists yet besides UNFOLDMEDIACORP itself and the home PC (which is
+      not on the office LAN).
   After each: record the result here, commit and push from the server.
 
   DONE (2026-09-17, UNFOLDMEDIACORP):
@@ -657,6 +655,13 @@ STATUS as of 2026-09-12, reconciled from the repo (home PC)
       `C:\PFO\Data\Quarantine\2026-09-17_07-45-54\manifest.json`) →
       re-ran read-only, 0 orphans remain → `npm run backup` again
       (verified, 0 documents since the store is genuinely empty).
+  20. Topology — Docs/Deployment Topology.md's "Still to be recorded"
+      table filled in directly by the user (Tarun Ramesh, Manager —
+      Premier Finservices): server is at the Premier Finservices office,
+      no formal asset tag; 192.168.0.101 is DHCP-reserved in the router;
+      backup destination is C:\PFO\Backups on UNFOLDMEDIACORP only, no
+      offsite/physical copy exists (recorded as a known gap, not fixed);
+      DB password/login slips held by Tarun Ramesh.
 
 ------------------------------------------------------------
 WHICH PC CAN DO WHAT — cutover steps #10/#12/#20/#21

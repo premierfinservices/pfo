@@ -139,11 +139,11 @@ answer in this table is worse than a blank one.
 
 | | |
 |---|---|
-| Server PC (make / asset tag / location) | **UNFOLDMEDIACORP** — *(asset tag / physical location not yet recorded)* |
-| Server LAN IP, static or DHCP-reserved | `192.168.0.101` on the `192.168.0.0/24` office LAN — *(DHCP reservation status not yet recorded; reserve it in the router against this PC's MAC address before go-live)* |
+| Server PC (make / asset tag / location) | **UNFOLDMEDIACORP** — no formal asset tag; located at the Premier Finservices office |
+| Server LAN IP, static or DHCP-reserved | `192.168.0.101` on the `192.168.0.0/24` office LAN — DHCP-reserved in the router against this PC's MAC address |
 | URL employees use | `http://192.168.0.101:4300` |
-| Backup destination (physical location) | `C:\PFO\Backups` on UNFOLDMEDIACORP — *(offsite/physical copy arrangement not yet recorded)* |
-| Who holds the database password and the login slips | *(not yet recorded)* |
+| Backup destination (physical location) | `C:\PFO\Backups` on UNFOLDMEDIACORP only — no offsite or separate physical copy exists yet; this is a known gap |
+| Who holds the database password and the login slips | Tarun Ramesh, Manager — Premier Finservices |
 
 **2026-09-07 — server moved to UNFOLDMEDIACORP.** This PC now runs PostgreSQL
 and all four PFO processes, registered to start at boot (`PFO Server` /

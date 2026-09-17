@@ -1,8 +1,8 @@
 # Session Checkpoint — 2026-09-17 (read this section first, then the rest as history)
 
-**Office Server Production Cutover Gate — 2 of 21 steps remain: #12, #20.**
-**#21 (orphan quarantine) and #10 (nightly backup fix) are now DONE — see below.**
-**Also pending: GitHub repo ownership transfer — see bottom of this file.**
+**Office Server Production Cutover Gate — 1 of 21 steps remains: #12.**
+**#21 (orphan quarantine), #10 (nightly backup fix), and #20 (topology facts) are now DONE — see below.**
+**Also pending: GitHub repo ownership transfer (needs a browser action by the destination account owner, not doable by Claude) — see bottom of this file.**
 
 Last commit: `5985c0e` (pushed to `origin/main` this session, from
 UNFOLDMEDIACORP, confirmed via `Docs/Which PC Is This.md` — hostname
@@ -89,18 +89,39 @@ Verified from the normal (non-elevated) shell afterward:
 
 **This step is closed out — do not repeat it.**
 
+## Step #20 — RESOLVED (2026-09-17, same session)
+
+User (Tarun Ramesh, Manager — Premier Finservices) provided the remaining
+human-only facts directly in chat. `Docs/Deployment Topology.md`'s "Still
+to be recorded" table updated:
+- Server location: Premier Finservices office, UNFOLDMEDIACORP PC, no
+  formal asset tag.
+- LAN IP `192.168.0.101`: confirmed DHCP-reserved in the router against
+  the server's MAC address.
+- Backup destination: `C:\PFO\Backups` on UNFOLDMEDIACORP only — **no
+  offsite/separate physical copy exists**. Recorded as a known gap, not
+  fixed this session (would need a separate task to add an offsite/cloud
+  backup destination).
+- DB password / login slips holder: Tarun Ramesh, Manager — Premier
+  Finservices.
+
+**This step is closed out — do not repeat it.**
+
 ## NEXT ACTION — pick up here
 
-Remaining cutover-gate steps: **#12** (needs a third physical office PC —
-not doable from either home or this server alone) and **#20** (human-only
-topology facts — asset tag, DHCP reservation, backup custodian, password
-holder — see `Docs/Deployment Topology.md`, "Still to be recorded").
+Only **#12** remains on the cutover gate: verify reachability from a
+second/third physical office PC (neither home nor UNFOLDMEDIACORP) at
+`http://192.168.0.101:4300`. Not doable from either machine alone — needs
+an actual second device on the office LAN. Nothing to do here until that
+device exists; revisit when one is available.
 
-1. Update `PFO Production Readiness Master Roadmap.txt` / `Milestones.txt`
-   with the #10 and #21 results, commit, and push.
-2. GitHub ownership transfer (separate from the cutover gate) is still
-   fully pending — see its own section further down this file, nothing
-   about it changed this session.
+Separately, still open and **not doable by Claude**: the **offsite backup
+gap** just recorded under #20 (no copy of `C:\PFO\Backups` exists outside
+UNFOLDMEDIACORP — a single-machine failure would lose all backups too),
+and the **GitHub ownership transfer** (see its own section further down
+this file) — both need a human decision/action (a backup destination
+choice, and a GitHub account holder's acceptance) rather than a code or
+server change.
 
 ---
 
