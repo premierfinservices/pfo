@@ -456,16 +456,7 @@ export function NewCase(): ReactNode {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <p className="text-xs text-ink-500">
-          {takesProperty
-            ? "No co-applicant, guarantor or property here — add them on the case, in one action, if they exist. A property-backed loan asks for its title papers once the property is on the file."
-            : "No co-applicant or guarantor here. Add them later, in one action, if they exist."}
-          <br />
-          Every answer above is correctable on the case afterwards, and the checklist follows.
-          <br />
-          Nothing typed here is lost if you navigate away — it is kept until the case is opened.
-        </p>
+      <div className="flex flex-wrap items-center justify-end gap-4">
         <div className="flex flex-wrap gap-2">
           <Button variant="ghost" onClick={() => navigate(-1)}>
             Back

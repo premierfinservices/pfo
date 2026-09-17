@@ -530,12 +530,6 @@ function AboutPanel({ db, organisation }: { db: Database; organisation: Organisa
       )}
 
       {profile.notes && <p className="text-xs text-ink-500">{profile.notes}</p>}
-
-      <p className="text-xs text-ink-500">
-        Everything in the second block is the office's own view of this lender. It is written down
-        so it stops living in two people's heads — it is not an eligibility rule, and nothing in
-        Premier Finserv One decides anything from it.
-      </p>
     </div>
   );
 }
@@ -683,11 +677,6 @@ function SubmissionPanel({
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-ink-500">
-        How a file goes in, and what to have ready. Notes for the person lodging it — Premier Finserv One does not
-        act on any of this.
-      </p>
-
       {rules.length === 0 ? (
         <Empty>Nothing recorded yet.</Empty>
       ) : (
@@ -747,12 +736,6 @@ function KnowledgePanel({
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-ink-500">
-        What the office has learned about working with this lender. Written by people, for people.
-        Not a rule — nothing in Premier Finserv One decides anything from it, and it never overrides what a lender
-        actually says.
-      </p>
-
       {groups.length === 0 ? (
         <Empty>
           Nothing written down yet. This is the box for the things that never fit anywhere else —

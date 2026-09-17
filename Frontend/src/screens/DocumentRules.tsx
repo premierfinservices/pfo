@@ -177,12 +177,6 @@ export function DocumentRules(): ReactNode {
             Show rules out of service
           </label>
         </div>
-
-        <p className="mt-3 text-xs text-ink-500">
-          Real case checklists are generated server-side (<code>Backend/requirements.ts</code>) from
-          exactly these rules — a change saved here takes effect the next time a case's checklist is
-          computed.
-        </p>
       </Card>
 
       <Card title={`${rules.length} matching`}>
