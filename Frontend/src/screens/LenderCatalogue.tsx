@@ -156,7 +156,7 @@ export function LenderCatalogue(): ReactNode {
       <div className="space-y-2">
         <h1 className="text-xl font-semibold tracking-tight">Lenders</h1>
         <p className="mt-1 text-sm text-ink-500">
-          Every bank, NBFC and housing finance company Amaze works with — their branches, the
+          Every bank, NBFC and housing finance company Premier Finserv works with — their branches, the
           people we deal with, the products they do, and what the office has learned about working
           with them. Read-only reference — see the note below.
         </p>
@@ -636,7 +636,7 @@ function ProductsPanel({ db, organisation }: { db: Database; organisation: Organ
   return (
     <div className="space-y-3">
       <p className="text-xs text-ink-500">
-        Which of Amaze's lending products this lender does. The products themselves are defined
+        Which of Premier Finserv's lending products this lender does. The products themselves are defined
         once, on the Products screen — this only points at them.
       </p>
 

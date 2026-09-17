@@ -141,7 +141,7 @@ export function LendingProducts(): ReactNode {
       <div className="space-y-2">
         <h1 className="text-xl font-semibold tracking-tight">Lending Products</h1>
         <p className="mt-1 text-sm text-ink-500">
-          What Amaze lends against, independent of any bank. Read-only reference — see the note
+          What Premier Finserv lends against, independent of any bank. Read-only reference — see the note
           below.
         </p>
         <NotConnectedBanner />
@@ -272,7 +272,7 @@ export function LendingProducts(): ReactNode {
             first, e.g. Home Loan or Business Loan. Managed under Master Data.
           </li>
           <li>
-            <span className="font-medium">Lending Product</span> — what Amaze actually arranges,
+            <span className="font-medium">Lending Product</span> — what Premier Finserv actually arranges,
             e.g. Working Capital Facility. This screen. Known at case creation.
           </li>
           <li>

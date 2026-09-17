@@ -83,8 +83,8 @@ const CATEGORY_LABELS: Record<MasterDataCategory, string> = {
 
 const CATEGORY_HINTS: Record<MasterDataCategory, string> = {
   system: "Rarely changes. Administrator-level reference data.",
-  business: "Business controlled. Defines Amaze's lending ecosystem. Changes occasionally.",
-  operational: "Frequently changing — the people and firms Amaze works with day to day.",
+  business: "Business controlled. Defines Premier Finserv's lending ecosystem. Changes occasionally.",
+  operational: "Frequently changing — the people and firms Premier Finserv works with day to day.",
 };
 
 interface SimpleSection {
@@ -125,17 +125,17 @@ const SECTIONS: Section[] = [
   { kind: "simple", key: "businessConstitutions", label: "Business Constitutions", hint: "How a borrowing firm is legally constituted — proprietorship, partnership, private limited.", category: "system" },
   { kind: "simple", key: "propertyTypes", label: "Property Types", hint: "Apartment, independent house, plot, villa, commercial, agricultural.", category: "system" },
   { kind: "simple", key: "propertyOwnershipTypes", label: "Property Ownership Types", hint: "How title is held — freehold, leasehold, ancestral, power of attorney.", category: "system" },
-  { kind: "rejectionReason", label: "Rejection Reasons", hint: "Amaze's standardised categories for why a bank declined a case (ADR-028).", category: "system" },
+  { kind: "rejectionReason", label: "Rejection Reasons", hint: "Premier Finserv's standardised categories for why a bank declined a case (ADR-028).", category: "system" },
   { kind: "threshold", label: "Thresholds", hint: "How many days a case may sit before it needs attention (ADR-025). The set of thresholds is fixed in code; only the values are editable here.", category: "system" },
-  { kind: "simple", key: "districts", label: "Districts", hint: "Districts Amaze operates in or lends against.", category: "system" },
-  { kind: "simple", key: "cities", label: "Cities", hint: "Cities Amaze operates in or lends against, each within a district.", category: "system" },
+  { kind: "simple", key: "districts", label: "Districts", hint: "Districts Premier Finserv operates in or lends against.", category: "system" },
+  { kind: "simple", key: "cities", label: "Cities", hint: "Cities Premier Finserv operates in or lends against, each within a district.", category: "system" },
   { kind: "simple", key: "requirementApplicabilities", label: "Requirement Applicability", hint: "Mandatory, optional, not applicable. Used wherever a product says how strongly it needs something.", category: "system" },
 
   // Business — business-controlled, defines Amaze's lending ecosystem.
   { kind: "simple", key: "customerProducts", label: "Customer Products", hint: "What a telecaller thinks of first — Home Loan, Business Loan, LAP — grouping the lending products underneath it.", category: "business" },
   { kind: "simple", key: "borrowerTypes", label: "Borrower Types", hint: "Who can borrow — resident individual, NRI, or a firm in its own name.", category: "business" },
   { kind: "simple", key: "securityTypes", label: "Security Types", hint: "What secures a lending product — a mortgage, pledged gold, hypothecated stock, a guarantee.", category: "business" },
-  { kind: "simple", key: "referralSources", label: "Referral Sources", hint: "How a lead reached Amaze. Populates the Source field on case creation.", category: "business" },
+  { kind: "simple", key: "referralSources", label: "Referral Sources", hint: "How a lead reached Premier Finserv. Populates the Source field on case creation.", category: "business" },
   // Bank & NBFC Catalogue (Milestone 8) — Database/migrations/0019.
   { kind: "simple", key: "lenderTypes", label: "Lender Types", hint: "Public Sector Bank, NBFC, Housing Finance Company and the rest. Add a kind here and it appears on the Lenders screen without a deploy.", category: "business" },
   { kind: "simple", key: "lenderRelationshipRoles", label: "Relationship Roles", hint: "What a person at a lender does for us — Relationship Manager, Credit Manager, Branch Manager.", category: "operational" },

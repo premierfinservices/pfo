@@ -320,7 +320,7 @@ export const DOCUMENT_CATALOGUE: readonly DocumentTypeDefinition[] = [
   { code: "fd_receipt", name: "Fixed Deposit Receipt", localName: "FD Receipt", ownerKind: "person", requiresPeriod: false, requiresExpiry: false, description: "The deposit receipt being pledged for the loan.", category: "additional", displayOrder: 770 },
 
   // --- Amaze's own case paperwork -------------------------------------------
-  { code: "application_form", name: "Premier Finservices Application Form", ownerKind: "case", requiresPeriod: false, requiresExpiry: false, description: "Amaze's own application form, filled and signed by the customer. Separate from the bank's login form.", category: "additional", artifactKind: "internal", displayOrder: 780 },
+  { code: "application_form", name: "Premier Finservices Application Form", ownerKind: "case", requiresPeriod: false, requiresExpiry: false, description: "Premier Finserv's own application form, filled and signed by the customer. Separate from the bank's login form.", category: "additional", artifactKind: "internal", displayOrder: 780 },
   { code: "nach_mandate", name: "NACH Mandate / Security Cheques", localName: "ECS Mandate", ownerKind: "case", requiresPeriod: false, requiresExpiry: false, description: "The signed EMI auto-debit mandate and any blank cheques the bank asks for.", category: "additional", artifactKind: "bank_submission", displayOrder: 790 },
   { code: "tenant_kyc", name: "Tenant KYC", ownerKind: "case", requiresPeriod: false, requiresExpiry: false, description: "Identity and agreement papers of the tenant paying the rent, for a rent-based loan.", category: "additional", displayOrder: 800 },
 
