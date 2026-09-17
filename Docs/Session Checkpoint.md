@@ -1,7 +1,7 @@
 # Session Checkpoint — 2026-09-17 (read this section first, then the rest as history)
 
-**Office Server Production Cutover Gate — 3 of 21 steps remain: #10, #12, #20.**
-**#21 (orphan quarantine) is now DONE — see below.**
+**Office Server Production Cutover Gate — 2 of 21 steps remain: #12, #20.**
+**#21 (orphan quarantine) and #10 (nightly backup fix) are now DONE — see below.**
 **Also pending: GitHub repo ownership transfer — see bottom of this file.**
 
 Last commit: `5985c0e` (pushed to `origin/main` this session, from
@@ -64,36 +64,41 @@ still current.
    AOS→PFO rebrand's folder renames. **This is the one open item — see
    "NEXT ACTION" immediately below.**
 
-## NEXT ACTION — pick up here
+## Step #10 — RESOLVED (2026-09-17, later in the same session)
 
-Attempted to fix the scheduled task action from this (non-elevated) Claude
-Code shell; `Set-ScheduledTask` failed with **Access is denied**
-(`0x80070005`) — the task needs an elevated PowerShell to modify, same
-class of blocker as the earlier documented "task restart blocked on
-elevation" issue from the rebrand history. The exact fix, to be run in an
-**elevated** PowerShell (by the user, or by Claude if given an elevated
-shell):
+Prior attempt to fix the scheduled task action from a non-elevated shell
+had failed with **Access is denied** (`0x80070005`). This session, an
+elevated PowerShell was launched via `Start-Process powershell -Verb
+RunAs` (UAC prompt approved by the user), and the fix commands were run
+inside it successfully:
 
 ```powershell
 $newAction = New-ScheduledTaskAction -Execute "cmd.exe" -Argument '/c ""C:\Program Files\nodejs\node.exe" "C:\WORK FILES\Premier FinServ\PFO\Backend\backup.mjs" >> "C:\PFO\Backups\backup-log.txt" 2>&1"' -WorkingDirectory "C:\WORK FILES\Premier FinServ\PFO"
 Set-ScheduledTask -TaskName "PFO Nightly Backup" -Action $newAction
-(Get-ScheduledTask -TaskName "PFO Nightly Backup").Actions | Format-List
 ```
 
-After that succeeds, resume with:
-1. Verify the corrected action stuck (command above already includes a
-   check).
-2. Optionally trigger a manual run (`Start-ScheduledTask -TaskName "PFO
-   Nightly Backup"`) and confirm `backup-log.txt` gets a fresh, successful
-   entry and `Get-ScheduledTaskInfo` shows `LastTaskResult = 0`.
-3. That closes step #10. Remaining after that: **#12** (needs a third
-   physical office PC — not doable from either home or this server alone)
-   and **#20** (human-only topology facts — asset tag, DHCP reservation,
-   backup custodian, password holder — see `Docs/Deployment Topology.md`,
-   "Still to be recorded").
-4. Update `PFO Production Readiness Master Roadmap.txt` / `Milestones.txt`
+Verified from the normal (non-elevated) shell afterward:
+- `(Get-ScheduledTask -TaskName "PFO Nightly Backup").Actions` shows the
+  corrected `C:\WORK FILES\Premier FinServ\PFO\Backend\backup.mjs` path.
+- `Start-ScheduledTask -TaskName "PFO Nightly Backup"` triggered a manual
+  run; `Get-ScheduledTaskInfo` afterward showed `LastTaskResult = 0`.
+- `backup-log.txt` got a fresh, successful entry: verified backup at
+  `C:\PFO\Backups\2026-09-17_07-56-46` (0 documents, matching the
+  intentionally-empty store baseline from item 4 above), and retention
+  correctly pruned the old `2026-08-12_05-56-00` backup.
+
+**This step is closed out — do not repeat it.**
+
+## NEXT ACTION — pick up here
+
+Remaining cutover-gate steps: **#12** (needs a third physical office PC —
+not doable from either home or this server alone) and **#20** (human-only
+topology facts — asset tag, DHCP reservation, backup custodian, password
+holder — see `Docs/Deployment Topology.md`, "Still to be recorded").
+
+1. Update `PFO Production Readiness Master Roadmap.txt` / `Milestones.txt`
    with the #10 and #21 results, commit, and push.
-5. GitHub ownership transfer (separate from the cutover gate) is still
+2. GitHub ownership transfer (separate from the cutover gate) is still
    fully pending — see its own section further down this file, nothing
    about it changed this session.
 

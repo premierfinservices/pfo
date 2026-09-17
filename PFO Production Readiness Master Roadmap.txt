@@ -627,11 +627,6 @@ STATUS as of 2026-09-12, reconciled from the repo (home PC)
 
   STILL OPEN — run on UNFOLDMEDIACORP with production's own .env (never a
   dev shell with overridden PFO_* vars, never `npm run dev`):
-  10. Scheduled backup — registered and run manually, but the 20:30
-      trigger firing on its own has never been observed. Check
-      `Get-ScheduledTaskInfo "PFO Nightly Backup"` (a 20:30 LastRunTime,
-      LastTaskResult 0), C:\PFO\Backups\backup-log.txt, and
-      .\Scripts\pfo-status.ps1.
   12. Verify from a second office PC — browse to http://192.168.0.101:4300
       (https:// if TLS is on — see below; that PC then first needs
       Scripts/install-pfo-root-ca.ps1), sign in as a real employee, open a
@@ -640,14 +635,28 @@ STATUS as of 2026-09-12, reconciled from the repo (home PC)
       table: asset tag / location, DHCP reservation of 192.168.0.101 in the
       router (against the server's MAC), offsite/physical backup copy, and
       who holds the database password and login slips. Human facts only.
-  21. Orphaned files — procedure and tooling now exist
-      (`npm run storage:orphans`, Docs/Disaster Recovery.md "Orphaned
-      document files"). Expected on the server: 24 files = 12 "prototype"
-      orphans with sidecars under person/per_001 and person/per_002, 0
-      unreferenced-uuid, 43/43 referenced present. Run: backup → report →
-      `-- --quarantine` → report → backup. Moves, never deletes; stop and
-      review if the counts differ.
   After each: record the result here, commit and push from the server.
+
+  DONE (2026-09-17, UNFOLDMEDIACORP):
+  10. Scheduled backup — root cause found: the task action still pointed
+      at the pre-rebrand path `C:\WORK FILES\Amaze Loans Pvt Ltd\PFO\
+      Backend\backup.mjs`, which no longer exists, so unattended runs had
+      been silently failing since 2026-09-09 20:30 (`LastTaskResult =
+      0x8007010B`). Fixed via `Set-ScheduledTask` in an elevated
+      PowerShell (UAC-approved), pointing the action at
+      `C:\WORK FILES\Premier FinServ\PFO\Backend\backup.mjs`. Manually
+      triggered afterward: `LastTaskResult = 0`, fresh
+      `backup-log.txt` entry, verified backup at
+      `C:\PFO\Backups\2026-09-17_07-56-46` (0 documents — matches the
+      intentionally-empty store; see checkpoint), retention correctly
+      pruned the old 2026-08-12 backup.
+  21. Orphaned files — run to completion: `npm run backup` (verified) →
+      `npm run storage:orphans` (24 files, 12 prototype orphans incl. one
+      new person/per_005/aadhaar_card location, 0 unreferenced-uuid) →
+      `-- --quarantine` (24 files moved, manifest at
+      `C:\PFO\Data\Quarantine\2026-09-17_07-45-54\manifest.json`) →
+      re-ran read-only, 0 orphans remain → `npm run backup` again
+      (verified, 0 documents since the store is genuinely empty).
 
 ------------------------------------------------------------
 WHICH PC CAN DO WHAT — cutover steps #10/#12/#20/#21
