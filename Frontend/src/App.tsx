@@ -12,7 +12,6 @@ import { ROLE_LABELS, type Role } from "@domain/permissions/index.js";
 
 import { api } from "./api/client.js";
 import type { ApiSearchHit } from "./api/types.js";
-import { resetDatabase } from "./fake/store.js";
 import { CaseDetail } from "./screens/CaseDetail.js";
 import { CaseList } from "./screens/CaseList.js";
 import { DocumentRules } from "./screens/DocumentRules.js";
@@ -340,14 +339,7 @@ function WorkspaceTabs(): ReactNode {
  * role(s), with a logout action. There is no other-user list here any more
  * (Employee Authentication milestone): the normal way to become someone else
  * is for that person to sign in themselves, not to pick their name from a
- * menu. "Clear local preview data" stays — it wipes the still-local
- * Products/Lenders screens and Master Data's remaining local sections back to
- * their seed, a dev/QA convenience unrelated to identity, gated on
- * master_data.manage (nobody without a reason to see those screens sees this
- * either), and worded to say plainly that it does not touch anything on the
- * server. IT NO LONGER TOUCHES Document Rules, Document Types, Rejection
- * Reasons or Thresholds — those save to the office database as of Stage 4
- * Item 4, so clearing this browser's localStorage has no effect on them.
+ * menu.
  */
 function IdentityMenu(): ReactNode {
   const session = useSession();
@@ -423,28 +415,6 @@ function IdentityMenu(): ReactNode {
           >
             Log out
           </button>
-          {session.can("master_data.manage", "all") && (
-            <button
-              onClick={() => {
-                if (
-                  confirm(
-                    "Clear this browser's local copy of Products, Lenders and the remaining " +
-                      "preview sections of Master Data back to their starting values?\n\n" +
-                      "This does NOT reset Premier Finserv One. It has no effect on real cases, customers, " +
-                      "documents, users, document rules, document types, rejection reasons or " +
-                      "thresholds — those live on the office server. It only clears the " +
-                      "not-yet-connected preview screens, in this browser only.",
-                  )
-                ) {
-                  resetDatabase();
-                  setOpen(false);
-                }
-              }}
-              className="w-full rounded px-2 py-1.5 text-left text-sm text-red-700 hover:bg-red-50"
-            >
-              Clear local preview data (not Premier Finserv One data)
-            </button>
-          )}
         </div>
       )}
     </div>
