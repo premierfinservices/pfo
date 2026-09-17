@@ -3,6 +3,7 @@
 **Office Server Production Cutover Gate — 1 of 21 steps remains: #12.**
 **#21 (orphan quarantine), #10 (nightly backup fix), and #20 (topology facts) are now DONE — see below.**
 **GitHub repo ownership transfer — DONE, see bottom of this file. Remote origin on UNFOLDMEDIACORP updated; home PC still needs updating (see note there).**
+**Offsite backup gap (surfaced during #20) — DONE. `npm run backup` now also copies each verified run to `D:\PFO-Backups-Offsite` (Toshiba external, always attached). See below.**
 
 Last commit: `5985c0e` (pushed to `origin/main` this session, from
 UNFOLDMEDIACORP, confirmed via `Docs/Which PC Is This.md` — hostname
@@ -291,3 +292,48 @@ before its next push, or the push will silently keep going to the old
 
 **This step is closed out except for the home-PC remote update — do not
 repeat the transfer itself.**
+
+## Offsite backup gap — RESOLVED (2026-09-17, UNFOLDMEDIACORP, same session)
+
+Raised while recording #20 above (no copy of `C:\PFO\Backups` existed
+outside UNFOLDMEDIACORP). Went through brainstorming (bounded path):
+recommended cloud/rclone first, user redirected to an already-attached
+external drive instead (first `H:`, then settled on `D:` — "Toshiba EXT",
+always plugged into this PC).
+
+**What shipped** (commit `2541cc1`): `Backend/backup.mjs` now copies each
+*verified* run to `PFO_BACKUP_OFFSITE_ROOT` if that env var is set,
+mirroring local retention there too (`pruneOldRuns` helper, shared with
+the local-retention code path — same ordering guarantee: copy/prune only
+after verification passes, never before). If the drive isn't attached at
+run time, it's a warning, not a failure — the local backup is still a
+successful, verified run either way.
+
+Wired into `.env` on UNFOLDMEDIACORP: `PFO_BACKUP_OFFSITE_ROOT=D:\PFO-
+Backups-Offsite`. The nightly scheduled task calls `node Backend/
+backup.mjs` directly, which loads `.env` itself, so no scheduled-task
+changes were needed — the offsite copy is already live for tonight's run.
+Tested manually before relying on it: real backup run with the drive
+present (copy succeeded, contents verified byte-for-byte present on `D:`)
+and with a nonexistent drive letter (`Z:`) substituted (correctly skipped
+with a warning, local backup still succeeded). Test artifacts cleaned up
+from `D:` afterward. All 661 tests still pass.
+
+Docs updated to match: `.env.example`, `Docs/Installation.md` (env var
+documented alongside the existing `PFO_BACKUP_ROOT` disk-separation
+warning), `Docs/Disaster Recovery.md` (Scenario B now points at the
+offsite copy as a fallback source if the whole machine is gone), and
+`Docs/Deployment Topology.md`'s "Still to be recorded" table (updated to
+reflect the new destination and its limits).
+
+**Known limitation, stated honestly, not hidden:** `D:` stays physically
+at the office, always attached to the same PC. This protects against a
+single-drive failure (e.g. `C:` dying) but NOT against anything that
+takes the whole office — fire, theft, power surge. A true offsite copy
+would need a drive that periodically leaves the premises, or a cloud
+destination. Not fixed this session; flagged for the user to decide on
+later if they want stronger protection than this.
+
+**This step is closed out — do not repeat it. If the user later wants
+true offsite (cloud or a drive that leaves the premises), that's a new,
+separate task, not a defect in what shipped here.**
