@@ -1346,6 +1346,17 @@ function SettingsSection(): ReactNode {
       show: session.can("master_data.manage", "all"),
     },
     {
+      to: "/admin/bankers",
+      label: "Bankers",
+      // Gated on organisation.update, not master_data.manage like the links
+      // above: a banker is organisation data a login desk maintains as part
+      // of dealing with banks (ADR-034), not a reference list only an admin
+      // edits, and organisation.update is exactly who Backend/bankers.ts
+      // already lets write one.
+      hint: "Bank contacts, reusable across every case",
+      show: session.can("organisation.update", "all"),
+    },
+    {
       to: "/admin/document-rules",
       label: "Document rules",
       hint: "Which documents each case requires, and when",

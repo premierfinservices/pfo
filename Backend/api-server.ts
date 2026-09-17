@@ -109,6 +109,7 @@ import {
   updateCasePartyProfile,
   updateCaseProperty,
 } from "./case-composition.js";
+import { createBanker, listBankers, setBankerActive, updateBanker } from "./bankers.js";
 import { listLenders } from "./lenders.js";
 import {
   acceptOffer,
@@ -1041,6 +1042,27 @@ async function route(
 
   if (method === "GET" && path === "/api/lenders") {
     return await listLenders(client, requireActor(actor));
+  }
+
+  // ── Bankers ───────────────────────────────────────────────────────────────
+  //
+  // `bank_contact` as reusable master data, independent of any case —
+  // Backend/bankers.ts. Case-independent by construction: nothing below
+  // touches `loan_case` or `submission`.
+
+  if (method === "GET" && path === "/api/bankers") {
+    return await listBankers(client, requireActor(actor));
+  }
+  if (method === "POST" && path === "/api/bankers") {
+    return await createBanker(client, requireActor(actor), body);
+  }
+  const bankerMatch = new RegExp(`^/api/bankers/(${UUID})$`).exec(path);
+  if (bankerMatch && method === "PATCH") {
+    return await updateBanker(client, requireActor(actor), bankerMatch[1]!, body);
+  }
+  const bankerActiveMatch = new RegExp(`^/api/bankers/(${UUID})/active$`).exec(path);
+  if (bankerActiveMatch && method === "PUT") {
+    return await setBankerActive(client, requireActor(actor), bankerActiveMatch[1]!, body);
   }
 
   // ── Bank submissions ─────────────────────────────────────────────────────

@@ -26,6 +26,7 @@ export function useLenders() {
     return {
       loading: query.loading,
       error: query.error,
+      refetch: query.refetch,
       lenders,
       /** "HDFC Bank — RS Puram", or an em dash for a branch that no longer
        * resolves (deactivated since the submission was made). */

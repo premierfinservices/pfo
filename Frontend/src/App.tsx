@@ -12,6 +12,7 @@ import { ROLE_LABELS, type Role } from "@domain/permissions/index.js";
 
 import { api } from "./api/client.js";
 import type { ApiSearchHit } from "./api/types.js";
+import { Bankers } from "./screens/Bankers.js";
 import { CaseDetail } from "./screens/CaseDetail.js";
 import { CaseList } from "./screens/CaseList.js";
 import { DocumentRules } from "./screens/DocumentRules.js";
@@ -44,6 +45,7 @@ export function App(): ReactNode {
           <Route path="/people/:personId" element={<PersonProfile />} />
           <Route path="/admin/lending-products" element={<LendingProducts />} />
           <Route path="/admin/lenders" element={<LenderCatalogue />} />
+          <Route path="/admin/bankers" element={<Bankers />} />
           <Route path="/admin/document-rules" element={<DocumentRules />} />
           <Route path="/admin/master-data" element={<MasterData />} />
           <Route path="/admin/users" element={<UserManagement />} />

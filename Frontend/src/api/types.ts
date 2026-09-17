@@ -452,6 +452,28 @@ export interface ApiLender {
   readonly branches: readonly ApiLenderBranch[];
 }
 
+/**
+ * A banker (`bank_contact`), as reusable master data independent of any case
+ * — the standalone Bankers screen's own shape. Mirrors `Backend/bankers.ts`'s
+ * `Banker`. Distinct from `ApiLenderContact`, which is the same table but
+ * nested under `/lenders` for the case-side picker and shows only active
+ * contacts; this one carries both states plus the bank/branch names, because
+ * the Bankers screen is where an inactive one gets found and reactivated.
+ */
+export interface ApiBanker {
+  readonly id: string;
+  readonly institutionOrganisationId: string;
+  readonly institutionName: string;
+  readonly branchOrganisationId: string | null;
+  readonly branchName: string | null;
+  readonly name: string | null;
+  readonly designation: string | null;
+  readonly workEmail: string | null;
+  readonly workMobile: string | null;
+  readonly isPrimary: boolean;
+  readonly isActive: boolean;
+}
+
 export type SubmissionStatus =
   | "not_submitted"
   | "submitted"

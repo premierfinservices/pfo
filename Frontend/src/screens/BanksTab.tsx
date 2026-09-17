@@ -22,6 +22,7 @@ import { useApiQuery, useMutation } from "../api/hooks.js";
 import { useLenders } from "../api/lenders.js";
 import { useRejectionReasons } from "../api/master-data.js";
 import type {
+  ApiBanker,
   ApiCase,
   ApiLenderBranch,
   ApiOffer,
@@ -35,6 +36,7 @@ import type {
 } from "../api/types.js";
 import { bytes, when } from "../lib.js";
 import { useSession } from "../session.js";
+import { BankerFormModal } from "./Bankers.js";
 import {
   Badge,
   Button,
@@ -866,6 +868,12 @@ function PackagesList({
 // ---------------------------------------------------------------------------
 
 interface RecipientDraft {
+  /** The catalogue banker this recipient came from, when it came from one.
+   * Empty for a one-off address typed in on the spot (ADR-036 §3). */
+  bankContactId: string;
+  /** True while this row is in "type an address" mode rather than picking
+   * from the branch's saved bankers. */
+  typedIn: boolean;
   email: string;
   name: string;
   designation: string;
@@ -874,9 +882,31 @@ interface RecipientDraft {
 }
 
 function emptyRecipient(): RecipientDraft {
-  return { email: "", name: "", designation: "", kind: "to", isPrimary: false };
+  return {
+    bankContactId: "",
+    typedIn: false,
+    email: "",
+    name: "",
+    designation: "",
+    kind: "to",
+    isPrimary: false,
+  };
 }
 
+/**
+ * Add a bank to the case.
+ *
+ * Bank → Branch → Banker, cascading, and picking a banker never creates one:
+ * a banker is master data created once on the standalone Bankers screen
+ * (`Frontend/src/screens/Bankers.tsx`, `/admin/bankers`) and reused across
+ * every case from then on (`branch.contacts`, already nested under
+ * `GET /api/lenders`). The escape hatch below opens that same creation form
+ * rather than saving a one-off contact into this submission — the banker it
+ * creates is immediately available to every other case too, not just this
+ * one. A typed-in, uncatalogued address stays available per recipient row
+ * for a shared mailbox that is not worth cataloguing (ADR-036 §3); it is a
+ * secondary option, not the default.
+ */
 function AddBankModal({
   loanCase,
   onClose,
@@ -891,137 +921,254 @@ function AddBankModal({
   const [institutionId, setInstitutionId] = useState("");
   const [branchId, setBranchId] = useState("");
   const [recipients, setRecipients] = useState<RecipientDraft[]>([emptyRecipient()]);
+  const [addingBanker, setAddingBanker] = useState(false);
 
   const institution = lenders.lenders.find((l) => l.id === institutionId);
   const branches: readonly ApiLenderBranch[] = institution?.branches ?? [];
+  const branch = branches.find((b) => b.id === branchId);
+  const bankers = (branch?.contacts ?? []).filter((contact) => contact.workEmail !== null);
 
   const updateRecipient = (index: number, patch: Partial<RecipientDraft>): void => {
     setRecipients((current) => current.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   };
 
-  return (
-    <Modal open title="Add bank" onClose={onClose} size="wide">
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Bank">
-            <Select
-              value={institutionId}
-              onChange={(event) => {
-                setInstitutionId(event.target.value);
-                setBranchId("");
-              }}
-            >
-              <option value="">Choose a bank…</option>
-              {lenders.lenders.map((lender) => (
-                <option key={lender.id} value={lender.id}>
-                  {lender.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Branch">
-            <Select value={branchId} onChange={(event) => setBranchId(event.target.value)} disabled={!institutionId}>
-              <option value="">Choose a branch…</option>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                  {branch.city ? ` — ${branch.city}` : ""}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
+  const pickBanker = (index: number, bankContactId: string): void => {
+    const contact = bankers.find((c) => c.id === bankContactId);
+    if (!contact) {
+      updateRecipient(index, { bankContactId: "", email: "", name: "", designation: "" });
+      return;
+    }
+    updateRecipient(index, {
+      bankContactId: contact.id,
+      email: contact.workEmail ?? "",
+      name: contact.name ?? "",
+      designation: contact.designation ?? "",
+    });
+  };
 
-        <Field label="Bankers this file goes to" hint="At least one address is required.">
-          <div className="space-y-2">
-            {recipients.map((recipient, index) => (
-              <div key={index} className="flex flex-wrap items-center gap-2">
-                <Input
-                  className="w-56"
-                  placeholder="Email"
-                  value={recipient.email}
-                  onChange={(event) => updateRecipient(index, { email: event.target.value })}
-                />
-                <Input
-                  className="w-40"
-                  placeholder="Name (optional)"
-                  value={recipient.name}
-                  onChange={(event) => updateRecipient(index, { name: event.target.value })}
-                />
-                <Select
-                  className="w-24"
-                  value={recipient.kind}
-                  onChange={(event) => updateRecipient(index, { kind: event.target.value as "to" | "cc" })}
-                >
-                  <option value="to">To</option>
-                  <option value="cc">Cc</option>
-                </Select>
-                <label className="flex items-center gap-1 text-xs text-ink-600">
-                  <input
-                    type="checkbox"
-                    checked={recipient.isPrimary}
-                    onChange={(event) =>
-                      setRecipients((current) =>
-                        current.map((r, i) => ({ ...r, isPrimary: i === index ? event.target.checked : false })),
-                      )
-                    }
-                  />
-                  Primary
-                </label>
+  const addBankerToRecipients = (banker: ApiBanker): void => {
+    lenders.refetch();
+    setAddingBanker(false);
+    setRecipients((current) => {
+      const filled: RecipientDraft = {
+        bankContactId: banker.id,
+        typedIn: false,
+        email: banker.workEmail ?? "",
+        name: banker.name ?? "",
+        designation: banker.designation ?? "",
+        kind: "to",
+        isPrimary: current.every((r) => r.email.trim() === ""),
+      };
+      const emptyIndex = current.findIndex((r) => r.email.trim() === "");
+      return emptyIndex >= 0
+        ? current.map((r, i) => (i === emptyIndex ? filled : r))
+        : [...current, filled];
+    });
+  };
+
+  return (
+    <>
+      <Modal open title="Add bank" onClose={onClose} size="wide">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Bank">
+              <Select
+                value={institutionId}
+                onChange={(event) => {
+                  setInstitutionId(event.target.value);
+                  setBranchId("");
+                  setRecipients([emptyRecipient()]);
+                }}
+              >
+                <option value="">Choose a bank…</option>
+                {lenders.lenders.map((lender) => (
+                  <option key={lender.id} value={lender.id}>
+                    {lender.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Branch">
+              <Select
+                value={branchId}
+                onChange={(event) => {
+                  setBranchId(event.target.value);
+                  setRecipients([emptyRecipient()]);
+                }}
+                disabled={!institutionId}
+              >
+                <option value="">Choose a branch…</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                    {branch.city ? ` — ${branch.city}` : ""}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+
+          <Field
+            label="Bankers this file goes to"
+            hint="Pick a saved banker — or type a one-off address for a mailbox not worth cataloguing."
+          >
+            <div className="space-y-2">
+              {branchId && bankers.length === 0 && (
+                <p className="text-xs text-ink-500">No bankers added for this branch yet.</p>
+              )}
+              {recipients.map((recipient, index) => (
+                <div key={index} className="flex flex-wrap items-center gap-2">
+                  {recipient.typedIn ? (
+                    <>
+                      <Input
+                        className="w-56"
+                        placeholder="Email"
+                        value={recipient.email}
+                        onChange={(event) => updateRecipient(index, { email: event.target.value })}
+                      />
+                      <Input
+                        className="w-40"
+                        placeholder="Name (optional)"
+                        value={recipient.name}
+                        onChange={(event) => updateRecipient(index, { name: event.target.value })}
+                      />
+                      {bankers.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          onClick={() =>
+                            updateRecipient(index, {
+                              typedIn: false,
+                              bankContactId: "",
+                              email: "",
+                              name: "",
+                              designation: "",
+                            })
+                          }
+                        >
+                          Pick a banker instead
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Select
+                        aria-label="Banker"
+                        className="w-64"
+                        value={recipient.bankContactId}
+                        onChange={(event) => pickBanker(index, event.target.value)}
+                        disabled={!branchId}
+                      >
+                        <option value="">Choose a banker…</option>
+                        {bankers.map((contact) => (
+                          <option key={contact.id} value={contact.id}>
+                            {contact.name ?? contact.workEmail}
+                            {contact.designation ? ` (${contact.designation})` : ""}
+                          </option>
+                        ))}
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        onClick={() => updateRecipient(index, { typedIn: true, bankContactId: "" })}
+                      >
+                        Type an address instead
+                      </Button>
+                    </>
+                  )}
+                  <Select
+                    className="w-24"
+                    value={recipient.kind}
+                    onChange={(event) => updateRecipient(index, { kind: event.target.value as "to" | "cc" })}
+                  >
+                    <option value="to">To</option>
+                    <option value="cc">Cc</option>
+                  </Select>
+                  <label className="flex items-center gap-1 text-xs text-ink-600">
+                    <input
+                      type="checkbox"
+                      checked={recipient.isPrimary}
+                      onChange={(event) =>
+                        setRecipients((current) =>
+                          current.map((r, i) => ({ ...r, isPrimary: i === index ? event.target.checked : false })),
+                        )
+                      }
+                    />
+                    Primary
+                  </label>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setRecipients((current) => current.filter((_, i) => i !== index))}
+                    disabled={recipients.length === 1}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant="ghost"
-                  onClick={() => setRecipients((current) => current.filter((_, i) => i !== index))}
-                  disabled={recipients.length === 1}
+                  disabled={!branchId}
+                  onClick={() => setRecipients((current) => [...current, emptyRecipient()])}
                 >
-                  Remove
+                  + Add another recipient
+                </Button>
+                <Button variant="ghost" disabled={!branchId} onClick={() => setAddingBanker(true)}>
+                  + Add a new banker to the catalog
                 </Button>
               </div>
-            ))}
-            <Button variant="ghost" onClick={() => setRecipients((current) => [...current, emptyRecipient()])}>
-              + Add banker
+            </div>
+          </Field>
+
+          {mutation.error && (
+            <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
+              {mutation.error}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              disabled={mutation.pending || !branchId || recipients.every((r) => r.email.trim() === "")}
+              onClick={async () => {
+                const result = await mutation.run(() =>
+                  api<ApiSubmission>(`/cases/${loanCase.id}/submissions`, {
+                    method: "POST",
+                    body: {
+                      branchOrganisationId: branchId,
+                      recipients: recipients
+                        .filter((r) => r.email.trim() !== "")
+                        .map((r) => ({
+                          email: r.email.trim(),
+                          ...(r.name.trim() ? { name: r.name.trim() } : {}),
+                          ...(r.designation.trim() ? { designation: r.designation.trim() } : {}),
+                          ...(r.bankContactId ? { bankContactId: r.bankContactId } : {}),
+                          kind: r.kind,
+                          isPrimary: r.isPrimary,
+                        })),
+                    },
+                  }),
+                );
+                if (result) onChanged();
+              }}
+            >
+              Add bank
             </Button>
           </div>
-        </Field>
-
-        {mutation.error && (
-          <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
-            {mutation.error}
-          </p>
-        )}
-
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            disabled={mutation.pending || !branchId || recipients.every((r) => r.email.trim() === "")}
-            onClick={async () => {
-              const result = await mutation.run(() =>
-                api<ApiSubmission>(`/cases/${loanCase.id}/submissions`, {
-                  method: "POST",
-                  body: {
-                    branchOrganisationId: branchId,
-                    recipients: recipients
-                      .filter((r) => r.email.trim() !== "")
-                      .map((r) => ({
-                        email: r.email.trim(),
-                        ...(r.name.trim() ? { name: r.name.trim() } : {}),
-                        ...(r.designation.trim() ? { designation: r.designation.trim() } : {}),
-                        kind: r.kind,
-                        isPrimary: r.isPrimary,
-                      })),
-                  },
-                }),
-              );
-              if (result) onChanged();
-            }}
-          >
-            Add bank
-          </Button>
         </div>
-      </div>
-    </Modal>
+      </Modal>
+
+      {addingBanker && branchId && (
+        <BankerFormModal
+          lenders={lenders.lenders}
+          banker={null}
+          lockToBranchId={branchId}
+          onClose={() => setAddingBanker(false)}
+          onSaved={addBankerToRecipients}
+        />
+      )}
+    </>
   );
 }
 

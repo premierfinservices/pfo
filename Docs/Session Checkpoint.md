@@ -1,4 +1,169 @@
-# Session Checkpoint — 2026-09-17 (read this section first, then the rest as history)
+# Session Checkpoint — 2026-09-17, banker master-data session (read this section first, then the rest as history)
+
+**PENDING: code is written, tested, and NOT YET committed, pushed, built,
+or deployed.** This session built the "banker master data" feature
+requested by the user (Tarun Ramesh) — bankers (bank contacts) are now
+reusable master data, addable independent of any case, and the case-side
+"Add bank" step picks one from a cascading Bank → Branch → Banker list
+instead of retyping it every time. Full detail below. **The user said
+explicitly: do not commit, push, or deploy until they review the changes**
+— this checkpoint exists so the elevated session that finishes the job
+(commit → push → build → restart) can pick up cleanly, whether that's this
+same user resuming, or a later Claude session.
+
+## What shipped this session, not yet committed
+
+**Backend** (`Backend/bankers.ts`, new): full CRUD over the existing
+`bank_contact` table (Database/migrations 0003/0019/0024 — this table and
+its read path already existed; only the write path was missing). Routes
+added to `Backend/api-server.ts`: `GET/POST /api/bankers`,
+`PATCH /api/bankers/:id`, `PUT /api/bankers/:id/active`. Gated on the
+existing `organisation.read`/`organisation.update` permissions — no new
+permission, **no database migration needed**. New audit-event helper
+`recordBankContactEvent` in `Backend/events.ts`.
+
+**Frontend**: new standalone screen `Frontend/src/screens/Bankers.tsx` at
+route `/admin/bankers`, linked from Settings
+(`Frontend/src/screens/FoundersDashboard.tsx`) — visible to whichever role
+holds `organisation.update` (telecaller, login_executive, manager,
+managing_partner; deliberately not admin/finance), same as everywhere else
+in this codebase gates by the permission that governs the actual write.
+Works with zero cases in the system. `Frontend/src/screens/BanksTab.tsx`'s
+"Add bank" modal reworked to cascade Bank → Branch → Banker (sourced from
+the existing `/api/lenders` catalogue data), with an "Add a new banker to
+the catalog" escape hatch that opens the same creation form rather than
+creating one inline on the case. A one-off typed address stays available
+as a secondary option (deliberately kept — see ADR-036 in `DECISIONS.md`).
+`Frontend/src/screens/LenderCatalogue.tsx` was deliberately NOT touched —
+stays the existing read-only prototype screen, per the user's explicit
+instruction not to expand it.
+
+**Tests, all passing:**
+- `Backend/bankers.test.ts` (new): 14/14, against real Postgres (`pfo_test`).
+- Full backend integration suite: 227/229 (2 pre-existing failures,
+  unrelated — a case-number-prefix regex in `Backend/api.test.ts` still
+  expects the old `AL-` prefix after the `PF-` rebrand; not touched this
+  session, not caused by this work).
+- `tests/e2e/banker-master-data.spec.ts` (new): 3/3, real browser, real UI,
+  against the suite's own isolated `pfo_e2e` database and ports (never the
+  office `pfo` database — see `playwright.config.ts`'s own comment on why).
+- Full unit suite (661 tests), `npm run typecheck`, `npm run build`: all
+  clean.
+- Ran the FULL existing e2e suite once and found 26 pre-existing failures
+  in unrelated specs (login/session-flow tests like
+  `admin-screen-honesty.spec.ts`, `customer-case.spec.ts`,
+  `user-management.spec.ts`). **Verified this is not caused by this
+  session's changes**: `git stash`ed just the `FoundersDashboard.tsx` edit,
+  reran `admin-screen-honesty.spec.ts`, got the identical failure without
+  that code present, then restored the stash. Looks like pre-existing
+  fragility in the long-lived `pfo_e2e` database/environment — out of
+  scope for this task, not investigated further.
+
+## Current git state
+
+Nothing committed. `git status` at end of session:
+- Modified: `Backend/api-server.ts`, `Backend/events.ts`,
+  `Frontend/src/App.tsx`, `Frontend/src/api/lenders.ts`,
+  `Frontend/src/api/types.ts`, `Frontend/src/screens/BanksTab.tsx`,
+  `Frontend/src/screens/FoundersDashboard.tsx`, this file
+  (`Docs/Session Checkpoint.md`).
+- New/untracked: `Backend/bankers.ts`, `Backend/bankers.test.ts`,
+  `Frontend/src/screens/Bankers.tsx`, `tests/e2e/banker-master-data.spec.ts`.
+- **Also untracked, unrelated to this work — do not sweep it in with
+  `git add -A`**: `Code Diagram.png` (pre-existing in the working tree,
+  origin unknown, not touched or created by this session).
+
+## To finish it — commit, push, build, elevated restart
+
+Not elevation-gated until the restart step, same shape as the prior
+pending item below (now superseded/folded into this restart — check
+`git log`/the bundle hash first in case it already happened since this
+checkpoint was written).
+
+```powershell
+cd "C:\WORK FILES\Premier FinServ\PFO"
+git status                      # confirm exactly the files listed above, nothing else
+git add Backend/bankers.ts Backend/bankers.test.ts Backend/api-server.ts Backend/events.ts `
+        Frontend/src/screens/Bankers.tsx Frontend/src/screens/BanksTab.tsx `
+        Frontend/src/screens/FoundersDashboard.tsx Frontend/src/App.tsx `
+        Frontend/src/api/lenders.ts Frontend/src/api/types.ts `
+        tests/e2e/banker-master-data.spec.ts "Docs/Session Checkpoint.md"
+git commit -m "feat: bankers as reusable, case-independent master data"
+git push
+npm run build                   # regenerates Frontend/dist with the new bundle
+```
+
+Then, from an **elevated (Run as Administrator)** PowerShell — required
+because `supervisor.mjs` and its child processes run detached from a
+different/elevated context than an ordinary interactive shell, exactly as
+the prior pending item below already found:
+```powershell
+cd "C:\WORK FILES\Premier FinServ\PFO"
+Get-Content Backend\supervisor.pid   # confirm this still matches a live PID
+taskkill /PID <that PID> /T /F
+Start-ScheduledTask -TaskName "PFO Server"
+Start-Sleep -Seconds 5
+Get-Content Backend\supervisor.log -Tail 15
+```
+
+Verify: sign in as a real employee (manager/login_executive role), go to
+Settings → Bankers (`/admin/bankers`), confirm the screen loads with the
+real (should be empty, per the intentionally-fresh database noted lower in
+this file) banker list and an "Add banker" button; open a case's Banks tab
+and confirm "Add bank" now shows Bank → Branch → Banker selects.
+
+Resume this by telling the assistant: *"ran the elevated restart, resume
+Session Checkpoint"* — it will re-verify from there rather than assuming
+success.
+
+---
+
+# Session Checkpoint — 2026-09-17, later session (history — superseded by the section above for current status)
+
+**PENDING: `PFO Server` needs an elevated restart to pick up the last two
+commits.** Commits `dbe47b0` and `ab28383` (Amaze→Premier Finserv copy
+fixes on the dashboard greeting and 12 other user-facing strings — Case
+Detail, Lender Catalogue, Lending Products, Master Data, the application
+form document description) are pushed and `npm run build` has already
+regenerated `Frontend/dist` on UNFOLDMEDIACORP with the new bundle
+(`assets/index-BhQ-N1Ee.js`). The **build is done and safe** — nothing more
+to build. What's still needed is restarting the running process so it
+serves that new bundle instead of the old one still in memory.
+
+**Why this needs elevation:** `Stop-ScheduledTask -TaskName "PFO Server"`
+only terminates the launching `cmd.exe`; `supervisor.mjs` (PID recorded in
+`Backend/supervisor.pid`, was `8916` this session) and its four child
+processes (storage/mail/api/web) are left running detached, because they
+are started by/as a different (elevated/service) context than an ordinary
+interactive shell. A plain, non-elevated `taskkill /PID <pid> /T /F` from
+this session got `Access is denied` on every process in the tree. This is
+the exact scenario `Backend/supervisor.mjs`'s stale-lock message already
+anticipates and gives the fix for.
+
+**To finish it, run this from an elevated (Run as Administrator) PowerShell
+on UNFOLDMEDIACORP:**
+```powershell
+cd "C:\WORK FILES\Premier FinServ\PFO"
+Get-Content Backend\supervisor.pid   # confirm this still matches a live PID
+taskkill /PID <that PID> /T /F
+Start-ScheduledTask -TaskName "PFO Server"
+Start-Sleep -Seconds 5
+Get-Content Backend\supervisor.log -Tail 15
+```
+Then verify the new copy is live:
+```powershell
+curl.exe -sk https://127.0.0.1:4300/ | Select-String "index-[A-Za-z0-9]+\.js"
+```
+and check that bundle contains "Premier Finserv" and not "across Amaze
+today" (fetch `https://127.0.0.1:4300/assets/<that file>` and search it).
+
+Resume this by telling the assistant: *"ran the elevated restart, resume
+Session Checkpoint"* — it will re-verify from there rather than assuming
+success.
+
+---
+
+## Prior session state (2026-09-17, earlier in the day)
 
 **Office Server Production Cutover Gate — 1 of 21 steps remains: #12.**
 **#21 (orphan quarantine), #10 (nightly backup fix), and #20 (topology facts) are now DONE — see below.**

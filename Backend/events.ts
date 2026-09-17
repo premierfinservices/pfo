@@ -702,6 +702,41 @@ export async function recordMasterDataEvent(client: Queryable, event: MasterData
 }
 
 // ---------------------------------------------------------------------------
+// Bank contacts ("bankers") — reusable master data, ADR-034/ADR-036
+// ---------------------------------------------------------------------------
+
+export type BankContactEventType =
+  | "bank_contact.created"
+  | "bank_contact.updated"
+  | "bank_contact.activated"
+  | "bank_contact.deactivated";
+
+export interface BankContactEvent {
+  readonly actorUserId: string;
+  readonly entityId: string;
+  readonly eventType: BankContactEventType;
+  /** IDs and booleans only — never `contact_name`/`work_email`/`work_mobile`
+   * (the `event` table's own comment: payloads are never redacted). */
+  readonly payloadBefore?: Record<string, unknown> | null;
+  readonly payloadAfter?: Record<string, unknown> | null;
+}
+
+export async function recordBankContactEvent(client: Queryable, event: BankContactEvent): Promise<void> {
+  await client.query(
+    `insert into event (actor_kind, actor_user_id, entity_type, entity_id,
+                        event_type, payload_before, payload_after, source)
+     values ('user', $1, 'bank_contact', $2, $3, $4, $5, 'ui')`,
+    [
+      event.actorUserId,
+      event.entityId,
+      event.eventType,
+      event.payloadBefore == null ? null : JSON.stringify(event.payloadBefore),
+      event.payloadAfter == null ? null : JSON.stringify(event.payloadAfter),
+    ],
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Case timeline (reading)
 // ---------------------------------------------------------------------------
 
