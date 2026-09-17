@@ -1,11 +1,107 @@
-# Session Checkpoint — 2026-09-12
+# Session Checkpoint — 2026-09-17 (read this section first, then the rest as history)
 
-**Office Server Production Cutover Gate — 4 of 21 steps remain.**
+**Office Server Production Cutover Gate — 3 of 21 steps remain: #10, #12, #20.**
+**#21 (orphan quarantine) is now DONE — see below.**
 **Also pending: GitHub repo ownership transfer — see bottom of this file.**
 
-Last commit: `7859678` (pushed to `origin/main` this session — confirm
-with `git log origin/main -1` before assuming it's still current, since
-work continues on a different machine next).
+Last commit: `5985c0e` (pushed to `origin/main` this session, from
+UNFOLDMEDIACORP, confirmed via `Docs/Which PC Is This.md` — hostname
+`UnfoldMediaCorp`, `.env` reading `PFO_DB_NAME=pfo` / `PFO_WEB_HOST=0.0.0.0`
+/ `PFO_STORAGE_ROOT=C:\PFO\Data`, i.e. this was the real production shell,
+not a dev override). Confirm with `git log origin/main -1` before assuming
+still current.
+
+## What happened this session (2026-09-17, on UNFOLDMEDIACORP)
+
+1. **Case number rebrand follow-up**: found and fixed several `AL-2026-...`
+   fixtures/assertions in test files that earlier rebrand passes had missed
+   (`Frontend/src/lib.test.ts`, `Frontend/src/fake/requirements.test.ts`,
+   `Frontend/src/fake/case-workflow.test.ts`,
+   `src/domain/submissions/{package,compose}.test.ts`,
+   `src/domain/case/case-number.test.ts`). All 655 tests pass. Committed as
+   `5985c0e` (rebased onto 4 remote doc commits made from home PC in the
+   meantime, then pushed).
+2. **Migration `0038_case_number_prefix_pf.sql`** (untracked file found at
+   session start) was confirmed **already applied** to the real `pfo`
+   database (checksum match, `--status` shows `applied`) — it had been run
+   by an earlier, uncommitted session. `npm run migrate` this session
+   correctly did nothing. The file is now committed so the repo matches
+   reality.
+3. Restarted the `PFO Server` scheduled task (with user confirmation) so
+   the running process picks up the `PF-` prefix code fix and matches the
+   already-migrated database. Confirmed back up: ports 4300/4321/4319/4320
+   all listening again afterward.
+4. **Confirmed the database is intentionally empty** — `loan_case` has 0
+   rows, `storage:orphans` reports 0 document rows. User confirmed
+   (2026-09-17): *"Yes no cases, all fresh, hard delete everything and keep
+   it fresh."* This is deliberate, not data loss — do not be alarmed by low
+   counts in future sessions; re-confirm with the user if it looks
+   different from this stated fresh-start baseline.
+5. **Step #1 (HTTPS check, from the "what's left" list below)**: confirmed
+   TLS is live and correct. `https://127.0.0.1:4300/health` → 200
+   (`{"ok":true,"service":"aos-web"}`); plain `http://127.0.0.1:4300/`
+   connection-resets (server only listens on HTTPS now). The known gap
+   (supervisor's internal health check and `Scripts/pfo-status.ps1` probe
+   `http://` and will misreport DOWN) is unchanged and still deliberately
+   out of scope — do not "fix" by disabling TLS.
+6. **Step #21 (orphan quarantine) — DONE.** `npm run backup` (verified) →
+   `npm run storage:orphans` (24 files, 12 prototype incl. one new
+   `person/per_005/aadhaar_card` location not in the original checklist,
+   0 unreferenced-uuid) → `npm run storage:orphans -- --quarantine` (24
+   files moved, manifest at
+   `C:\PFO\Data\Quarantine\2026-09-17_07-45-54\manifest.json`) → re-ran
+   read-only, confirmed 0 orphans remain → `npm run backup` again
+   (verified, correctly shows 0 documents since the store is genuinely
+   empty now). **This step is closed out — do not repeat it.**
+7. **Step #10 (nightly backup verification) — FOUND A REAL BUG, NOT YET
+   FIXED.** `Get-ScheduledTaskInfo "PFO Nightly Backup"` showed
+   `LastTaskResult = 0x8007010B` ("the directory name is invalid") and no
+   `backup-log.txt` entries since **2026-09-09 20:30** (8 days of missing
+   unattended backups). Root cause found: the task's action still points at
+   the **pre-rebrand path** `C:\WORK FILES\Amaze Loans Pvt Ltd\PFO\Backend\backup.mjs`,
+   which no longer exists (project is now at
+   `C:\WORK FILES\Premier FinServ\PFO`). This was never updated across the
+   AOS→PFO rebrand's folder renames. **This is the one open item — see
+   "NEXT ACTION" immediately below.**
+
+## NEXT ACTION — pick up here
+
+Attempted to fix the scheduled task action from this (non-elevated) Claude
+Code shell; `Set-ScheduledTask` failed with **Access is denied**
+(`0x80070005`) — the task needs an elevated PowerShell to modify, same
+class of blocker as the earlier documented "task restart blocked on
+elevation" issue from the rebrand history. The exact fix, to be run in an
+**elevated** PowerShell (by the user, or by Claude if given an elevated
+shell):
+
+```powershell
+$newAction = New-ScheduledTaskAction -Execute "cmd.exe" -Argument '/c ""C:\Program Files\nodejs\node.exe" "C:\WORK FILES\Premier FinServ\PFO\Backend\backup.mjs" >> "C:\PFO\Backups\backup-log.txt" 2>&1"' -WorkingDirectory "C:\WORK FILES\Premier FinServ\PFO"
+Set-ScheduledTask -TaskName "PFO Nightly Backup" -Action $newAction
+(Get-ScheduledTask -TaskName "PFO Nightly Backup").Actions | Format-List
+```
+
+After that succeeds, resume with:
+1. Verify the corrected action stuck (command above already includes a
+   check).
+2. Optionally trigger a manual run (`Start-ScheduledTask -TaskName "PFO
+   Nightly Backup"`) and confirm `backup-log.txt` gets a fresh, successful
+   entry and `Get-ScheduledTaskInfo` shows `LastTaskResult = 0`.
+3. That closes step #10. Remaining after that: **#12** (needs a third
+   physical office PC — not doable from either home or this server alone)
+   and **#20** (human-only topology facts — asset tag, DHCP reservation,
+   backup custodian, password holder — see `Docs/Deployment Topology.md`,
+   "Still to be recorded").
+4. Update `PFO Production Readiness Master Roadmap.txt` / `Milestones.txt`
+   with the #10 and #21 results, commit, and push.
+5. GitHub ownership transfer (separate from the cutover gate) is still
+   fully pending — see its own section further down this file, nothing
+   about it changed this session.
+
+---
+
+# Session Checkpoint — 2026-09-12 (history — superseded by the section above for current status)
+
+Last commit as of this section: `7859678`.
 
 Everything else — all 6 development phases (column masking, admin-screen
 honesty, concurrency/audit hardening, case completeness, loan outcome
