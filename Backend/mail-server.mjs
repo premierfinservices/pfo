@@ -49,6 +49,8 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 
 import { listenOrExplain } from "./listen.mjs";
+import { gmailAccessToken, gmailMisconfiguration, invalidateGmailAccessToken } from "./gmail-auth.mjs";
+import { inboundStatus, startInboundPolling } from "./mail-inbound.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -201,54 +203,6 @@ function buildMimeMessage(message) {
 // accepted one from an application since 2022.
 // ---------------------------------------------------------------------------
 
-const GMAIL = {
-  clientId: process.env.PFO_GMAIL_CLIENT_ID ?? "",
-  clientSecret: process.env.PFO_GMAIL_CLIENT_SECRET ?? "",
-  refreshToken: process.env.PFO_GMAIL_REFRESH_TOKEN ?? "",
-};
-
-function gmailMisconfiguration() {
-  const missing = [];
-  if (!GMAIL.clientId) missing.push("PFO_GMAIL_CLIENT_ID");
-  if (!GMAIL.clientSecret) missing.push("PFO_GMAIL_CLIENT_SECRET");
-  if (!GMAIL.refreshToken) missing.push("PFO_GMAIL_REFRESH_TOKEN");
-  return missing;
-}
-
-/** Cached until shortly before expiry — Google issues these for an hour. */
-let accessToken = null;
-
-async function gmailAccessToken() {
-  if (accessToken && accessToken.expiresAt > Date.now() + 60_000) {
-    return accessToken.value;
-  }
-
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: GMAIL.clientId,
-      client_secret: GMAIL.clientSecret,
-      refresh_token: GMAIL.refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
-
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail = payload.error_description ?? payload.error ?? `HTTP ${response.status}`;
-    const error = new Error(`Google refused the refresh token: ${detail}`);
-    error.aosFailureKind = "authentication";
-    throw error;
-  }
-
-  accessToken = {
-    value: payload.access_token,
-    expiresAt: Date.now() + Number(payload.expires_in ?? 3600) * 1000,
-  };
-  return accessToken.value;
-}
-
 /**
  * Send through Gmail.
  *
@@ -302,12 +256,16 @@ async function gmailSend(message) {
     failure.aosFailureKind = classifyGmailStatus(response.status, detail);
     // A 401 means the cached token is no longer good; drop it so the next
     // attempt re-authenticates rather than replaying a dead token.
-    if (response.status === 401) accessToken = null;
+    if (response.status === 401) invalidateGmailAccessToken();
     throw failure;
   }
 
   const payload = await response.json().catch(() => ({}));
-  return { providerMessageId: payload.id };
+  // Gmail's send response includes threadId alongside id even for a message
+  // that started a new thread — captured so a later reply landing in the
+  // same thread can be recognised as answering this specific send
+  // (inbound-matching.ts), without PFO parsing In-Reply-To/References itself.
+  return { providerMessageId: payload.id, providerThreadId: payload.threadId };
 }
 
 function classifyGmailStatus(status, detail) {
@@ -478,6 +436,7 @@ async function handleSend(req, res) {
       ok: true,
       submissionPackageEmailId: message.submissionPackageEmailId,
       ...(sent.providerMessageId ? { providerMessageId: sent.providerMessageId } : {}),
+      ...(sent.providerThreadId ? { providerThreadId: sent.providerThreadId } : {}),
       sentAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -513,6 +472,7 @@ const server = createServer((req, res) => {
       configured: PROVIDER === "capture" || (PROVIDER === "gmail" && gmailMisconfiguration().length === 0),
       sender: { address: SENDER_ADDRESS, name: SENDER_NAME },
       ...(PROVIDER === "gmail" ? { missing: gmailMisconfiguration() } : {}),
+      ...inboundStatus(),
     });
     return;
   }
@@ -575,4 +535,6 @@ listenOrExplain(server, PORT, "127.0.0.1", "mail backend", () => {
     console.log("  Provider: unconfigured. Every send will be refused, on purpose.");
     console.log("  See .env.example to connect the Premier Finservices mailbox.");
   }
+
+  startInboundPolling((message) => console.log(`[inbound] ${message}`));
 });

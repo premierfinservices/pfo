@@ -45,6 +45,8 @@ $settings = @{
     PFO_STORAGE_ROOT  = "C:\PFO\Data"
     PFO_BACKUP_ROOT   = "C:\PFO\Backups"
     PFO_MAIL_PROVIDER = "unconfigured"
+    PFO_WEB_TLS_CERT  = ""
+    PFO_WEB_TLS_KEY   = ""
 }
 if (Test-Path $EnvFile) {
     foreach ($line in Get-Content $EnvFile) {
@@ -54,6 +56,25 @@ if (Test-Path $EnvFile) {
     }
 } else {
     Write-Warning "No .env at $EnvFile - showing defaults. This machine is not configured."
+}
+
+# Same presence check web-server.mjs uses to decide whether it built an
+# https.Server or an http.Server.
+$webTlsEnabled = [bool]($settings.PFO_WEB_TLS_CERT) -and [bool]($settings.PFO_WEB_TLS_KEY)
+$webScheme = if ($webTlsEnabled) { "https" } else { "http" }
+
+# The web server's cert is self-signed - only this script's own loopback
+# health check needs to skip validation, and only for the one call below.
+# Restored in `finally` so nothing else this script does afterward runs with
+# certificate validation weakened.
+function Invoke-LoopbackInsecure([scriptblock]$Body) {
+    $previous = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
+    try {
+        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+        & $Body
+    } finally {
+        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $previous
+    }
 }
 
 function Test-Endpoint($url) {
@@ -88,8 +109,13 @@ $pgPort = Test-NetConnection -ComputerName "127.0.0.1" -Port $settings.PFO_DB_PO
 Show-Line "PostgreSQL port" $pgPort "127.0.0.1:$($settings.PFO_DB_PORT), database '$($settings.PFO_DB_NAME)'"
 
 # --- The four PFO processes -----------------------------------------------
-$web = Test-Endpoint "http://127.0.0.1:$($settings.PFO_WEB_PORT)/health"
-Show-Line "PFO web server" $web.ok "port $($settings.PFO_WEB_PORT)"
+$webUrl = "$webScheme`://127.0.0.1:$($settings.PFO_WEB_PORT)/health"
+if ($webTlsEnabled) {
+    $web = Invoke-LoopbackInsecure { Test-Endpoint $webUrl }
+} else {
+    $web = Test-Endpoint $webUrl
+}
+Show-Line "PFO web server" $web.ok "port $($settings.PFO_WEB_PORT)$(if ($webTlsEnabled) { ' (https)' })"
 
 $api = Test-Endpoint "http://127.0.0.1:$($settings.PFO_API_PORT)/api/health"
 Show-Line "PFO API" $api.ok "port $($settings.PFO_API_PORT)"
@@ -128,7 +154,7 @@ if ($loopbackOnly) {
     if ($lan.Address) {
         $via = "detected"
         if ($lan.Source -eq "override") { $via = "from PFO_LAN_IP" }
-        Show-Line "Employee access" $true "http://$($lan.Address)`:$($settings.PFO_WEB_PORT)  ($via)"
+        Show-Line "Employee access" $true "$webScheme`://$($lan.Address)`:$($settings.PFO_WEB_PORT)  ($via)"
     } else {
         Show-Line "Employee access" $false "cannot tell which address employees reach this machine on"
         foreach ($c in $lan.Candidates) {

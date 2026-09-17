@@ -966,6 +966,65 @@ export const TABLE_BINDINGS: readonly TableBinding[] = [
       "was sent without being able to open it — the same split `document.read` " +
       "already makes elsewhere.",
   },
+
+  // ── Inbound bank email ──────────────────────────────────────────────────
+  // Written and progressed entirely by Backend/inbound-mail.ts, reached only
+  // via the loopback-only, shared-secret-guarded internal endpoint — no
+  // client route creates or edits these rows directly. `document.read`
+  // governs select on all three: an employee who can see a case's documents
+  // is exactly who should be able to see what came in about it, review
+  // queue entries included, once a UI reads this data (not built yet).
+  {
+    table: "inbound_email",
+    family: "case-derived",
+    purpose:
+      "One Gmail message fetched from the mailbox PFO also sends from — the " +
+      "existence of a row is the idempotency guarantee against re-polling the " +
+      "same message (Database/migrations/0039).",
+    select: permits("document.read"),
+    insert: internal(
+      "Written only by handleInboundEmail() (Backend/inbound-mail.ts) when " +
+        "mail-inbound.mjs hands off a newly-fetched message.",
+    ),
+    update: internal(
+      "Status and match columns are set by the same function that inserted " +
+        "the row, as it works through matching and classification.",
+    ),
+    delete: NEVER_DELETED,
+  },
+  {
+    table: "inbound_classification_audit",
+    family: "case-derived",
+    purpose:
+      "Append-only log of every classification decision made about an " +
+      "inbound attachment, auto-attached or not — the record that lets a " +
+      "misclassification be understood after the fact.",
+    select: permits("document.read"),
+    insert: internal(
+      "Written by handleInboundEmail() alongside the decision it records; a " +
+        "client that could insert directly could forge the audit trail.",
+    ),
+    update: forbidden("Append-only. A decision log a compromised process could rewrite is not a log."),
+    delete: forbidden("Append-only. See update."),
+  },
+  {
+    table: "inbound_email_review_queue",
+    family: "case-derived",
+    purpose:
+      "What still needs a human — an inbound attachment that could not be " +
+      "confidently matched or auto-attached, worklist-style rather than an " +
+      "immutable log (contrast inbound_classification_audit).",
+    select: permits("document.read"),
+    insert: internal("Written by handleInboundEmail() when a match falls below the auto-attach bar."),
+    update: permits("document.read"),
+    delete: NEVER_DELETED,
+    notes:
+      "update binds to document.read rather than a narrower permission " +
+      "because resolving a queue entry (the future review UI) is a read-adjacent " +
+      "triage action, not a document decision in its own right — revisit if a " +
+      "dedicated review-queue permission is introduced alongside that UI.",
+  },
+
   {
     table: "offer",
     family: "case-derived",

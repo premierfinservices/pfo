@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Frees PFO's own dev ports before `npm run dev` starts.
  *

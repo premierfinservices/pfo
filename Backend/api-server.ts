@@ -34,7 +34,7 @@
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type pg from "pg";
 
 import { verifyPassword } from "@domain/auth/password.js";
@@ -126,6 +126,7 @@ import {
   sendPackage,
   updateSubmissionStatus,
 } from "./submissions.js";
+import { handleInboundEmail, type InboundEmailInput } from "./inbound-mail.js";
 
 const PORT = Number(process.env.PFO_API_PORT ?? 4321);
 
@@ -347,6 +348,17 @@ function applyCors(req: IncomingMessage, res: ServerResponse): void {
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token, "utf8").digest("hex");
+}
+
+/** For the internal shared-secret header (`/api/internal/inbound-email`),
+ * not employee sessions — those are already hashed and compared via SQL
+ * equality above. `timingSafeEqual` needs equal-length buffers, so a length
+ * mismatch is treated as "not equal" up front rather than padding either
+ * side, which would make an already-known-wrong length appear to compare. */
+function constantTimeEquals(a: string, b: string): boolean {
+  const bufferA = Buffer.from(a, "utf8");
+  const bufferB = Buffer.from(b, "utf8");
+  return bufferA.length === bufferB.length && timingSafeEqual(bufferA, bufferB);
 }
 
 /**
@@ -692,6 +704,25 @@ async function route(
       storage: await probe(`${STORAGE_URL}/health`),
       mail: await probeMail(),
     };
+  }
+
+  /**
+   * Loopback, machine-to-machine only — the same rule mail-server.mjs states
+   * for its own port. Backend/mail-inbound.mjs POSTs each newly-fetched
+   * inbound email here for matching, classification and (when confident
+   * enough) auto-attaching, all of which needs an authenticated Postgres
+   * transaction that the mail process deliberately does not have (RLS's
+   * tier-B policies require a real app.current_user_id()). Guarded by a
+   * shared secret rather than an employee session: there is no employee at
+   * the other end of a Gmail poll.
+   */
+  if (method === "POST" && path === "/api/internal/inbound-email") {
+    const expected = process.env.PFO_INTERNAL_TOKEN ?? "";
+    const provided = req.headers["x-pfo-internal-token"];
+    if (!expected || typeof provided !== "string" || !constantTimeEquals(provided, expected)) {
+      throw new HttpError(401, "Not authorized.");
+    }
+    return await handleInboundEmail(client, body as unknown as InboundEmailInput);
   }
 
   if (method === "POST" && path === "/api/auth/login") return await login(client, req, body);

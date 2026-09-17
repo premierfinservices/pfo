@@ -1296,12 +1296,23 @@ async function dispatchEmails(
     const result = await provider.send(outgoing);
 
     if (result.ok) {
+      // gmail_message_id/gmail_thread_id are Gmail-specific (inbound-matching.ts
+      // only ever compares them against a real Gmail inbox) — left null for any
+      // other provider, including `capture`, whose ids are not Gmail's.
+      const isGmail = provider.name === "gmail";
       await client.query(
         `update submission_package_email
             set status = 'sent', sent_at = $2, provider_message_id = $3,
+                gmail_message_id = $4, gmail_thread_id = $5,
                 attempt_count = attempt_count + 1, failure_kind = null, failure_message = null
           where id = $1`,
-        [emailId, result.sentAt, result.providerMessageId ?? null],
+        [
+          emailId,
+          result.sentAt,
+          result.providerMessageId ?? null,
+          isGmail ? (result.providerMessageId ?? null) : null,
+          isGmail ? (result.providerThreadId ?? null) : null,
+        ],
       );
       await recordSubmissionEvent(client, {
         actorUserId: actor.userId,

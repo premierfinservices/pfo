@@ -92,6 +92,10 @@ export type EmailSendResult =
       /** The provider's own id for the sent message, where it returns one.
        * Recorded so a message can be found again in the sent mailbox. */
       readonly providerMessageId?: string | undefined;
+      /** The provider's thread id, where it groups messages into threads
+       * (Gmail does). Used only to recognise a bank's reply as answering
+       * this specific email (inbound-matching.ts) — never shown to a user. */
+      readonly providerThreadId?: string | undefined;
       readonly sentAt: string;
     }
   | {

@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * One process that runs and keeps running the whole PFO backend.
  *
@@ -39,8 +38,9 @@
 
 import { spawn } from "node:child_process";
 import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { request as httpsRequest } from "node:https";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { loadDotEnv } from "./env.mjs";
 import { freePorts } from "./free-dev-ports.mjs";
@@ -54,6 +54,12 @@ const API_PORT = Number(process.env.PFO_API_PORT ?? 4321);
 const STORAGE_PORT = Number(process.env.PFO_STORAGE_PORT ?? 4319);
 const MAIL_PORT = Number(process.env.PFO_MAIL_PORT ?? 4320);
 const WEB_PORT = Number(process.env.PFO_WEB_PORT ?? 4300);
+
+// Same presence check web-server.mjs uses to decide whether it built an
+// https.Server or an http.Server — the health check has to ask over
+// whichever scheme the web server actually answers on.
+const WEB_TLS_ENABLED = Boolean(process.env.PFO_WEB_TLS_CERT?.trim() && process.env.PFO_WEB_TLS_KEY?.trim());
+const WEB_SCHEME = WEB_TLS_ENABLED ? "https" : "http";
 
 const VITE_NODE = path.join(ROOT, "node_modules", "vite-node", "vite-node.mjs");
 
@@ -93,7 +99,7 @@ const SERVICES = [
     name: "web",
     command: process.execPath,
     args: [path.join(ROOT, "Backend", "web-server.mjs")],
-    health: `http://127.0.0.1:${WEB_PORT}/health`,
+    health: `${WEB_SCHEME}://127.0.0.1:${WEB_PORT}/health`,
   },
 ];
 
@@ -164,14 +170,40 @@ function log(service, message) {
   console.log(`${stamp} [${service.padEnd(7)}] ${message}`);
 }
 
+/**
+ * The web server's TLS cert is self-signed (see the HTTPS support docs) —
+ * Node's default fetch will refuse it. This check is the supervisor asking
+ * its own child, over loopback, whether it is up; it is never used for a
+ * real client request, so skipping certificate validation here does not
+ * weaken anything a browser or another machine would see. Node's global
+ * `fetch` has no plain-`https.Agent` escape hatch (it takes an undici
+ * `dispatcher`, and neither `node:undici` nor an `undici` dependency is
+ * available in this project), so the insecure path goes through `node:https`
+ * directly instead of `fetch`.
+ */
+function loopbackHealthCheck(url, timeoutMs) {
+  return new Promise((resolve) => {
+    const request = httpsRequest(url, { rejectUnauthorized: false, timeout: timeoutMs }, (response) => {
+      response.resume();
+      resolve(response.statusCode >= 200 && response.statusCode < 300);
+    });
+    request.on("timeout", () => request.destroy());
+    request.on("error", () => resolve(false));
+    request.end();
+  });
+}
+
 /** Wait until `url` answers, or give up. Used both for PostgreSQL's readiness
  * and for each child's own health endpoint. */
-async function waitForHealth(url, timeoutMs) {
+export async function waitForHealth(url, timeoutMs) {
+  const isLoopbackHttps = url.startsWith("https://127.0.0.1") || url.startsWith("https://localhost");
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
-      if (response.ok) return true;
+      const ok = isLoopbackHttps
+        ? await loopbackHealthCheck(url, 2000)
+        : await fetch(url, { signal: AbortSignal.timeout(2000) }).then((response) => response.ok);
+      if (ok) return true;
     } catch {
       // Not up yet.
     }
@@ -341,4 +373,6 @@ async function main() {
   log("supervis", "all services started. Ctrl-C to stop everything.");
 }
 
-await main();
+// Guarded so a test can import waitForHealth (or anything else above)
+// without spawning the whole supervisor as a side effect of the import.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

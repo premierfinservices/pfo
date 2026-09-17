@@ -170,8 +170,15 @@ function parseRoles(value: unknown): Role[] {
  */
 async function assertAnAdministratorRemains(client: Queryable): Promise<void> {
   const { rows } = await client.query(
+    // `r.role is not null` matters here specifically because of the LEFT
+    // JOIN: an active user with zero user_role rows at all (permission held
+    // entirely through user_permission_override, e.g. the seeded PFO
+    // Automation actor, 0042) still produces one joined row with every `r.*`
+    // column null, including revoked_at — so "revoked_at is null" alone is
+    // vacuously true for that phantom row and would aggregate a literal null
+    // into `roles`, which then crashes ROLE_GRANTS[null] downstream.
     `select u.id,
-            coalesce(array_agg(r.role::text) filter (where r.revoked_at is null),
+            coalesce(array_agg(r.role::text) filter (where r.revoked_at is null and r.role is not null),
                      '{}'::text[]) as roles
        from app_user u
        left join user_role r on r.user_id = u.id
