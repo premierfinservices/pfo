@@ -2,7 +2,7 @@
 
 **Office Server Production Cutover Gate — 1 of 21 steps remains: #12.**
 **#21 (orphan quarantine), #10 (nightly backup fix), and #20 (topology facts) are now DONE — see below.**
-**Also pending: GitHub repo ownership transfer (needs a browser action by the destination account owner, not doable by Claude) — see bottom of this file.**
+**GitHub repo ownership transfer — DONE, see bottom of this file. Remote origin on UNFOLDMEDIACORP updated; home PC still needs updating (see note there).**
 
 Last commit: `5985c0e` (pushed to `origin/main` this session, from
 UNFOLDMEDIACORP, confirmed via `Docs/Which PC Is This.md` — hostname
@@ -234,43 +234,60 @@ checkpoint already said. The next session should read `Docs/Which PC Is
 This.md` first, confirm it is actually on UNFOLDMEDIACORP with
 production's `.env`, then resume at "What's left" below.
 
-## Pending, separate from the cutover gate: move the repo to premierfinserv.cbe@gmail.com's GitHub account
+## GitHub ownership transfer — DONE (2026-09-17, UNFOLDMEDIACORP)
 
-Raised 2026-09-12, home PC. User wants the repo transferred out of
-`tarunrameshphotography`'s GitHub account into one owned by
-`premierfinserv.cbe@gmail.com`, and wants to do this work from
-UNFOLDMEDIACORP next, not home. Nothing has been transferred yet — no
-GitHub-side action was taken this session, informational only.
+Repo moved from `tarunrameshphotography` to the new `premierfinservices`
+GitHub account (created this session by the user; email
+`premierfinservices.cbe@gmail.com`), via GitHub's built-in ownership
+transfer (not a mirror/re-clone — preserves issues/PRs/stars/wiki and
+leaves a redirect from the old URL).
 
-Current remote (both machines should have the same, modulo the redirect
-noted below): `https://github.com/tarunrameshphotography/AOS` — this
-redirects to the repo's current actual location,
-`https://github.com/tarunrameshphotography/pfo` (renamed earlier in the
-rebrand). Confirmed clean of committed secrets in the current tree: `.env`
-is gitignored, only `.env.example` is tracked; a full-history secret scan
-was recommended but not run.
+What happened, in order:
+1. Claude-in-Chrome extension wasn't connected at first; user installed/
+   enabled it, then logged into `tarunrameshphotography` in that Chrome
+   profile. Confirmed via `github.com/settings/profile` before touching
+   anything (repo settings under the wrong account 404 rather than
+   showing someone else's private settings, which is what first revealed
+   the browser was on the wrong account).
+2. Claude drove the transfer form at
+   `github.com/tarunrameshphotography/pfo/settings` → Danger Zone →
+   Transfer → "Specify an organization or username" → `premierfinservices`
+   → typed the `tarunrameshphotography/pfo` confirmation string → user
+   explicitly confirmed before the final submit click. Result banner:
+   "Repository transfer to premierfinservices requested."
+3. User logged into `premierfinservices` in the same Chrome profile,
+   received GitHub's transfer email, clicked accept. Confirmed complete by
+   loading `github.com/premierfinservices/pfo` (200, real content) while
+   still logged in as `premierfinservices`.
+4. **`origin` remote on UNFOLDMEDIACORP updated**: `git remote set-url
+   origin https://github.com/premierfinservices/pfo.git`. `git fetch`
+   succeeded immediately (exit 0). `git push` needed a fresh sign-in —
+   Git Credential Manager's browser account picker cannot launch through
+   Claude's own shell tools (`fatal: Cannot prompt because user
+   interactivity has been disabled` / `terminal prompts disabled` — both
+   Bash and PowerShell tool invocations run non-interactively). User ran
+   `git push origin main --dry-run` themselves in a terminal opened
+   directly (not through Claude), signed in as `premierfinservices` via
+   the GCM browser picker, and confirmed "Everything up-to-date", exit 0.
+   **Lesson for future sessions: any git operation needing a fresh
+   interactive credential prompt must be run by the user in their own
+   terminal, not delegated to Claude's shell tools.**
+5. Verified on GitHub (logged in as `premierfinservices`):
+   - Collaborators: `tarunrameshphotography` was auto-retained as a
+     collaborator by the transfer — pushes from that identity should
+     still work without re-adding.
+   - Actions secrets/variables: none existed before or after — nothing to
+     carry over.
+   - Branch protection: none configured before or after.
+   - Webhooks: none configured before or after.
 
-Procedure agreed on (GitHub's built-in ownership transfer, not a
-mirror/re-clone — preserves issues/PRs/stars/wiki and leaves a redirect):
+**Still open — home PC's `origin` remote has NOT been updated yet.** Next
+session on the home PC (`DESKTOP-2KVRC8D`) must run:
+```
+git remote set-url origin https://github.com/premierfinservices/pfo.git
+```
+before its next push, or the push will silently keep going to the old
+(now-redirected, but no longer owned) `tarunrameshphotography/pfo` URL.
 
-1. **Prerequisite** — `premierfinserv.cbe@gmail.com` needs an existing
-   GitHub account or org with a known username; GitHub transfers target a
-   username, not an email address. Not yet confirmed to exist.
-2. On `github.com/tarunrameshphotography/pfo` → Settings → Danger Zone →
-   Transfer ownership → enter the new owner's username + repo name to
-   confirm. GitHub emails the new owner, who must accept.
-3. After acceptance, update the `origin` remote on **both** machines:
-   `git remote set-url origin https://github.com/<new-owner>/pfo.git`
-   (a transfer does not update either machine's local remote by itself).
-4. Decide whether `tarunrameshphotography` should be re-added as a
-   collaborator on the new repo — a transfer removes the old owner's
-   owner-level access by default, and pushes from this identity would
-   otherwise stop working.
-5. Verify (don't assume) that GitHub Actions secrets/variables, branch
-   protection rules, and webhooks carried over correctly after transfer.
-
-Nothing here is UNFOLDMEDIACORP-specific in the sense of production
-data/database — this is a GitHub account operation, doable from a browser
-on either machine. The user chose to do it from UNFOLDMEDIACORP anyway;
-next session there should pick up at step 1 (confirm the target account
-exists) once ready.
+**This step is closed out except for the home-PC remote update — do not
+repeat the transfer itself.**
