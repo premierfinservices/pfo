@@ -25,6 +25,7 @@ import type {
   ApiBanker,
   ApiCase,
   ApiLenderBranch,
+  ApiLenderContact,
   ApiOffer,
   ApiPackage,
   ApiPreparedPackage,
@@ -918,15 +919,35 @@ function AddBankModal({
 }): ReactNode {
   const lenders = useLenders();
   const mutation = useMutation();
+  const removeMutation = useMutation();
+  const toast = useToast();
   const [institutionId, setInstitutionId] = useState("");
   const [branchId, setBranchId] = useState("");
   const [recipients, setRecipients] = useState<RecipientDraft[]>([emptyRecipient()]);
   const [addingBanker, setAddingBanker] = useState(false);
+  const [editingContact, setEditingContact] = useState<{
+    index: number;
+    contact: ApiLenderContact;
+  } | null>(null);
 
   const institution = lenders.lenders.find((l) => l.id === institutionId);
   const branches: readonly ApiLenderBranch[] = institution?.branches ?? [];
   const branch = branches.find((b) => b.id === branchId);
   const bankers = (branch?.contacts ?? []).filter((contact) => contact.workEmail !== null);
+
+  /** Deactivating here (not deleting — there is no hard-delete endpoint, same
+   * as the standalone Bankers screen) removes it from every branch's picker
+   * immediately, so any recipient row currently holding it is cleared too. */
+  async function removeBanker(index: number, bankContactId: string): Promise<void> {
+    const result = await removeMutation.run(() =>
+      api<ApiBanker>(`/bankers/${bankContactId}/active`, { method: "PUT", body: { isActive: false } }),
+    );
+    if (result) {
+      toast.show("Banker removed from the catalog.", "good");
+      lenders.refetch();
+      updateRecipient(index, { bankContactId: "", email: "", name: "", designation: "" });
+    }
+  }
 
   const updateRecipient = (index: number, patch: Partial<RecipientDraft>): void => {
     setRecipients((current) => current.map((r, i) => (i === index ? { ...r, ...patch } : r)));
@@ -978,6 +999,7 @@ function AddBankModal({
                   setInstitutionId(event.target.value);
                   setBranchId("");
                   setRecipients([emptyRecipient()]);
+                  setEditingContact(null);
                 }}
               >
                 <option value="">Choose a bank…</option>
@@ -994,6 +1016,7 @@ function AddBankModal({
                 onChange={(event) => {
                   setBranchId(event.target.value);
                   setRecipients([emptyRecipient()]);
+                  setEditingContact(null);
                 }}
                 disabled={!institutionId}
               >
@@ -1072,6 +1095,26 @@ function AddBankModal({
                       >
                         Type an address instead
                       </Button>
+                      {recipient.bankContactId && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              const contact = bankers.find((c) => c.id === recipient.bankContactId);
+                              if (contact) setEditingContact({ index, contact });
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            disabled={removeMutation.pending}
+                            onClick={() => removeBanker(index, recipient.bankContactId)}
+                          >
+                            Remove banker
+                          </Button>
+                        </>
+                      )}
                     </>
                   )}
                   <Select
@@ -1117,6 +1160,12 @@ function AddBankModal({
               </div>
             </div>
           </Field>
+
+          {removeMutation.error && (
+            <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
+              {removeMutation.error}
+            </p>
+          )}
 
           {mutation.error && (
             <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
@@ -1166,6 +1215,36 @@ function AddBankModal({
           lockToBranchId={branchId}
           onClose={() => setAddingBanker(false)}
           onSaved={addBankerToRecipients}
+        />
+      )}
+
+      {editingContact && (
+        <BankerFormModal
+          lenders={lenders.lenders}
+          banker={{
+            id: editingContact.contact.id,
+            institutionOrganisationId: institutionId,
+            institutionName: institution?.name ?? "",
+            branchOrganisationId: branchId,
+            branchName: branch?.name ?? null,
+            name: editingContact.contact.name,
+            designation: editingContact.contact.designation,
+            workEmail: editingContact.contact.workEmail,
+            workMobile: editingContact.contact.workMobile,
+            isPrimary: editingContact.contact.isPrimary,
+            isActive: true,
+          }}
+          onClose={() => setEditingContact(null)}
+          onSaved={(updated) => {
+            const index = editingContact.index;
+            setEditingContact(null);
+            lenders.refetch();
+            updateRecipient(index, {
+              email: updated.workEmail ?? "",
+              name: updated.name ?? "",
+              designation: updated.designation ?? "",
+            });
+          }}
         />
       )}
     </>
