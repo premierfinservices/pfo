@@ -67,10 +67,34 @@ $webScheme = if ($webTlsEnabled) { "https" } else { "http" }
 # health check needs to skip validation, and only for the one call below.
 # Restored in `finally` so nothing else this script does afterward runs with
 # certificate validation weakened.
+#
+# A [scriptblock] cannot be used as the callback directly: ServicePointManager
+# invokes it on a worker thread with no PowerShell Runspace available, so the
+# call fails with "There is no Runspace available to run scripts in this
+# thread" and the exception is swallowed by Test-Endpoint's catch, which then
+# quietly reports the web server as DOWN even when it is healthy. A compiled
+# delegate has no such dependency, so the validator is defined once via
+# Add-Type instead.
+if (-not ("PfoStatus.AcceptAllCerts" -as [type])) {
+    Add-Type -Namespace PfoStatus -Name AcceptAllCerts -MemberDefinition @"
+public static bool Validate(object sender, System.Security.Cryptography.X509Certificates.X509Certificate certificate, System.Security.Cryptography.X509Certificates.X509Chain chain, System.Net.Security.SslPolicyErrors sslPolicyErrors) {
+    return true;
+}
+"@
+}
+# PowerShell 5.1's method-group-to-delegate conversion doesn't reliably bind a
+# static .NET method to RemoteCertificateValidationCallback - it still shows
+# up as a PSMethod at assignment time. [Delegate]::CreateDelegate does the
+# binding explicitly instead of relying on that implicit conversion.
+$script:AcceptAllCertsDelegate = [System.Net.Security.RemoteCertificateValidationCallback][System.Delegate]::CreateDelegate(
+    [System.Net.Security.RemoteCertificateValidationCallback],
+    [PfoStatus.AcceptAllCerts],
+    "Validate")
+
 function Invoke-LoopbackInsecure([scriptblock]$Body) {
     $previous = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
     try {
-        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $script:AcceptAllCertsDelegate
         & $Body
     } finally {
         [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $previous
@@ -196,7 +220,7 @@ if (Test-Path $docs) {
 }
 
 if (Test-Path $settings.PFO_BACKUP_ROOT) {
-    $runs = Get-ChildItem $settings.PFO_BACKUP_ROOT -Directory -ErrorAction SilentlyContinue | Sort-Object Name
+    $runs = Get-ChildItem $settings.PFO_BACKUP_ROOT -Directory -ErrorAction SilentlyContinue | Sort-Object CreationTime
     if ($runs.Count -gt 0) {
         $newest = $runs[-1]
         $age = (New-TimeSpan -Start $newest.CreationTime -End (Get-Date)).TotalHours
