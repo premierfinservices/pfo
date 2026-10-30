@@ -22,7 +22,6 @@ import {
   type ProgressSummary,
   type Requirement as ProgressRequirement,
 } from "@domain/requirements/index.js";
-import { evaluateTransition, type CaseSnapshot } from "@domain/case/transitions.js";
 import type { CaseStage } from "@domain/case/stages.js";
 import { resolveDocumentOwner, buildStoragePath, type DocumentOwnerFields } from "@domain/storage/path.js";
 import { nextVersion } from "@domain/storage/versioning.js";
@@ -38,7 +37,6 @@ import {
 } from "./events.js";
 import { regenerateRequirements } from "./requirements.js";
 import { storageAdapter, getObjectWithContentType } from "./storage-client.js";
-import { submissionOutcomeFacts } from "./case-stage.js";
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
@@ -214,14 +212,16 @@ const REQUIREMENT_SELECT = `
     left join lateral (
       select doc.*
         from document doc
-       where doc.document_type_id = r.document_type_id
+       where doc.id = r.uploaded_document_id
+          or (r.uploaded_document_id is null
+         and doc.document_type_id = r.document_type_id
          and doc.period_start is not distinct from r.period_start
          and (
            (cpa.person_id is not null and doc.person_id = cpa.person_id) or
            (cpa.organisation_id is not null and doc.organisation_id = cpa.organisation_id) or
            (cpr.property_id is not null and doc.property_id = cpr.property_id) or
            (cpa.id is null and cpr.id is null and doc.case_id = r.case_id)
-         )
+         ))
        order by doc.version desc
        limit 1
     ) d on true`;
@@ -469,8 +469,8 @@ export async function uploadDocument(
   // 3C does not build that flow; today's upload path only reaches a
   // requirement that is not yet satisfied.
   await client.query(
-    `update document_requirement set status = 'received', reason = null where id = $1`,
-    [requirementId],
+    `update document_requirement set status = 'received', reason = null, uploaded_document_id = $2 where id = $1`,
+    [requirementId, documentId],
   );
 
   await recordDocumentEvent(client, {
@@ -479,11 +479,6 @@ export async function uploadDocument(
     caseId,
     eventType: "document.uploaded",
     payloadAfter: { requirementId, documentTypeId: subject.document_type_id, version },
-  });
-
-  await reconcileStage(client, caseId, {
-    entityType: "document_requirement",
-    entityId: requirementId,
   });
 
   return await requirementView(client, requirementId);
@@ -569,11 +564,6 @@ export async function decideDocument(
     });
   }
 
-  await reconcileStage(client, caseId, {
-    entityType: "document_requirement",
-    entityId: requirementId,
-  });
-
   return await requirementView(client, requirementId);
 }
 
@@ -641,13 +631,6 @@ export async function waiveRequirement(
     caseId,
     requirementId,
     payloadAfter: { documentTypeCode: current.documentTypeCode },
-  });
-
-  // Waiving can be the last outstanding requirement on a file — the same
-  // stage reconciliation an upload or a verification triggers.
-  await reconcileStage(client, caseId, {
-    entityType: "document_requirement",
-    entityId: requirementId,
   });
 
   return await requirementView(client, requirementId);
@@ -832,74 +815,3 @@ export async function downloadDocument(
 // Case readiness — fixing the INPUT to the existing transition guard
 // ---------------------------------------------------------------------------
 
-/**
- * After a requirement's status changes, ask the existing transition machine
- * whether the case should move — never a second state machine, never a
- * bypass of `evaluateTransition`. Only the two moves whose guard this
- * milestone can now answer honestly: `documents_pending` -> settled, and the
- * reverse when a rejection re-opens what looked done (ADR-019's backwards
- * move).
- *
- * NOT routed through `advanceCaseStage` (`Backend/case-stage.ts`, Phase 5):
- * that helper's `deriveSystemStagePath` only ever targets `submitted`,
- * `sanctioned` or `disbursed` (`highestJustifiedStage`,
- * `@domain/case/transitions.ts`) — it has no notion of
- * `ready_for_submission` at all, because that stage is not "justified by a
- * submission fact", it is justified by requirements being settled. Routing
- * this function through it would silently stop reconciling documents_pending
- * <-> ready_for_submission, which is exactly the regression a Phase 5
- * integration test caught. `hasSanctionedSubmissionWithOffer` and
- * `hasDisbursedSubmission` stay real (`submissionOutcomeFacts`, shared with
- * `cases.ts` and `submissions.ts`) even though neither guard below reads
- * them, so a future guard change here does not silently see stale zeros.
- */
-async function reconcileStage(
-  client: Queryable,
-  caseId: string,
-  causedBy: { entityType: string; entityId: string },
-): Promise<void> {
-  const header = await loadCaseHeader(client, caseId);
-  if (header.isOnHold) return;
-  if (header.stage !== "documents_pending" && header.stage !== "ready_for_submission") return;
-
-  const outstanding = await outstandingCountOnly(client, caseId);
-  const facts = await submissionOutcomeFacts(client, caseId);
-  const snapshot: CaseSnapshot = {
-    stage: header.stage,
-    outstandingRequirementCount: outstanding,
-    liveSubmissionCount: facts.liveSubmissionCount,
-    hasSanctionedSubmissionWithOffer: facts.hasSanctionedSubmissionWithOffer,
-    hasDisbursedSubmission: facts.hasDisbursedSubmission,
-    isInvoiceRaised: false,
-    stageBeforeLost: null,
-  };
-
-  const candidate: CaseStage =
-    header.stage === "documents_pending" ? "ready_for_submission" : "documents_pending";
-  const verdict = evaluateTransition(snapshot, { to: candidate, actor: "system" });
-  if (!verdict.allowed) return;
-
-  await client.query(`update loan_case set stage = $1 where id = $2`, [candidate, caseId]);
-  await recordSystemCaseEvent(client, {
-    caseId,
-    eventType: "case.stage_changed",
-    payloadBefore: { stage: header.stage },
-    payloadAfter: { stage: candidate },
-    causedByEntityType: causedBy.entityType,
-    causedByEntityId: causedBy.entityId,
-  });
-}
-
-/** The count alone, without the reconciliation side-effect that
- * `outstandingRequirementCount` (Backend/requirements.ts) also performs —
- * `reconcileStage` runs immediately after a write that already regenerated
- * the case's requirements, so a second regeneration here would be redundant
- * work, not a correctness issue, but there is no reason to pay for it twice. */
-async function outstandingCountOnly(client: Queryable, caseId: string): Promise<number> {
-  const { rows } = await client.query<{ n: string }>(
-    `select count(*) as n from document_requirement
-      where case_id = $1 and status in ('pending', 'received', 'rejected')`,
-    [caseId],
-  );
-  return Number(rows[0]?.n ?? 0);
-}

@@ -109,6 +109,7 @@ const MORE_HINTS: Record<(typeof MOBILE_MORE)[number], string> = {
 
 const LIVE_SUBMISSION_STATUSES = new Set<SubmissionStatus>([
   "submitted",
+  "login_completed",
   "under_process",
   "query_raised",
   "eligibility_received",
@@ -216,7 +217,7 @@ function buildBankGroups(submissions: readonly ApiSubmissionBoardEntry[]): BankG
     const group = byBank.get(submission.counterparty) ?? { live: 0, sanctioned: 0, rejected: 0, total: 0 };
     group.total += 1;
     if (LIVE_SUBMISSION_STATUSES.has(submission.status)) group.live += 1;
-    if (submission.status === "sanctioned" || submission.status === "disbursed") group.sanctioned += 1;
+    if (["sanctioned", "sanction_accepted", "disbursed"].includes(submission.status)) group.sanctioned += 1;
     if (submission.status === "rejected") group.rejected += 1;
     byBank.set(submission.counterparty, group);
   }
@@ -760,7 +761,7 @@ function OverviewSection({
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           <StatTile
-            label="New leads"
+            label="New cases"
             value={String(newLeads)}
             hint={`Last ${NEW_LEAD_WINDOW_DAYS} days`}
             to={`/cases?stage=active&createdWithinDays=${NEW_LEAD_WINDOW_DAYS}`}
@@ -908,7 +909,7 @@ function QuickActions({ onNavigate }: { onNavigate: (section: Section) => void }
       <div className="flex flex-wrap gap-2">
         {session.can("case.create", "all") && (
           <Link to="/cases/new">
-            <Button variant="primary">New case</Button>
+            <Button variant="primary">Log a Case</Button>
           </Link>
         )}
         <Link to="/cases">

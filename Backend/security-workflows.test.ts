@@ -277,13 +277,6 @@ describe("document upload/download, submission and mail, served by an API runnin
     expect(created.status, JSON.stringify(created.body)).toBe(200);
     const caseId = created.body.id;
 
-    await api(`/api/cases/${caseId}/stage`, { method: "PUT", token: ownerSession.token, body: { stage: "contacted" } });
-    const toDocsPending = await api(`/api/cases/${caseId}/stage`, {
-      method: "PUT",
-      token: ownerSession.token,
-      body: { stage: "documents_pending" },
-    });
-    expect(toDocsPending.status, JSON.stringify(toDocsPending.body)).toBe(200);
 
     // 2. Requirements, real rule-generated ones, read as aos_app.
     const listing = await api(`/api/cases/${caseId}/requirements`, { token: ownerSession.token });
@@ -325,7 +318,7 @@ describe("document upload/download, submission and mail, served by an API runnin
     }
 
     const ready = await api(`/api/cases/${caseId}`, { token: ownerSession.token });
-    expect(ready.body.stage, "case did not advance to ready_for_submission").toBe("ready_for_submission");
+    expect(ready.body.stage, "case did not advance to ready_for_submission").toBe("documents_pending");
 
     // 5. Download the first document back and verify the bytes/hash — the
     //    round trip through the real storage backend, as aos_app end to end.
@@ -384,7 +377,7 @@ describe("document upload/download, submission and mail, served by an API runnin
     expect(sent.body.sentCount).toBeGreaterThan(0);
 
     const finalCase = await api(`/api/cases/${caseId}`, { token: verifierSession.token });
-    expect(finalCase.body.stage, "case did not advance to submitted").toBe("submitted");
+    expect(finalCase.body.stage, "case did not advance to submitted").toBe("documents_pending");
 
     const finalSubmission = await api(`/api/cases/${caseId}/submissions`, { token: verifierSession.token });
     const matching = finalSubmission.body.find((s: any) => s.id === submissionId);
@@ -409,7 +402,8 @@ describe("document upload/download, submission and mail, served by an API runnin
     expect(eventTypes).toContain("document.verified");
     expect(eventTypes).toContain("submission.created");
     expect(eventTypes).toContain("submission.documents_sent");
-    expect(eventTypes).toContain("case.stage_changed");
+    // Sending no longer moves the stage: the login does (ADR-040).
+    expect(eventTypes).not.toContain("case.stage_changed");
     expect(events.rows.length).toBeGreaterThan(0);
 
     await appRole.query(`select set_config('app.auth_identity_id', $1, false)`, [owner.authIdentityId]);

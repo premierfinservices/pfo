@@ -153,9 +153,6 @@ async function move(session: Session, caseId: string, stage: string): Promise<{ 
 
 async function aReadyCase(owner: Session, verifier: Session): Promise<{ id: string }> {
   const loanCase = await aCase(owner);
-  await move(owner, loanCase.id, "contacted");
-  const advanced = await move(owner, loanCase.id, "documents_pending");
-  expect(advanced.status, JSON.stringify(advanced.body)).toBe(200);
 
   const listing = await api(`/api/cases/${loanCase.id}/requirements`, { token: owner.token });
   const requirements: any[] = listing.body.requirements;
@@ -183,7 +180,7 @@ async function aReadyCase(owner: Session, verifier: Session): Promise<{ id: stri
   }
 
   const ready = await api(`/api/cases/${loanCase.id}`, { token: owner.token });
-  expect(ready.body.stage).toBe("ready_for_submission");
+  expect(ready.body.stage).toBe("documents_pending");
   return { id: loanCase.id };
 }
 
@@ -343,7 +340,7 @@ describe("submission status lattice", () => {
 
     // The case advances automatically — never a manual "Move stage" choice.
     const afterSanction = await api(`/api/cases/${loanCase.id}`, { token: owner.token });
-    expect(afterSanction.body.stage).toBe("sanctioned");
+    expect(afterSanction.body.stage).toBe("approved");
 
     const disbursed = await setStatus(verifier, loanCase.id, submission.id, "disbursed");
     expect(disbursed.status, JSON.stringify(disbursed.body)).toBe(200);
@@ -388,7 +385,7 @@ describe("submission status lattice", () => {
     // The case stays at `submitted` — a rejection is one bank's outcome, not
     // the case's.
     const afterReject = await api(`/api/cases/${loanCase.id}`, { token: owner.token });
-    expect(afterReject.body.stage).toBe("submitted");
+    expect(afterReject.body.stage).toBe("documents_pending");
 
     // Terminal: no further transition is legal.
     const deadEnd = await setStatus(verifier, loanCase.id, submission.id, "under_process");

@@ -102,6 +102,20 @@ import {
 } from "../ui/index.js";
 import { CustomerSearchField } from "../ui/customer-picker.js";
 
+/** The same line Update Case shows, from the same tasks. */
+function NextStepLine({ caseId }: { caseId: string }): ReactNode {
+  const summary = useApiQuery<{ next: string }>(`/work/cases/${caseId}`);
+  if (!summary.data) return null;
+  return (
+    <p className="mt-2 text-sm font-medium text-ink-800" role="status">
+      {summary.data.next}{" "}
+      <Link to={`/update-case?case=${caseId}`} className="font-normal text-ink-500 underline">
+        Update Case
+      </Link>
+    </p>
+  );
+}
+
 export function CaseDetail(): ReactNode {
   const { caseId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -158,7 +172,7 @@ export function CaseDetail(): ReactNode {
               )}
             >
               {CASE_TAB_LABELS[value]}
-              {value === "banks" && loanCase.stage === "ready_for_submission" && (
+              {value === "banks" && loanCase.stage === "documents_collected" && (
                 <span
                   className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-sky-500"
                   title="Ready for submission — add a bank and send"
@@ -212,6 +226,7 @@ function CaseHeader({
         <div className="mt-2 max-w-xs">
           <StageRail stage={loanCase.stage} />
         </div>
+        <NextStepLine caseId={loanCase.id} />
 
         <p className="mt-1 text-sm text-ink-700">
           {loanCase.applicantId ? (
@@ -377,9 +392,7 @@ function MoveStageModal({
       <Modal open title="Move stage" onClose={onClose}>
         <div className="space-y-3">
           <p className="text-sm text-ink-700">
-            {loanCase.stage === "ready_for_submission"
-              ? "This case is ready for submission. It moves to Submitted automatically once it's sent to a bank — that workflow isn't available here yet."
-              : `There is nothing to choose here — ${CASE_STAGE_LABELS[loanCase.stage]} only advances automatically, by what happens on the case.`}
+            {`There is nothing to choose here. ${CASE_STAGE_LABELS[loanCase.stage]} moves on by what happens on the case's applications.`}
           </p>
           <div className="flex justify-end">
             <Button variant="ghost" onClick={onClose}>
@@ -1385,11 +1398,6 @@ function DocumentsTab({
     byCategory.set(category, list);
   }
 
-  const nothingYet =
-    loanCase.stage === "new" ||
-    loanCase.stage === "contacted" ||
-    loanCase.stage === "appointment_fixed";
-
   const row = (requirement: ApiRequirement): ReactNode => (
     <RequirementRow
       key={requirement.id}
@@ -1405,32 +1413,10 @@ function DocumentsTab({
 
   return (
     <div className="space-y-4">
-      {requirements.length > 0 && (
-        <Card title="Progress">
-          <div className="space-y-2">
-            <ProgressBar percent={progress.percentComplete} applicable={progress.applicableCount} />
-            <p className="text-xs text-ink-500">
-              {progress.verifiedCount} verified · {progress.outstandingCount} outstanding
-              {progress.rejectedCount > 0 && ` (${progress.rejectedCount} rejected)`}
-              {progress.optionalCount > 0 && ` · ${progress.optionalCount} optional`}
-              {progress.upcomingCount > 0 && ` · ${progress.upcomingCount} not due yet`}
-            </p>
-            {progress.isReadyForSubmission && loanCase.stage === "documents_pending" && (
-              <p className="text-xs text-ink-500">
-                Everything required is verified — this case moves to Ready for Submission on its
-                own.
-              </p>
-            )}
-          </div>
-        </Card>
-      )}
-
       {required.length === 0 && (
         <Card title="Required documents">
           <Empty>
-            {nothingYet
-              ? "Nothing is due yet at this stage. Requirements appear once the case reaches Documents Pending."
-              : "This case does not require any documents."}
+            {"This case does not require any documents."}
           </Empty>
         </Card>
       )}

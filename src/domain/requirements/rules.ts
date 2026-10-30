@@ -36,7 +36,7 @@
  *     from a universal checklist. A rule that matches nothing emits nothing.
  */
 
-import type { ProgressionStage } from "../case/stages.js";
+import { type ProgressionStage, stageOrdinal } from "../case/stages.js";
 import type { ApplicabilityCode } from "../products/catalogue.js";
 
 // ---------------------------------------------------------------------------
@@ -474,20 +474,8 @@ function merge(
   };
 }
 
-const STAGE_SEQUENCE: readonly ProgressionStage[] = [
-  "new",
-  "contacted",
-  "appointment_fixed",
-  "documents_pending",
-  "ready_for_submission",
-  "submitted",
-  "sanctioned",
-  "disbursed",
-];
-
 function stageOrder(stage: ProgressionStage): number {
-  const index = STAGE_SEQUENCE.indexOf(stage);
-  return index === -1 ? STAGE_SEQUENCE.length : index;
+  return stageOrdinal(stage) ?? Number.MAX_SAFE_INTEGER;
 }
 
 /**

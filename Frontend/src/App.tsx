@@ -15,11 +15,11 @@ import type { ApiSearchHit } from "./api/types.js";
 import { Bankers } from "./screens/Bankers.js";
 import { CaseDetail } from "./screens/CaseDetail.js";
 import { CaseList } from "./screens/CaseList.js";
-import { DocumentRules } from "./screens/DocumentRules.js";
 import { LenderCatalogue } from "./screens/LenderCatalogue.js";
 import { LendingProducts } from "./screens/LendingProducts.js";
 import { MasterData } from "./screens/MasterData.js";
-import { NewCase } from "./screens/NewCase.js";
+import { LogCase } from "./screens/LogCase.js";
+import { UpdateCase } from "./screens/UpdateCase.js";
 import { PersonProfile } from "./screens/PersonProfile.js";
 import { UserManagement } from "./screens/UserManagement.js";
 import { WorkspaceHome } from "./screens/WorkspaceHome.js";
@@ -40,13 +40,13 @@ export function App(): ReactNode {
         <Routes>
           <Route path="/" element={<WorkspaceHome />} />
           <Route path="/cases" element={<CaseList />} />
-          <Route path="/cases/new" element={<NewCase />} />
+          <Route path="/cases/new" element={<LogCase />} />
+          <Route path="/update-case" element={<UpdateCase />} />
           <Route path="/cases/:caseId" element={<CaseDetail />} />
           <Route path="/people/:personId" element={<PersonProfile />} />
           <Route path="/admin/lending-products" element={<LendingProducts />} />
           <Route path="/admin/lenders" element={<LenderCatalogue />} />
           <Route path="/admin/bankers" element={<Bankers />} />
-          <Route path="/admin/document-rules" element={<DocumentRules />} />
           <Route path="/admin/master-data" element={<MasterData />} />
           <Route path="/admin/users" element={<UserManagement />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -132,12 +132,15 @@ function TopBar(): ReactNode {
             )}
             {founder ? "Dashboard" : "My Work"}
           </NavLink>
+          <NavLink to="/update-case" className={navLinkClass}>
+            Update Case
+          </NavLink>
           <NavLink to="/cases" className={navLinkClass}>
             {casesLabel(session)}
           </NavLink>
           {session.can("case.create", "all") && (
             <Link to="/cases/new">
-              <Button variant="primary">New case</Button>
+              <Button variant="primary">Log a Case</Button>
             </Link>
           )}
         </nav>

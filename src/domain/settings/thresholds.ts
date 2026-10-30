@@ -19,7 +19,7 @@
  * never its premise.
  */
 
-import { CASE_STAGE_PROGRESSION, type ProgressionStage } from "../case/stages.js";
+import { CASE_STAGE_PROGRESSION } from "../case/stages.js";
 
 /**
  * How many days a case may sit in a stage before its health degrades and it
@@ -28,7 +28,7 @@ import { CASE_STAGE_PROGRESSION, type ProgressionStage } from "../case/stages.js
  * Per stage, because the norms are not comparable: three days in `new` is bad,
  * three days in `submitted` is ordinary bank turnaround (`Workflow.md`).
  */
-export type IdleThresholdKey = `idle_days.${ProgressionStage}`;
+export type IdleThresholdKey = `idle_days.${(typeof CASE_STAGE_PROGRESSION)[number]}`;
 
 const IDLE_THRESHOLD_KEYS: readonly IdleThresholdKey[] = CASE_STAGE_PROGRESSION.map(
   (stage) => `idle_days.${stage}` as const,
@@ -66,13 +66,13 @@ export const THRESHOLD_KEYS: readonly ThresholdKey[] = [
  * short; later stages are waiting on a bank and should not generate noise.
  */
 export const THRESHOLD_DEFAULTS: Record<ThresholdKey, number> = {
-  "idle_days.new": 1,
-  "idle_days.contacted": 3,
-  "idle_days.appointment_fixed": 2,
   "idle_days.documents_pending": 5,
-  "idle_days.ready_for_submission": 2,
-  "idle_days.submitted": 10,
-  "idle_days.sanctioned": 7,
+  "idle_days.eligibility_check": 2,
+  "idle_days.documents_collected": 2,
+  "idle_days.login_completed": 10,
+  "idle_days.query_raised": 3,
+  "idle_days.approved": 7,
+  "idle_days.sanction_accepted": 7,
   "idle_days.disbursed": 14,
 
   offer_expiry_warning_days: 7,
@@ -80,7 +80,7 @@ export const THRESHOLD_DEFAULTS: Record<ThresholdKey, number> = {
   default_hold_follow_up_days: 14,
 };
 
-export function idleThresholdKey(stage: ProgressionStage): IdleThresholdKey {
+export function idleThresholdKey(stage: (typeof CASE_STAGE_PROGRESSION)[number]): IdleThresholdKey {
   return `idle_days.${stage}`;
 }
 

@@ -108,13 +108,6 @@ async function aCase(session: Session) {
 }
 
 async function toDocumentsPending(session: Session, caseId: string) {
-  await api(`/api/cases/${caseId}/stage`, { method: "PUT", token: session.token, body: { stage: "contacted" } });
-  const result = await api(`/api/cases/${caseId}/stage`, {
-    method: "PUT",
-    token: session.token,
-    body: { stage: "documents_pending" },
-  });
-  expect(result.status, JSON.stringify(result.body)).toBe(200);
 }
 
 beforeAll(async () => {
@@ -307,7 +300,7 @@ describe("the real requirement engine consumes exactly the rules this API edits"
     // The unconditional KYC rule for aadhaar_card — present on every case
     // regardless of product or employment type (Database/migrations/0022).
     const rule = rules.body.find(
-      (r: any) => r.documentTypeCode === "aadhaar_card" && r.conditions.length === 0,
+      (r: any) => r.documentTypeCode === "aadhaar_card" && r.conditions.length === 0 && r.isActive,
     );
     expect(rule, JSON.stringify(rules.body.map((r: any) => r.documentTypeCode))).toBeDefined();
     expect(rule.applicability).toBe("mandatory");
@@ -360,7 +353,7 @@ describe("the real requirement engine consumes exactly the rules this API edits"
 
     const rules = await api("/api/master-data/document-rules", { token: manager.token });
     const rule = rules.body.find(
-      (r: any) => r.documentTypeCode === "pan_card" && r.conditions.length === 0,
+      (r: any) => r.documentTypeCode === "pan_card" && r.conditions.length === 0 && r.isActive,
     );
     expect(rule).toBeDefined();
 

@@ -218,10 +218,11 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
  * server's own reading of the request (`Backend/api-server.ts`'s
  * `readBinaryBody`).
  */
-export async function apiUpload<T>(path: string, file: File): Promise<T> {
+export async function apiUpload<T>(path: string, file: File, folder?: string): Promise<T> {
   const token = storedToken();
   const headers: Record<string, string> = {
     "X-File-Name": encodeURIComponent(file.name),
+    ...(folder ? { "X-File-Folder": encodeURIComponent(folder) } : {}),
   };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (file.type) headers["Content-Type"] = file.type;

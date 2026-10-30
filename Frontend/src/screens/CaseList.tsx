@@ -35,7 +35,6 @@ import {
   Card,
   Empty,
   Input,
-  ProgressBar,
   Select,
   StageBadge,
   TABLE_ROW,
@@ -188,7 +187,6 @@ export function CaseList(): ReactNode {
                 <Th>Product</Th>
                 <Th align="right">Amount</Th>
                 <Th>Stage</Th>
-                <Th>Documents</Th>
                 <Th>Owner</Th>
                 <Th>Opened</Th>
               </tr>
@@ -228,16 +226,6 @@ export function CaseList(): ReactNode {
                   </Td>
                   <Td>
                     <StageBadge stage={loanCase.stage} label={CASE_STAGE_LABELS[loanCase.stage]} />
-                  </Td>
-                  <Td className="w-40">
-                    {loanCase.progress ? (
-                      <ProgressBar
-                        percent={loanCase.progress.percentComplete}
-                        applicable={loanCase.progress.applicableCount}
-                      />
-                    ) : (
-                      <span className="text-xs text-ink-400">—</span>
-                    )}
                   </Td>
                   <Td muted>{users.ownerName(loanCase.ownerUserId)}</Td>
                   <Td muted>{when(loanCase.createdAt)}</Td>

@@ -54,14 +54,17 @@ import {
 } from "../ui/index.js";
 
 export const SUBMISSION_STATUS_LABELS: Record<SubmissionStatus, string> = {
-  not_submitted: "Draft",
-  submitted: "Submitted",
-  under_process: "Under process",
-  query_raised: "Query raised",
-  eligibility_received: "Eligibility received",
+  not_submitted: "Not Logged In",
+  submitted: "Not Logged In",
+  not_eligible_precheck: "Not Eligible (Pre-check)",
+  login_completed: "Login Completed",
+  under_process: "Under Review",
+  query_raised: "Query Raised by Bank",
+  eligibility_received: "Approved",
   sanctioned: "Sanctioned",
+  sanction_accepted: "Sanction Accepted",
   rejected: "Rejected",
-  withdrawn: "Withdrawn",
+  withdrawn: "Withdrawn / Closed",
   disbursed: "Disbursed",
 };
 
@@ -120,14 +123,14 @@ export function BanksTab({
   }
 
   const submissions = query.data ?? [];
-  const readyWithNothingSent = loanCase.stage === "ready_for_submission" && !hasLiveSubmission(submissions);
+  const readyWithNothingSent = loanCase.stage === "documents_collected" && !hasLiveSubmission(submissions);
 
   return (
     <div className="space-y-4">
       {readyWithNothingSent && (
         <div className="rounded-md bg-sky-50 px-3 py-2 text-sm text-sky-900 ring-1 ring-sky-200">
-          This case is ready for submission. Add a bank below and send its verified documents —
-          the case moves to Submitted automatically once a send succeeds.
+          Documents are collected. Add a bank below and send them. The case moves to Login
+          Completed when the bank logs the file in.
         </div>
       )}
 

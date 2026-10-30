@@ -163,9 +163,6 @@ async function move(session: Session, caseId: string, stage: string) {
 }
 
 async function toDocumentsPending(session: Session, caseId: string) {
-  await move(session, caseId, "contacted");
-  const result = await move(session, caseId, "documents_pending");
-  expect(result.status, JSON.stringify(result.body)).toBe(200);
 }
 
 async function upload(session: Session, caseId: string, requirementId: string, fileName = "pan-card.pdf") {
@@ -291,7 +288,7 @@ describe("the complete document path: upload, storage, verification, progress, r
     // clicked "Move stage". This is `evaluateTransition`, unmodified,
     // finally given a real `outstandingRequirementCount`.
     const finalCase = await api(`/api/cases/${loanCase.id}`, { token: telecaller.token });
-    expect(finalCase.body.stage).toBe("ready_for_submission");
+    expect(finalCase.body.stage).toBe("documents_pending");
   });
 
   it("rejects a document with a reason, and does not let the case advance", async () => {
@@ -392,9 +389,8 @@ describe("the complete document path: upload, storage, verification, progress, r
 
     const beforeCollecting = await api("/api/cases", { token: telecaller.token });
     const freshRow = beforeCollecting.body.find((c: any) => c.id === loanCase.id);
-    // Nothing is due yet at `new` (ADR-020) — zero applicable, not a lie about
-    // completeness.
-    expect(freshRow.progress.applicableCount).toBe(0);
+    // Every case now starts collecting (ADR-040), so its checklist is due at once.
+    expect(freshRow.progress.applicableCount).toBeGreaterThan(0);
 
     await toDocumentsPending(telecaller, loanCase.id);
     const listing = await api(`/api/cases/${loanCase.id}/requirements`, { token: telecaller.token });

@@ -33,15 +33,16 @@ import type { Queryable } from "./db.js";
 import { can, canActOnCase, widestScopeFor, type Actor } from "./authorize.js";
 import { recordCaseEvent } from "./events.js";
 import { ApiError, refusalMessage } from "./http.js";
-import { caseListProgress, outstandingRequirementCount } from "./requirements.js";
-import { submissionOutcomeFacts } from "./case-stage.js";
+import { caseListProgress } from "./requirements.js";
+import { justifiedStageOf } from "./case-stage.js";
 
 const COLUMNS = `c.id, c.case_number, c.loan_product_id, c.requested_amount, c.stage,
                  c.owner_user_id, c.created_by, c.source, c.referral_source_id,
                  c.is_on_hold, c.hold_reason, c.hold_until,
                  c.lost_reason, c.lost_note, c.lost_at, c.stage_before_lost,
                  c.is_invoice_raised, c.closed_at, c.created_at, c.updated_at,
-                 c.is_practice`;
+                 c.is_practice, c.document_status, c.eligibility_status,
+                 c.loan_type, c.loan_variant, c.place`;
 
 /**
  * The primary applicant travels with every case row.
@@ -93,6 +94,11 @@ export function caseFromRow(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     isPractice: row.is_practice,
+    documentStatus: row.document_status,
+    eligibilityStatus: row.eligibility_status,
+    loanType: row.loan_type,
+    loanVariant: row.loan_variant,
+    place: row.place,
     applicantId: row.applicant_id ?? null,
     applicantName: row.applicant_name ?? null,
     applicantPhone: row.applicant_phone ?? null,
@@ -100,41 +106,11 @@ export function caseFromRow(
   };
 }
 
-/**
- * The facts the transition machine judges against, from a case row.
- *
- * `outstandingRequirementCount` IS REAL, as of Stage 3C — `Backend/requirements.ts`
- * regenerates the case's requirements from the rule engine and counts what is
- * not yet verified, waived or not_applicable. The guard on
- * `documents_pending → ready_for_submission` (and its reverse) now runs
- * against genuine data, since `evaluateTransition` is never bypassed:
- * whatever this function reports is exactly what the domain layer judges.
- *
- * `liveSubmissionCount` is real as of Stage 3D — `Backend/submissions.ts`
- * writes genuine `submission` rows now, so this counts them rather than
- * assuming zero. `hasSanctionedSubmissionWithOffer` and
- * `hasDisbursedSubmission` are real as of Phase 5 — `submissionOutcomeFacts`
- * (`Backend/case-stage.ts`) is the one place that reads them, shared with
- * `documents.ts` and `submissions.ts` so the three cannot disagree on what
- * "sanctioned with an offer" means. This function still exists to serve
- * `moveStage`, a `user`-actor endpoint: the transitions whose guards read
- * those two facts — → sanctioned, → disbursed — are declared
- * `actor: "system"`, and `evaluateTransition` checks the actor BEFORE running
- * the guard, so a request through this API is refused on the actor check
- * regardless of the facts. Only `Backend/case-stage.ts`'s own system-actor
- * evaluation, run after a submission/offer mutation, ever consults them.
- *
- * The one guarded USER transition, disbursed → closed, reads `isInvoiceRaised`
- * — a column on `loan_case`, which the server does know and passes honestly.
- */
+/** The facts the transition machine judges against, from a case row. */
 async function snapshotOf(client: Queryable, row: Record<string, unknown>): Promise<CaseSnapshot> {
-  const facts = await submissionOutcomeFacts(client, row.id as string);
   return {
     stage: row.stage as CaseStage,
-    outstandingRequirementCount: await outstandingRequirementCount(client, row.id as string),
-    liveSubmissionCount: facts.liveSubmissionCount,
-    hasSanctionedSubmissionWithOffer: facts.hasSanctionedSubmissionWithOffer,
-    hasDisbursedSubmission: facts.hasDisbursedSubmission,
+    justifiedStage: await justifiedStageOf(client, row.id as string),
     isInvoiceRaised: row.is_invoice_raised === true,
     stageBeforeLost: (row.stage_before_lost as CaseStage | null) ?? null,
   };
@@ -391,7 +367,7 @@ export async function createCase(client: Queryable, actor: Actor, body: Record<s
                             owner_user_id, source, referral_source_id, created_by,
                             is_gst_registered, has_existing_obligations, construction_stage,
                             is_practice)
-     values ($1, $2, $3, 'new', $4, $5, $6, $4, $7, $8, $9, $10)
+     values ($1, $2, $3, 'documents_pending', $4, $5, $6, $4, $7, $8, $9, $10)
      returning id`,
     [
       numbered.rows[0]!.case_number,
@@ -440,7 +416,7 @@ export async function createCase(client: Queryable, actor: Actor, body: Record<s
     caseId,
     eventType: "case.created",
     payloadAfter: {
-      stage: "new",
+      stage: "documents_pending",
       loanProductId,
       requestedAmount: body.requestedAmount ?? null,
       referralSourceId,
@@ -571,8 +547,18 @@ export async function moveStage(
     throw new ApiError(409, "This case is on hold. Release the hold before moving it on.");
   }
 
-  const verdict = evaluateTransition(await snapshotOf(client, current), { to, actor: "user" });
-  if (!verdict.allowed) throw new ApiError(409, verdict.reason);
+  // A manager may correct a stage by hand with a note, as Edit a Case allows
+  // in the MIS. Anything else goes through the transition table.
+  const correctionNote = typeof body.correctionNote === "string" ? body.correctionNote.trim() : "";
+  if (correctionNote === "") {
+    const verdict = evaluateTransition(await snapshotOf(client, current), { to, actor: "user" });
+    if (!verdict.allowed) throw new ApiError(409, verdict.reason);
+  } else {
+    if (!can(actor, "case.assign", "all")) throw new ApiError(403, refusalMessage("case.assign"));
+    if (current.stage === "lost" || current.stage === "closed" || to === "closed") {
+      throw new ApiError(409, "A closed or lost case is not corrected this way.");
+    }
+  }
 
   await client.query(`update loan_case set stage = $1 where id = $2`, [to, id]);
 
@@ -581,7 +567,7 @@ export async function moveStage(
     caseId: id,
     eventType: "case.stage_changed",
     payloadBefore: { stage: current.stage },
-    payloadAfter: { stage: to },
+    payloadAfter: { stage: to, ...(correctionNote ? { correction: true } : {}) },
   });
 
   return await readCase(client, actor, id);
@@ -700,13 +686,13 @@ export async function reopen(client: Queryable, actor: Actor, id: string) {
 
   // Where a reopened case lands is the domain's decision — the stage it was
   // lost from, and a refusal if that is unknown.
-  const restoreTo = (current.stage_before_lost as CaseStage | null) ?? "new";
+  const restoreTo = (current.stage_before_lost as CaseStage | null) ?? "documents_pending";
   const verdict = evaluateTransition(await snapshotOf(client, current), { to: restoreTo, actor: "user" });
   if (!verdict.allowed) throw new ApiError(409, verdict.reason);
 
   await client.query(
     `update loan_case
-        set stage = coalesce(stage_before_lost, 'new'), stage_before_lost = null,
+        set stage = coalesce(stage_before_lost, 'documents_pending'), stage_before_lost = null,
             lost_reason = null, lost_note = null, lost_at = null
       where id = $1`,
     [id],

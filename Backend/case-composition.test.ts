@@ -100,18 +100,6 @@ async function aCase(session: Session): Promise<{ id: string; stage: string }> {
 }
 
 async function toDocumentsPending(session: Session, caseId: string): Promise<void> {
-  const contacted = await api(`/api/cases/${caseId}/stage`, {
-    method: "PUT",
-    token: session.token,
-    body: { stage: "contacted" },
-  });
-  expect(contacted.status, JSON.stringify(contacted.body)).toBe(200);
-  const pending = await api(`/api/cases/${caseId}/stage`, {
-    method: "PUT",
-    token: session.token,
-    body: { stage: "documents_pending" },
-  });
-  expect(pending.status, JSON.stringify(pending.body)).toBe(200);
 }
 
 async function eventsFor(

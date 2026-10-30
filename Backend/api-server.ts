@@ -33,6 +33,24 @@
  *     this API accepts now appends to `event` in its own transaction.
  */
 
+import {
+  answerEligibility,
+  caseSummary,
+  dropCase,
+  lenderOptions,
+  logCase,
+  mobileMatches,
+  pickList,
+  requirementNotNeeded,
+  requirementRestore,
+  reschedule,
+  sendToLenders,
+  updateApplication,
+  updateDocuments,
+  uploadCaseFile,
+  workLists,
+  workQueue,
+} from "./work.js";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type pg from "pg";
@@ -339,7 +357,7 @@ function applyCors(req: IncomingMessage, res: ServerResponse): void {
 
   res.setHeader("Access-Control-Allow-Origin", origin!);
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-File-Name");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-File-Name, X-File-Folder");
 }
 
 // ---------------------------------------------------------------------------
@@ -921,6 +939,78 @@ async function route(
   // permissions, held at different scopes by different roles; folding them
   // into one field patch would make `case.update` silently grant all of them.
 
+  // ── Log a Case, Update Case, the work queue (ADR-040) ─────────────────────
+  if (method === "GET" && path === "/api/work/lists") {
+    requireActor(actor);
+    return await workLists(client);
+  }
+  if (method === "GET" && path === "/api/work/queue") {
+    const who = new URL(req.url ?? "/", "http://localhost").searchParams.get("who");
+    return await workQueue(client, requireActor(actor), who);
+  }
+  if (method === "GET" && path === "/api/work/mobile") {
+    const mobile = new URL(req.url ?? "/", "http://localhost").searchParams.get("mobile") ?? "";
+    return await mobileMatches(client, requireActor(actor), mobile);
+  }
+  if (method === "POST" && path === "/api/work/log-case") {
+    return await logCase(client, requireActor(actor), body);
+  }
+  if (method === "GET" && path === "/api/work/cases") {
+    const q = new URL(req.url ?? "/", "http://localhost").searchParams.get("q");
+    return await pickList(client, requireActor(actor), q);
+  }
+  const workCaseMatch = new RegExp(`^/api/work/cases/(${UUID})$`).exec(path);
+  if (workCaseMatch && method === "GET") {
+    return await caseSummary(client, requireActor(actor), workCaseMatch[1]!);
+  }
+  const workLendersMatch = new RegExp(`^/api/work/cases/(${UUID})/lenders$`).exec(path);
+  if (workLendersMatch && method === "GET") {
+    return await lenderOptions(client, requireActor(actor), workLendersMatch[1]!);
+  }
+  const workActionMatch = new RegExp(
+    `^/api/work/cases/(${UUID})/(documents|eligibility|reschedule|drop|send)$`,
+  ).exec(path);
+  if (workActionMatch && method === "POST") {
+    const id = workActionMatch[1]!;
+    const who = requireActor(actor);
+    switch (workActionMatch[2]) {
+      case "documents":
+        return await updateDocuments(client, who, id, body);
+      case "eligibility":
+        return await answerEligibility(client, who, id, body);
+      case "reschedule":
+        return await reschedule(client, who, id, body);
+      case "drop":
+        return await dropCase(client, who, id, body);
+      default:
+        return await sendToLenders(client, who, id, body);
+    }
+  }
+  const workUploadMatch = new RegExp(`^/api/work/cases/(${UUID})/upload$`).exec(path);
+  if (workUploadMatch && method === "POST") {
+    if (!rawBody) throw new HttpError(400, "A file is required.");
+    const contentType = req.headers["content-type"];
+    return await uploadCaseFile(client, requireActor(actor), workUploadMatch[1]!, {
+      bytes: rawBody,
+      fileName: decodeURIComponent((req.headers["x-file-name"] as string | undefined) ?? "document"),
+      folder: decodeURIComponent((req.headers["x-file-folder"] as string | undefined) ?? ""),
+      ...(typeof contentType === "string" && contentType.length > 0 ? { contentType } : {}),
+    });
+  }
+  const workNotNeededMatch = new RegExp(
+    `^/api/work/cases/(${UUID})/requirements/(${UUID})/(not-needed|restore)$`,
+  ).exec(path);
+  if (workNotNeededMatch && method === "POST") {
+    const change = workNotNeededMatch[3] === "restore" ? requirementRestore : requirementNotNeeded;
+    return await change(client, requireActor(actor), workNotNeededMatch[1]!, workNotNeededMatch[2]!);
+  }
+  const workApplicationMatch = new RegExp(
+    `^/api/work/cases/(${UUID})/applications/(${UUID})$`,
+  ).exec(path);
+  if (workApplicationMatch && method === "POST") {
+    return await updateApplication(client, requireActor(actor), workApplicationMatch[1]!, workApplicationMatch[2]!, body);
+  }
+
   if (method === "GET" && path === "/api/cases") {
     return await listCases(client, requireActor(actor));
   }
@@ -1221,7 +1311,10 @@ export function createApiServer() {
       // The one route that carries file bytes instead of form fields — read
       // as a raw body, never through the JSON parser (which caps a request at
       // 1MB precisely because it never expects a file).
-      const isUpload = method === "POST" && /^\/api\/cases\/[^/]+\/requirements\/[^/]+\/documents$/.test(path);
+      const isUpload =
+        method === "POST" &&
+        (/^\/api\/cases\/[^/]+\/requirements\/[^/]+\/documents$/.test(path) ||
+          /^\/api\/work\/cases\/[^/]+\/upload$/.test(path));
 
       try {
         const body =

@@ -112,7 +112,7 @@ const VERIFICATION_SOURCES = [
  * showing somebody a number they did not type back to them is its own small
  * betrayal of trust in the record.
  */
-function normaliseIdentifier(type: IdentifierType, value: string): string {
+export function normaliseIdentifier(type: IdentifierType, value: string): string {
   if (type === "phone") return value.replace(/\D/g, "");
   if (type === "pan") return value.trim().toUpperCase();
   if (type === "email") return value.trim().toLowerCase();

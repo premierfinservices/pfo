@@ -139,12 +139,6 @@ describe("document_requirement_rule.party_roles round-trips as a real array, not
       const caseId = created.body.id as string;
 
       // No co-applicant on this case — only the primary applicant party.
-      await api(`/api/cases/${caseId}/stage`, { method: "PUT", token: telecaller.token, body: { stage: "contacted" } });
-      await api(`/api/cases/${caseId}/stage`, {
-        method: "PUT",
-        token: telecaller.token,
-        body: { stage: "documents_pending" },
-      });
 
       const listing = await api(`/api/cases/${caseId}/requirements`, { token: telecaller.token });
       expect(listing.status, JSON.stringify(listing.body)).toBe(200);

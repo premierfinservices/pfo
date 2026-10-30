@@ -135,13 +135,6 @@ async function caseWithOutstandingRequirements(session: Session): Promise<{ id: 
   expect(created.status, JSON.stringify(created.body)).toBe(200);
   const caseId = created.body.id;
 
-  await api(`/api/cases/${caseId}/stage`, { method: "PUT", token: session.token, body: { stage: "contacted" } });
-  const advanced = await api(`/api/cases/${caseId}/stage`, {
-    method: "PUT",
-    token: session.token,
-    body: { stage: "documents_pending" },
-  });
-  expect(advanced.status, JSON.stringify(advanced.body)).toBe(200);
 
   const listing = await api(`/api/cases/${caseId}/requirements`, { token: session.token });
   const requirement = listing.body.requirements[0];

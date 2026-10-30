@@ -13,19 +13,34 @@
  */
 
 export const CASE_STAGES = [
-  "new",
-  "contacted",
-  "appointment_fixed",
   "documents_pending",
-  "ready_for_submission",
-  "submitted",
-  "sanctioned",
+  "eligibility_check",
+  "documents_collected",
+  "login_completed",
+  "query_raised",
+  "approved",
+  "sanction_accepted",
   "disbursed",
+  "rejected",
   "closed",
   "lost",
 ] as const;
 
-export type CaseStage = (typeof CASE_STAGES)[number];
+/**
+ * Stages the first lifecycle had (ADR-040 retired them). Nothing writes these:
+ * a database constraint refuses them. They stay in the type because the
+ * prototype store and the retired document rules are still written in them.
+ */
+export const LEGACY_CASE_STAGES = [
+  "new",
+  "contacted",
+  "appointment_fixed",
+  "ready_for_submission",
+  "submitted",
+  "sanctioned",
+] as const;
+
+export type CaseStage = (typeof CASE_STAGES)[number] | (typeof LEGACY_CASE_STAGES)[number];
 
 /** Stages from which a case never moves again, except by reopening from `lost`. */
 export const TERMINAL_STAGES = ["closed", "lost"] as const satisfies readonly CaseStage[];
@@ -37,14 +52,25 @@ export function isTerminalStage(stage: CaseStage): stage is TerminalStage {
 }
 
 /**
- * The ordered progression a case moves through. Terminal stages are absent by
- * design (ADR-023).
+ * The ordered progression a case moves through, as the MIS orders it. Lender
+ * updates only ever move a case forward along this.
  *
- * `closed` and `lost` are outcomes, not positions. Including them would give
- * `lost` the highest ordinal and make every requirement look due on a dead case
- * — a wrong number that fails silently rather than loudly.
+ * `closed` and `lost` are outcomes, not positions (ADR-023). So is `rejected`:
+ * a person sets it, and no lender update moves a case out of it.
  */
 export const CASE_STAGE_PROGRESSION = [
+  "documents_pending",
+  "eligibility_check",
+  "documents_collected",
+  "login_completed",
+  "query_raised",
+  "approved",
+  "sanction_accepted",
+  "disbursed",
+] as const satisfies readonly CaseStage[];
+
+/** The first lifecycle's order, for the prototype store and the retired rules. */
+export const LEGACY_CASE_STAGE_PROGRESSION = [
   "new",
   "contacted",
   "appointment_fixed",
@@ -55,18 +81,38 @@ export const CASE_STAGE_PROGRESSION = [
   "disbursed",
 ] as const satisfies readonly CaseStage[];
 
-export type ProgressionStage = (typeof CASE_STAGE_PROGRESSION)[number];
+export type ProgressionStage =
+  | (typeof CASE_STAGE_PROGRESSION)[number]
+  | (typeof LEGACY_CASE_STAGE_PROGRESSION)[number];
+
+/** Both lifecycles merged, so a requirement due "from documents_pending" reads
+ * correctly against either. */
+const ALL_STAGES_IN_ORDER: readonly CaseStage[] = [
+  "new",
+  "contacted",
+  "appointment_fixed",
+  "documents_pending",
+  "eligibility_check",
+  "documents_collected",
+  "ready_for_submission",
+  "login_completed",
+  "submitted",
+  "query_raised",
+  "approved",
+  "sanctioned",
+  "sanction_accepted",
+  "disbursed",
+];
 
 /**
- * How far along the progression a stage sits, for comparisons such as "is this
- * requirement due yet?".
+ * How far along a stage sits, for comparisons such as "is this requirement due
+ * yet?" and "would this move the case backward?".
  *
- * Returns `null` for terminal stages: asking whether a requirement is due on a
- * lost case is not a question with an answer, and callers must handle that
- * rather than receive a plausible-looking number.
+ * Returns `null` for `closed`, `lost` and `rejected`: they have no position,
+ * and callers must handle that rather than receive a plausible-looking number.
  */
 export function stageOrdinal(stage: CaseStage): number | null {
-  const index = (CASE_STAGE_PROGRESSION as readonly CaseStage[]).indexOf(stage);
+  const index = ALL_STAGES_IN_ORDER.indexOf(stage);
   return index === -1 ? null : index;
 }
 
@@ -76,14 +122,21 @@ export function stageOrdinal(stage: CaseStage): number | null {
  * "ready_for_submission" to a telecaller.
  */
 export const CASE_STAGE_LABELS: Record<CaseStage, string> = {
+  documents_pending: "Documents Pending",
+  eligibility_check: "Eligibility Check",
+  documents_collected: "Documents Collected",
+  login_completed: "Login Completed",
+  query_raised: "Query Raised by Bank",
+  approved: "Approved",
+  sanction_accepted: "Sanction Accepted",
+  disbursed: "Disbursed",
+  rejected: "Rejected",
   new: "New",
   contacted: "Contacted",
   appointment_fixed: "Appointment Fixed",
-  documents_pending: "Documents Pending",
   ready_for_submission: "Ready for Submission",
   submitted: "Submitted",
   sanctioned: "Sanctioned",
-  disbursed: "Disbursed",
   closed: "Closed",
   lost: "Lost",
 };
@@ -94,27 +147,32 @@ export const CASE_STAGE_LABELS: Record<CaseStage, string> = {
  * (Product Principles #11).
  */
 export const LOST_REASONS = [
-  "rate_too_high",
-  "sanctioned_elsewhere",
-  "customer_not_eligible",
-  "documents_unavailable",
-  "property_issue",
-  "customer_postponed",
-  "unreachable",
   "not_interested",
+  "customer_not_eligible",
+  "unreachable",
+  "documents_unavailable",
   "duplicate_case",
+  "other",
 ] as const;
 
-export type LostReason = (typeof LOST_REASONS)[number];
+/** Reasons the first lifecycle offered. Readable on old records, no longer offered. */
+export type RetiredLostReason =
+  | "rate_too_high"
+  | "sanctioned_elsewhere"
+  | "property_issue"
+  | "customer_postponed";
+
+export type LostReason = (typeof LOST_REASONS)[number] | RetiredLostReason;
 
 export const LOST_REASON_LABELS: Record<LostReason, string> = {
+  not_interested: "Customer not interested",
+  customer_not_eligible: "Not eligible / rejected by all lenders",
+  unreachable: "Customer unreachable",
+  documents_unavailable: "Documents not provided",
+  duplicate_case: "Duplicate record",
+  other: "Other (see notes)",
   rate_too_high: "Rate too high",
   sanctioned_elsewhere: "Sanctioned elsewhere",
-  customer_not_eligible: "Customer not eligible",
-  documents_unavailable: "Documents unavailable",
   property_issue: "Property issue",
   customer_postponed: "Customer postponed",
-  unreachable: "Unreachable",
-  not_interested: "Not interested",
-  duplicate_case: "Duplicate case",
 };

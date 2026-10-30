@@ -26,6 +26,7 @@ import { lakhs, when } from "../lib.js";
 import { WORKSPACE_QUESTIONS, useSession } from "../session.js";
 import { Badge, Card, Empty, StageBadge, TABLE_ROW, Table, Td, Th } from "../ui/index.js";
 import { FoundersDashboard } from "./FoundersDashboard.js";
+import { WorkQueue } from "./WorkQueue.js";
 
 export function WorkspaceHome(): ReactNode {
   const session = useSession();
@@ -54,7 +55,10 @@ export function WorkspaceHome(): ReactNode {
     return cases.error ? (
       <Empty>{cases.error.message}</Empty>
     ) : (
-      <FoundersDashboard all={all} active={active} loading={cases.loading} />
+      <div className="space-y-6">
+        <WorkQueue />
+        <FoundersDashboard all={all} active={active} loading={cases.loading} />
+      </div>
     );
   }
 
@@ -68,6 +72,8 @@ export function WorkspaceHome(): ReactNode {
           {session.displayName} · viewing the {session.workspace.replace(/_/g, " ")} workspace
         </p>
       </div>
+
+      <WorkQueue />
 
       {cases.loading ? (
         <Empty>Loading your work…</Empty>
@@ -173,7 +179,7 @@ function Pending({ title, what }: { title: string; what: string }): ReactNode {
 function CallingWorkspace({ active }: { active: readonly ApiCase[] }): ReactNode {
   // Early stages first: a lead nobody has called is the most perishable thing
   // on the list.
-  const order = ["new", "contacted", "appointment_fixed", "documents_pending"];
+  const order = ["documents_pending", "eligibility_check"];
   const callList = active
     .filter((c) => order.includes(c.stage))
     .sort((a, b) => order.indexOf(a.stage) - order.indexOf(b.stage));
@@ -214,8 +220,8 @@ function CallingWorkspace({ active }: { active: readonly ApiCase[] }): ReactNode
 
 function LoginDeskWorkspace({ active }: { active: readonly ApiCase[] }): ReactNode {
   const collecting = active.filter((c) => c.stage === "documents_pending");
-  const ready = active.filter((c) => c.stage === "ready_for_submission");
-  const atBank = active.filter((c) => ["submitted", "sanctioned"].includes(c.stage));
+  const ready = active.filter((c) => c.stage === "documents_collected");
+  const atBank = active.filter((c) => ["login_completed", "query_raised", "approved", "sanction_accepted"].includes(c.stage));
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">

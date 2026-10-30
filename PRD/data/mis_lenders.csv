@@ -1,0 +1,116 @@
+mis_id,name,lender_type,active,supported_loan_types
+LND-001,State Bank of India,Bank,Inactive,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-002,Bank of Baroda,Bank,Inactive,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-003,Punjab National Bank,Bank,Inactive,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-004,Canara Bank,Bank,Inactive,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-005,Union Bank of India,Bank,Inactive,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-006,Bank of India,Bank,Inactive,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-007,Indian Bank,Bank,Inactive,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-008,Indian Overseas Bank,Bank,Inactive,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-009,Central Bank of India,Bank,Inactive,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-010,UCO Bank,Bank,Inactive,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-011,Bank of Maharashtra,Bank,Inactive,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-012,Punjab & Sind Bank,Bank,Inactive,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-013,HDFC Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-014,ICICI Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-015,Axis Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-016,Kotak Mahindra Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-017,IndusInd Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Loan Against Business/Property; Car Loan
+LND-018,Yes Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-019,IDFC FIRST Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-020,RBL Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property
+LND-021,Bandhan Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan
+LND-022,Karur Vysya Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-023,City Union Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan; Other Loan Types
+LND-024,Tamilnad Mercantile Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan; Other Loan Types
+LND-025,DBS Bank India,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property
+LND-026,Federal Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-027,South Indian Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-028,CSB Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Other Loan Types
+LND-029,Dhanlaxmi Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Car Loan; Other Loan Types
+LND-030,Karnataka Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Car Loan
+LND-031,Equitas Small Finance Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Car Loan; Other Loan Types
+LND-032,AU Small Finance Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Car Loan
+LND-033,Suryoday Small Finance Bank,Bank,Active,Business Loan; Loan Against Property (LAP); Home Loan
+LND-034,The Coimbatore District Central Co-operative Bank,Bank,Active,Home Loan; Other Loan Types
+LND-035,Bajaj Finance,NBFC,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Loan Against Business/Property; Car Loan
+LND-036,Tata Capital,NBFC,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-037,Aditya Birla Capital,NBFC,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property
+LND-038,Shriram Finance,NBFC,Active,Personal Loan; Business Loan; Car Loan; Other Loan Types
+LND-039,Cholamandalam Investment and Finance Company,NBFC,Active,Business Loan; Loan Against Property (LAP); Home Loan; Loan Against Business/Property; Car Loan
+LND-040,Sundaram Finance,NBFC,Active,Business Loan; Car Loan; Loan Against Business/Property
+LND-041,Mahindra & Mahindra Financial Services,NBFC,Active,Personal Loan; Business Loan; Car Loan; Home Loan
+LND-042,L&T Finance,NBFC,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan
+LND-043,SMFG India Credit - Fullerton India,NBFC,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan
+LND-044,HDB Financial Services,NBFC,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Car Loan
+LND-045,Hero FinCorp,NBFC,Active,Personal Loan; Business Loan; Loan Against Property (LAP)
+LND-046,Poonawalla Fincorp,NBFC,Active,Personal Loan; Business Loan; Loan Against Property (LAP)
+LND-047,Piramal Finance,NBFC,Active,Business Loan; Loan Against Property (LAP); Home Loan
+LND-048,IIFL Finance,NBFC,Active,Business Loan; Loan Against Property (LAP); Home Loan; Other Loan Types
+LND-049,Kotak Mahindra Prime,NBFC,Active,Car Loan
+LND-050,Muthoot Finance,NBFC,Active,Other Loan Types; Business Loan
+LND-051,Manappuram Finance,NBFC,Active,Other Loan Types
+LND-052,Sakthi Finance,NBFC,Active,Car Loan; Business Loan
+LND-053,Oxyzo Financial Services,NBFC,Active,Loan Against Property (LAP); Business Loan; Loan Against Business/Property
+LND-054,LIC Housing Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-055,PNB Housing Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-056,Bajaj Housing Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-057,Can Fin Homes,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-058,Repco Home Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-059,Home First Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-060,Aadhar Housing Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-061,Aavas Financiers,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-062,Truhome Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-063,ICICI Home Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-064,Sundaram Home Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-065,GIC Housing Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-066,Godrej Finance,NBFC,Active,
+LND-067,UGRO Capital,NBFC,Active,
+LND-068,MAS Financial Services,NBFC,Active,
+LND-069,Varthana Finance,NBFC,Active,
+LND-070,DCB Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan
+LND-071,Ujjivan Small Finance Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP); Home Loan
+LND-072,ESAF Small Finance Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP)
+LND-073,Jana Small Finance Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP)
+LND-074,Capital Small Finance Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP)
+LND-075,Utkarsh Small Finance Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP)
+LND-076,Shivalik Small Finance Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP)
+LND-077,Unity Small Finance Bank,Bank,Active,Personal Loan; Business Loan; Loan Against Property (LAP)
+LND-078,Slice Small Finance Bank,Bank,Active,Personal Loan; Business Loan
+LND-079,Standard Chartered Bank,Bank,Active,Personal Loan; Business Loan; Home Loan
+LND-080,HSBC,Bank,Active,Personal Loan; Home Loan; Loan Against Property (LAP)
+LND-081,Credit Saison India,NBFC,Active,Personal Loan; Business Loan; Loan Against Property (LAP)
+LND-082,Clix Capital,NBFC,Active,Personal Loan; Business Loan; Loan Against Property (LAP)
+LND-083,InCred Finance,NBFC,Active,Personal Loan; Business Loan; Loan Against Property (LAP)
+LND-084,Fedbank Financial Services,NBFC,Active,Business Loan; Loan Against Property (LAP); Home Loan; Gold Loan
+LND-085,Hinduja Leyland Finance,NBFC,Active,Commercial Vehicle Loan; Business Loan; Loan Against Property (LAP)
+LND-086,TVS Credit Services,NBFC,Active,Two-Wheeler Loan; Used Car Loan; Commercial Vehicle Loan; Personal Loan; Business Loan
+LND-087,Veritas Finance,NBFC,Active,Business Loan; Loan Against Property (LAP)
+LND-088,Vistaar Financial Services,NBFC,Active,Business Loan; Loan Against Property (LAP)
+LND-089,Five Star Business Finance,NBFC,Active,Business Loan; Loan Against Property (LAP)
+LND-090,Muthoot Fincorp,NBFC,Active,Gold Loan; Business Loan; Personal Loan
+LND-091,Muthoot Capital Services,NBFC,Active,Two-Wheeler Loan; Personal Loan; Business Loan
+LND-092,Capri Global Capital,NBFC,Active,Home Loan; Loan Against Property (LAP); Business Loan; Gold Loan
+LND-093,Navi Finance,NBFC,Active,Personal Loan; Home Loan
+LND-094,Kinara Capital,NBFC,Active,Business Loan
+LND-095,Ashv Finance,NBFC,Active,Personal Loan; Business Loan
+LND-096,Aye Finance,NBFC,Active,Business Loan
+LND-097,Lendingkart,NBFC,Active,Business Loan
+LND-098,Indifi,NBFC,Active,Business Loan
+LND-099,NeoGrowth,NBFC,Active,Business Loan
+LND-100,FlexiLoans,NBFC,Active,Business Loan
+LND-101,Protium,NBFC,Active,Business Loan
+LND-102,Axis Finance,NBFC,Active,Business Loan; Loan Against Property (LAP); Lease Rental Discounting
+LND-103,Toyota Financial Services India,NBFC,Active,Car Loan; Used Car Loan
+LND-104,Kosamattam Finance,NBFC,Active,Gold Loan; Business Loan
+LND-105,Indel Money,NBFC,Active,Gold Loan; Business Loan
+LND-106,Aptus Value Housing Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-107,India Shelter Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-108,Hinduja Housing Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-109,Shubham Housing Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-110,Vastu Housing Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-111,SMFG India Home Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-112,Sammaan Capital,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-113,Tata Capital Housing Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-114,Hero Housing Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)
+LND-115,Muthoot Housing Finance,Housing Finance Company,Active,Home Loan; Loan Against Property (LAP)

@@ -18,6 +18,22 @@ import { PERMISSIONS } from "./actions.js";
 import { ROLES, ROLE_GRANTS } from "./roles.js";
 import { THRESHOLD_DEFAULTS, THRESHOLD_KEYS } from "../settings/thresholds.js";
 
+/**
+ * The idle thresholds as 0008 seeded them. This generator writes an applied
+ * migration, which must never change, so it keeps the first lifecycle's keys.
+ * 0045 replaced them in the database when the stages changed (ADR-040).
+ */
+const SEEDED_IDLE_THRESHOLDS: readonly (readonly [string, number])[] = [
+  ["idle_days.new", 1],
+  ["idle_days.contacted", 3],
+  ["idle_days.appointment_fixed", 2],
+  ["idle_days.documents_pending", 5],
+  ["idle_days.ready_for_submission", 2],
+  ["idle_days.submitted", 10],
+  ["idle_days.sanctioned", 7],
+  ["idle_days.disbursed", 14],
+];
+
 /** Postgres string literal. Doubling the quote is the whole of the escaping rule. */
 function quote(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
@@ -120,16 +136,21 @@ export function buildPermissionSeedSql(): string {
     "insert into operational_threshold (key, value_days, description) values",
   );
 
-  const thresholdRows = THRESHOLD_KEYS.map(
-    (key) =>
-      `  (${quote(key)}, ${THRESHOLD_DEFAULTS[key]}, ${quote(describeThreshold(key))})`,
+  const seededKeys: readonly (readonly [string, number])[] = [
+    ...SEEDED_IDLE_THRESHOLDS,
+    ...THRESHOLD_KEYS.filter((key) => !key.startsWith("idle_days.")).map(
+      (key) => [key, THRESHOLD_DEFAULTS[key]] as const,
+    ),
+  ];
+  const thresholdRows = seededKeys.map(
+    ([key, days]) => `  (${quote(key)}, ${days}, ${quote(describeThreshold(key))})`,
   );
   lines.push(thresholdRows.join(",\n") + "\non conflict (key) do nothing;");
   lines.push(
     "",
     "delete from operational_threshold",
     " where key not in (",
-    THRESHOLD_KEYS.map((key) => `       ${quote(key)}`).join(",\n"),
+    seededKeys.map(([key]) => `       ${quote(key)}`).join(",\n"),
     "     );",
     "",
   );

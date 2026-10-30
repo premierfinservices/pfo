@@ -1797,3 +1797,26 @@ manual check that covers real delivery is written down in the guide.
 `document` rows still carry no content type, so one is derived from the file
 extension when attaching. That is the right place for the fallback, but a
 content type recorded at upload would be better and is a small future change.
+
+## ADR-040 — The case follows the MIS: promised documents in, tasks after every action, documents never block
+
+**Status:** Accepted. Tarun Ramesh, 30 October 2026.
+
+**The problem.** Mint Capital Management and Premier Finservices run as one office with one process. MCM's Excel MIS is more automated than PFO in the way that matters daily: every action leaves a next action. PFO recorded what happened and left people to remember what came next, because it had a `task` table with no API. It also assumed a shape of work the office does not have: collect a full file for a loan type, verify it, then go to a bank. The office collects enough to check eligibility, drops the case if that fails, and only then collects the rest. PFO's checklist asked for documents nobody needed and would not let a file out until it was satisfied.
+
+**The decision.**
+
+1. Log a Case and Update Case from the MIS are PFO's case entry and case update.
+2. A case enters only when the customer has promised documents. New, Contacted and Appointment Fixed are gone. Stages are the MIS's, plus Eligibility Check.
+3. Lender application statuses are the MIS's eleven. Login is a stage, reached by a lender update. Sending a file does not move a case.
+4. Eligibility is asked, never decided, and is never a gate.
+5. The checklist informs. It does not move a stage or stop a send, and verification is optional.
+6. Every action closes the tasks it finishes and raises the next, through one pure rule table. The next step is a fixed line of text, never a popup.
+
+**What it reverses.** ADR-020's lifecycle; the requirement-driven guard of ADR-010 and ADR-035; verified-only sending in ADR-039. A case is still a lead in nobody's sense: `Requirements and Progress.md` and the stage tables in `Loan Lifecycle.md` and `Workflow.md` now describe the old model and are superseded by `PRD/Intake and Work Engine.md`.
+
+**What it keeps.** Permissions, the event log, backups, no real deletes (Principle 6), and the rule engine itself: only its rules changed, so an office can still edit them.
+
+**The tradeoffs, stated.** A file can reach a bank incomplete, which is what the office wants and sometimes will regret. Dropping the progress number removes a measure nobody trusted. Old stages stay in the TypeScript union and the Postgres enums, unwritable, because the prototype store and retired rules are written in them; removing them is a cleanup, not a requirement.
+
+**Not decided here.** Whether telecallers may send files and update applications. The MIS lets anyone; PFO's permissions let them only read. Unchanged until Tarun decides.

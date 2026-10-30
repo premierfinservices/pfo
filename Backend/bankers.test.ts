@@ -87,7 +87,9 @@ async function signInAs(role: Role): Promise<Session> {
 /** A real seeded branch (0025) to attach test bankers to. */
 async function anyBranchId(): Promise<string> {
   const { rows } = await pool.query<{ id: string }>(
-    `select id from organisation where 'branch' = any(roles) and is_active limit 1`,
+    `select b.id from organisation b
+       join organisation o on o.id = b.parent_organisation_id
+      where 'branch' = any(b.roles) and b.is_active and o.is_active limit 1`,
   );
   return rows[0]!.id;
 }

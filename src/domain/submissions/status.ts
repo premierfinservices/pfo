@@ -26,10 +26,13 @@
 export type SubmissionStatus =
   | "not_submitted"
   | "submitted"
+  | "not_eligible_precheck"
+  | "login_completed"
   | "under_process"
   | "query_raised"
   | "eligibility_received"
   | "sanctioned"
+  | "sanction_accepted"
   | "rejected"
   | "withdrawn"
   | "disbursed";
@@ -37,10 +40,13 @@ export type SubmissionStatus =
 export const SUBMISSION_STATUSES: readonly SubmissionStatus[] = [
   "not_submitted",
   "submitted",
+  "not_eligible_precheck",
+  "login_completed",
   "under_process",
   "query_raised",
   "eligibility_received",
   "sanctioned",
+  "sanction_accepted",
   "rejected",
   "withdrawn",
   "disbursed",
@@ -59,16 +65,53 @@ export const GENERIC_TARGET_STATUSES: readonly SubmissionStatus[] = [
   "disbursed",
 ];
 
-const LEGAL_TRANSITIONS: Record<SubmissionStatus, readonly SubmissionStatus[]> = {
-  not_submitted: ["withdrawn"],
-  submitted: ["under_process", "rejected", "withdrawn"],
-  under_process: ["query_raised", "eligibility_received", "rejected", "withdrawn"],
-  query_raised: ["under_process"],
+/**
+ * The next statuses the Applications tab offers, exactly as the MIS does.
+ * "Not Logged In" is `not_submitted` and `submitted` shown as one status: an
+ * emailed file is still not logged in until the bank says so.
+ */
+const OFFERED_FROM_NOT_LOGGED_IN: readonly SubmissionStatus[] = [
+  "login_completed",
+  "not_eligible_precheck",
+  "withdrawn",
+];
+
+export const NEXT_SUBMISSION_STATUSES: Record<SubmissionStatus, readonly SubmissionStatus[]> = {
+  not_submitted: OFFERED_FROM_NOT_LOGGED_IN,
+  submitted: OFFERED_FROM_NOT_LOGGED_IN,
+  not_eligible_precheck: [],
+  login_completed: ["under_process", "query_raised", "eligibility_received", "sanctioned", "rejected", "withdrawn"],
+  under_process: ["query_raised", "eligibility_received", "sanctioned", "rejected", "withdrawn"],
+  query_raised: ["under_process", "eligibility_received", "sanctioned", "rejected", "withdrawn"],
   eligibility_received: ["sanctioned", "rejected", "withdrawn"],
-  sanctioned: ["disbursed", "withdrawn"],
+  sanctioned: ["sanction_accepted", "disbursed", "withdrawn"],
+  sanction_accepted: ["disbursed", "withdrawn"],
   rejected: [],
   withdrawn: [],
   disbursed: [],
+};
+
+/** The MIS names, shown on every screen. */
+export const SUBMISSION_STATUS_LABELS: Record<SubmissionStatus, string> = {
+  not_submitted: "Not Logged In",
+  submitted: "Not Logged In",
+  not_eligible_precheck: "Not Eligible (Pre-check)",
+  login_completed: "Login Completed",
+  under_process: "Under Review",
+  query_raised: "Query Raised by Bank",
+  eligibility_received: "Approved",
+  sanctioned: "Sanctioned",
+  sanction_accepted: "Sanction Accepted",
+  disbursed: "Disbursed",
+  rejected: "Rejected",
+  withdrawn: "Withdrawn / Closed",
+};
+
+/** The offered statuses, plus the older moves the Banks tab still makes. */
+const LEGAL_TRANSITIONS: Record<SubmissionStatus, readonly SubmissionStatus[]> = {
+  ...NEXT_SUBMISSION_STATUSES,
+  submitted: [...OFFERED_FROM_NOT_LOGGED_IN, "under_process", "rejected"],
+  under_process: ["query_raised", "eligibility_received", "sanctioned", "rejected", "withdrawn"],
 };
 
 /** Whether a submission may move from `from` to `to` at all — the shape of

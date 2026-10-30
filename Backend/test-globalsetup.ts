@@ -29,6 +29,13 @@ loadDotEnv();
  */
 const TEST_DB = "pfo_test";
 
+/** The rule set as it stood before 0046. Bank-side forms were already retired. */
+const ENGINE_TEST_RULES = `
+  update document_requirement_rule r
+     set is_active = r.code not like 'mis\\_%'
+                 and not exists (select 1 from document_type dt
+                                  where dt.id = r.document_type_id and dt.artifact_kind <> 'customer')`;
+
 export async function setup(): Promise<void> {
   // Creating a database needs CREATEDB, which `aos_app` (migration 0033) does
   // not have and must not have — same admin-fallback reasoning as
@@ -69,5 +76,25 @@ export async function setup(): Promise<void> {
     throw new Error(
       `Migrations failed against ${TEST_DB}:\n${result.stdout ?? ""}${result.stderr ?? ""}`,
     );
+  }
+
+  // The engine's own tests were written against the fuller rule set, and they
+  // test the engine, not today's lists: 0046 retired those rules for real use
+  // (ADR-040) but they stay on file. `Backend/work.test.ts` switches to the
+  // short checklists for itself and back.
+  const seeded = new pg.Client({
+    host: process.env.PFO_DB_HOST ?? "127.0.0.1",
+    port: Number(process.env.PFO_DB_PORT ?? 5432),
+    database: TEST_DB,
+    user: adminUser || process.env.PFO_DB_USER || "postgres",
+    password: adminUser
+      ? (process.env.PFO_DB_ADMIN_PASSWORD ?? "")
+      : (process.env.PFO_DB_PASSWORD ?? ""),
+  });
+  await seeded.connect();
+  try {
+    await seeded.query(ENGINE_TEST_RULES);
+  } finally {
+    await seeded.end();
   }
 }

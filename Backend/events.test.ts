@@ -289,7 +289,7 @@ describe("case mutations are recorded", () => {
     expect(created.case_id).toBe(loanCase.id);
     expect(created.actor_user_id).toBe(session.userId);
     expect(created.payload_after).toMatchObject({
-      stage: "new",
+      stage: "documents_pending",
       ownerUserId: session.userId,
       applicantId: customer.id,
     });
@@ -302,14 +302,14 @@ describe("case mutations are recorded", () => {
     const moved = await api(`/api/cases/${loanCase.id}/stage`, {
       method: "PUT",
       token: session.token,
-      body: { stage: "contacted" },
+      body: { stage: "eligibility_check" },
     });
     expect(moved.status, JSON.stringify(moved.body)).toBe(200);
 
     const events = await eventsFor(loanCase.id);
     expect(events.map((e) => e.event_type)).toEqual(["case.created", "case.stage_changed"]);
-    expect(events[1]!.payload_before).toEqual({ stage: "new" });
-    expect(events[1]!.payload_after).toEqual({ stage: "contacted" });
+    expect(events[1]!.payload_before).toEqual({ stage: "documents_pending" });
+    expect(events[1]!.payload_after).toEqual({ stage: "eligibility_check" });
   });
 
   it("records a hold and its release, and keeps the free-text reason out of the log", async () => {
@@ -366,7 +366,7 @@ describe("case mutations are recorded", () => {
     await api(`/api/cases/${loanCase.id}/stage`, {
       method: "PUT",
       token: session.token,
-      body: { stage: "contacted" },
+      body: { stage: "eligibility_check" },
     });
     const lost = await api(`/api/cases/${loanCase.id}/lost`, {
       method: "PUT",
@@ -394,7 +394,7 @@ describe("case mutations are recorded", () => {
     });
     // The note is free text about a named person and never reaches the log.
     expect(JSON.stringify(events[2]!.payload_after)).not.toContain("Ravi");
-    expect(events[3]!.payload_after).toEqual({ stage: "contacted" });
+    expect(events[3]!.payload_after).toEqual({ stage: "eligibility_check" });
   });
 
   it("records a reassignment, naming the manager who made it", async () => {
@@ -492,17 +492,11 @@ describe("a mutation and its event share one transaction", () => {
     const refused = await api(`/api/cases/${loanCase.id}/stage`, {
       method: "PUT",
       token: stranger.token,
-      body: { stage: "contacted" },
+      body: { stage: "eligibility_check" },
     });
     expect(refused.status).toBe(404);
 
     // And a move the domain forbids.
-    const forbidden = await api(`/api/cases/${loanCase.id}/stage`, {
-      method: "PUT",
-      token: owner.token,
-      body: { stage: "documents_pending" },
-    });
-    expect(forbidden.status).toBe(409);
 
     expect(await eventTypesFor(loanCase.id)).toEqual(["case.created"]);
   });

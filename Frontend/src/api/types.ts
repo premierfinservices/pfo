@@ -76,6 +76,11 @@ export interface ApiCase {
    * listOrgEvents, Backend/submissions.ts's listAllSubmissions).
    */
   readonly isPractice: boolean;
+  readonly documentStatus: "not_assessed" | "pending" | "partial" | "complete";
+  readonly eligibilityStatus: "unanswered" | "eligible" | "not_eligible";
+  readonly loanType: string | null;
+  readonly loanVariant: string | null;
+  readonly place: string | null;
   /**
    * Present on `/api/cases` (the All Cases list) only, from Stage 3C —
    * `Backend/requirements.ts`'s `caseListProgress`, computed from real
@@ -477,10 +482,13 @@ export interface ApiBanker {
 export type SubmissionStatus =
   | "not_submitted"
   | "submitted"
+  | "not_eligible_precheck"
+  | "login_completed"
   | "under_process"
   | "query_raised"
   | "eligibility_received"
   | "sanctioned"
+  | "sanction_accepted"
   | "rejected"
   | "withdrawn"
   | "disbursed";

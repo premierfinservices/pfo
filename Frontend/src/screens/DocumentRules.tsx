@@ -313,7 +313,7 @@ function EditRuleDialog({
     if (!rule) return;
     setName(rule.name);
     setApplicability(rule.applicability);
-    setStage(rule.applicableFromStage);
+    setStage(rule.applicableFromStage as ProgressionStage);
     setYears(rule.financialYears ? String(rule.financialYears) : "");
     setNotes(rule.notes ?? "");
   }, [rule]);

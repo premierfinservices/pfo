@@ -659,7 +659,12 @@ interface RequirementDocumentRow {
   is_custom: boolean;
 }
 
-async function verifiedDocumentRows(client: Queryable, caseId: string): Promise<RequirementDocumentRow[]> {
+/**
+ * Every document on this case that can go to a banker: anything uploaded and
+ * not rejected. Verification no longer gates sending (ADR-040); a file may go
+ * out on partial documents for a pre-check.
+ */
+async function sendableDocumentRows(client: Queryable, caseId: string): Promise<RequirementDocumentRow[]> {
   const { rows } = await client.query<RequirementDocumentRow>(
     `select r.id as requirement_id, d.id as document_id, dt.code as document_type_code,
             dt.category, dt.name as type_name, dt.period_kind::text as period_kind,
@@ -667,8 +672,23 @@ async function verifiedDocumentRows(client: Queryable, caseId: string): Promise<
             r.is_custom
        from document_requirement r
        join document_type dt on dt.id = r.document_type_id
-       join document d on d.id = r.satisfied_by_document_id
-      where r.case_id = $1 and r.status = 'verified'
+       left join case_party cpa on cpa.id = r.required_of_case_party_id
+       left join case_property cpr on cpr.id = r.required_of_case_property_id
+       join lateral (
+         select doc.*
+           from document doc
+          where doc.id = coalesce(r.uploaded_document_id, r.satisfied_by_document_id)
+             or (r.uploaded_document_id is null and r.satisfied_by_document_id is null
+                 and doc.document_type_id = r.document_type_id
+                 and doc.period_start is not distinct from r.period_start
+                 and ((cpa.person_id is not null and doc.person_id = cpa.person_id)
+                   or (cpa.organisation_id is not null and doc.organisation_id = cpa.organisation_id)
+                   or (cpr.property_id is not null and doc.property_id = cpr.property_id)
+                   or (cpa.id is null and cpr.id is null and doc.case_id = r.case_id)))
+          order by doc.version desc
+          limit 1
+       ) d on true
+      where r.case_id = $1 and r.status in ('received', 'verified')
       order by dt.display_order, dt.code`,
     [caseId],
   );
@@ -708,7 +728,7 @@ export async function sendableDocuments(
   requireCaseAccess(actor, header, "submission.create");
   await loadSubmission(client, caseId, submissionId);
 
-  const rows = await verifiedDocumentRows(client, caseId);
+  const rows = await sendableDocumentRows(client, caseId);
   return rows.map((row) => {
     const candidate = toCandidate(row);
     const reason = ineligibility(candidate);
@@ -808,13 +828,13 @@ async function selectedCandidates(
   caseId: string,
   documentIds: readonly string[],
 ): Promise<CandidateDocument[]> {
-  const rows = await verifiedDocumentRows(client, caseId);
+  const rows = await sendableDocumentRows(client, caseId);
   const chosen = new Set(documentIds);
   const candidates = rows.filter((row) => chosen.has(row.document_id)).map(toCandidate);
   if (candidates.length !== chosen.size) {
     throw new ApiError(
       409,
-      "One of the chosen documents is no longer verified on this case. Reopen the dialog and choose again.",
+      "One of the chosen documents can no longer be sent from this case. Reopen the dialog and choose again.",
     );
   }
   return candidates;
@@ -1419,20 +1439,10 @@ async function finalizeIfFullySent(
   );
   if (dispatched.rows.length === 0) return; // Already dispatched by an earlier package.
 
-  const outstandingRequirementCount = await outstandingRequirementCountFor(client, caseId);
-  await advanceCaseStage(client, caseId, outstandingRequirementCount, {
+  await advanceCaseStage(client, caseId, {
     entityType: "submission",
     entityId: submissionId,
   });
-}
-
-async function outstandingRequirementCountFor(client: Queryable, caseId: string): Promise<number> {
-  const { rows } = await client.query<{ n: string }>(
-    `select count(*) as n from document_requirement
-      where case_id = $1 and status in ('pending', 'received', 'rejected')`,
-    [caseId],
-  );
-  return Number(rows[0]?.n ?? 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -1661,8 +1671,7 @@ export async function updateSubmissionStatus(
     eventType: `submission.${to}` as SubmissionEventType,
   });
 
-  const outstandingRequirementCount = await outstandingRequirementCountFor(client, caseId);
-  await advanceCaseStage(client, caseId, outstandingRequirementCount, {
+  await advanceCaseStage(client, caseId, {
     entityType: "submission",
     entityId: submissionId,
   });
@@ -1885,7 +1894,7 @@ export async function acceptOffer(
         set status = 'withdrawn'
       where case_id = $1
         and id <> $2
-        and status not in ('rejected', 'withdrawn', 'disbursed')
+        and status not in ('rejected', 'withdrawn', 'disbursed', 'not_eligible_precheck')
       returning id`,
     [caseId, submissionId],
   );
@@ -1908,8 +1917,7 @@ export async function acceptOffer(
     payloadAfter: { withdrawnSubmissionCount: competing.length },
   });
 
-  const outstandingRequirementCount = await outstandingRequirementCountFor(client, caseId);
-  await advanceCaseStage(client, caseId, outstandingRequirementCount, {
+  await advanceCaseStage(client, caseId, {
     entityType: "offer",
     entityId: offerId,
   });

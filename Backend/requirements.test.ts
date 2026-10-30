@@ -136,10 +136,8 @@ describe("requirement regeneration is auditable (Phase 3)", () => {
     // Opening a case's requirement list for the first time is what makes
     // `regenerateRequirements` insert its rule-generated rows — a real
     // mutation, not a no-op.
-    const advanced = await move(owner, loanCase.id, "contacted");
+    const advanced = await move(owner, loanCase.id, "eligibility_check");
     expect(advanced.status, JSON.stringify(advanced.body)).toBe(200);
-    const toDocuments = await move(owner, loanCase.id, "documents_pending");
-    expect(toDocuments.status, JSON.stringify(toDocuments.body)).toBe(200);
 
     const listing = await api(`/api/cases/${loanCase.id}/requirements`, { token: owner.token });
     expect(listing.status, JSON.stringify(listing.body)).toBe(200);
@@ -171,8 +169,6 @@ describe("requirement regeneration is auditable (Phase 3)", () => {
   it("writes no event when regeneration is asked for again and nothing has changed", async () => {
     const owner = await signInAs("telecaller");
     const loanCase = await aCase(owner);
-    await move(owner, loanCase.id, "contacted");
-    await move(owner, loanCase.id, "documents_pending");
 
     // First read: real mutation, one event (proven above).
     const first = await api(`/api/cases/${loanCase.id}/requirements`, { token: owner.token });
@@ -196,8 +192,6 @@ describe("requirement regeneration is auditable (Phase 3)", () => {
   it("keeps a no-longer-wanted requirement, retiring it as not_applicable with its own audited event", async () => {
     const owner = await signInAs("telecaller");
     const loanCase = await aCase(owner);
-    await move(owner, loanCase.id, "contacted");
-    await move(owner, loanCase.id, "documents_pending");
 
     const before = await api(`/api/cases/${loanCase.id}/requirements`, { token: owner.token });
     expect(before.status, JSON.stringify(before.body)).toBe(200);

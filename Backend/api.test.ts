@@ -246,7 +246,7 @@ describe("cases", () => {
 
     expect(created.status).toBe(200);
     expect(created.body.caseNumber).toMatch(/^AL-\d{4}-\d{5}$/);
-    expect(created.body.stage).toBe("new");
+    expect(created.body.stage).toBe("documents_pending");
     expect(created.body.ownerUserId).toBe(session.userId);
     expect(created.body.applicantName).toBe(customer.body.fullName);
   });
@@ -319,10 +319,10 @@ describe("cases", () => {
     const moved = await api(`/api/cases/${created.body.id}/stage`, {
       method: "PUT",
       token: session.token,
-      body: { stage: "contacted" },
+      body: { stage: "eligibility_check" },
     });
     expect(moved.status).toBe(200);
-    expect(moved.body.stage).toBe("contacted");
+    expect(moved.body.stage).toBe("eligibility_check");
   });
 
   it("creates a practice case with its own numbering, excluded from real numbering", async () => {
@@ -522,7 +522,7 @@ describe("case visibility is enforced by the server", () => {
     expect(attempt.status).toBe(404);
 
     const { rows } = await pool.query(`select stage from loan_case where id = $1`, [caseId]);
-    expect(rows[0].stage).toBe("new");
+    expect(rows[0].stage).toBe("documents_pending");
   });
 
   it("lets the owning Telecaller read their own case", async () => {
@@ -555,10 +555,10 @@ describe("case visibility is enforced by the server", () => {
     const updated = await api(`/api/cases/${caseId}/stage`, {
       method: "PUT",
       token: manager.token,
-      body: { stage: "contacted" },
+      body: { stage: "eligibility_check" },
     });
     expect(updated.status).toBe(200);
-    expect(updated.body.stage).toBe("contacted");
+    expect(updated.body.stage).toBe("eligibility_check");
   });
 
   it("refuses an account that holds no roles at all", async () => {
@@ -635,14 +635,6 @@ describe("multiple sessions share one authoritative database", () => {
     // domain allows: a case is contacted before its documents are chased.
     // The old test reached it in one PATCH, which is exactly the kind of move
     // routing stage changes through `evaluateTransition` now prevents.
-    for (const stage of ["contacted", "documents_pending"]) {
-      const moved = await api(`/api/cases/${created.body.id}/stage`, {
-        method: "PUT",
-        token: manager.token,
-        body: { stage },
-      });
-      expect(moved.status, JSON.stringify(moved.body)).toBe(200);
-    }
 
     // No cache, no sync, no shared browser storage: the Telecaller reads the
     // same row the Manager just wrote.

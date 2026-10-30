@@ -180,6 +180,13 @@ export type CaseEventType =
   | "case.hold_lifted"
   | "case.marked_lost"
   | "case.reopened"
+  | "case.logged"
+  | "case.documents_updated"
+  | "case.eligibility_answered"
+  | "case.task_rescheduled"
+  | "case.requirement_not_needed"
+  | "case.requirement_restored"
+  | "case.financial_summary_added"
   | "case.party_added"
   | "case.party_profile_updated"
   | "case.party_removed"
@@ -393,6 +400,9 @@ export type SubmissionEventType =
   // `Backend/submissions.ts`'s `updateSubmissionStatus`, named after the
   // status the submission moved to, matching the prototype's dynamic
   // `submission.${status}` naming (`Frontend/src/fake/store.ts`).
+  | "submission.login_completed"
+  | "submission.not_eligible_precheck"
+  | "submission.sanction_accepted"
   | "submission.under_process"
   | "submission.query_raised"
   | "submission.query_answered"

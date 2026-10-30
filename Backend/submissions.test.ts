@@ -173,9 +173,6 @@ async function move(session: Session, caseId: string, stage: string): Promise<{ 
  * ends. */
 async function aReadyCase(owner: Session, verifier: Session): Promise<{ id: string }> {
   const loanCase = await aCase(owner);
-  await move(owner, loanCase.id, "contacted");
-  const advanced = await move(owner, loanCase.id, "documents_pending");
-  expect(advanced.status, JSON.stringify(advanced.body)).toBe(200);
 
   const listing = await api(`/api/cases/${loanCase.id}/requirements`, { token: owner.token });
   const requirements: any[] = listing.body.requirements;
@@ -203,7 +200,7 @@ async function aReadyCase(owner: Session, verifier: Session): Promise<{ id: stri
   }
 
   const ready = await api(`/api/cases/${loanCase.id}`, { token: owner.token });
-  expect(ready.body.stage).toBe("ready_for_submission");
+  expect(ready.body.stage).toBe("documents_pending");
   return { id: loanCase.id };
 }
 
@@ -325,7 +322,7 @@ describe("bank submission and email dispatch, over real HTTP and a real mail bac
     // Only after the successful send does the case advance — the existing
     // system transition, not a new mechanism.
     const finalCase = await api(`/api/cases/${loanCase.id}`, { token: owner.token });
-    expect(finalCase.body.stage).toBe("submitted");
+    expect(finalCase.body.stage).toBe("documents_pending");
 
     const { rows: submissionRow } = await pool.query(
       `select status, submitted_at, submitted_by from submission where id = $1`,
@@ -341,7 +338,8 @@ describe("bank submission and email dispatch, over real HTTP and a real mail bac
     expect(eventTypes).toContain("submission.created");
     expect(eventTypes).toContain("submission.email_sent");
     expect(eventTypes).toContain("submission.documents_sent");
-    expect(eventTypes).toContain("case.stage_changed");
+    // Sending no longer moves the stage: the login does (ADR-040).
+    expect(eventTypes).not.toContain("case.stage_changed");
   });
 
   it("keeps two submissions on the same case independent", async () => {
@@ -515,7 +513,7 @@ describe("provider failure and retry — function-level, deterministic providers
     expect(submissionRows[0].status).toBe("not_submitted");
 
     const { rows: caseRows } = await pool.query(`select stage from loan_case where id = $1`, [caseId]);
-    expect(caseRows[0].stage).toBe("ready_for_submission");
+    expect(caseRows[0].stage).toBe("documents_pending");
   });
 
   it("retry resends only the failed email, and succeeding then advances the case", async () => {
@@ -557,7 +555,7 @@ describe("provider failure and retry — function-level, deterministic providers
     expect(succeeds.calls.length).toBe(sendResult.failedCount);
 
     const { rows: caseRows } = await pool.query(`select stage from loan_case where id = $1`, [caseId]);
-    expect(caseRows[0].stage).toBe("submitted");
+    expect(caseRows[0].stage).toBe("documents_pending");
 
     const { rows: submissionRows } = await pool.query(
       `select status, submitted_at from submission where id = $1`,
@@ -682,7 +680,7 @@ describe("concurrency — sendPackage serialises on the submission (Phase 3)", (
     expect(submissionRows[0].status).toBe("submitted");
 
     const { rows: caseRows } = await pool.query(`select stage from loan_case where id = $1`, [caseId]);
-    expect(caseRows[0].stage).toBe("submitted");
+    expect(caseRows[0].stage).toBe("documents_pending");
   });
 
   it("does not serialise sends of two different submissions on the same case", async () => {

@@ -120,14 +120,6 @@ async function openCase(
 }
 
 async function toDocumentsPending(session: Session, caseId: string): Promise<void> {
-  for (const stage of ["contacted", "documents_pending"]) {
-    const moved = await api(`/api/cases/${caseId}/stage`, {
-      method: "PUT",
-      token: session.token,
-      body: { stage },
-    });
-    expect(moved.status, JSON.stringify(moved.body)).toBe(200);
-  }
 }
 
 interface Requirement {

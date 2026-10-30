@@ -247,7 +247,7 @@ describe("the stage machine is enforced by the server", () => {
     const session = await signInAs("telecaller");
     const { loanCase } = await aCase(session);
 
-    for (const stage of ["contacted", "appointment_fixed", "documents_pending"]) {
+    for (const stage of ["eligibility_check", "documents_pending"]) {
       const moved = await move(session, loanCase.id, stage);
       expect(moved.status, `${stage}: ${JSON.stringify(moved.body)}`).toBe(200);
       expect(moved.body.stage).toBe(stage);
@@ -258,29 +258,23 @@ describe("the stage machine is enforced by the server", () => {
     const session = await signInAs("telecaller");
     const { loanCase } = await aCase(session);
 
-    const jump = await move(session, loanCase.id, "documents_pending");
+    const jump = await move(session, loanCase.id, "disbursed");
     expect(jump.status).toBe(409);
-    expect(jump.body.message).toContain("cannot move from new to documents_pending");
+    expect(jump.body.message).toContain("cannot move from documents_pending to disbursed");
 
     const { rows } = await pool.query(`select stage from loan_case where id = $1`, [loanCase.id]);
-    expect(rows[0].stage).toBe("new");
+    expect(rows[0].stage).toBe("documents_pending");
   });
 
   it("refuses a document-driven advance as a system transition", async () => {
     const session = await signInAs("login_executive");
     const { loanCase } = await aCase(session);
-    await move(session, loanCase.id, "contacted");
-    await move(session, loanCase.id, "documents_pending");
 
-    // `documents_pending` → `ready_for_submission` is a system transition
-    // (ADR-019): it happens automatically once requirements are settled, not
-    // by a person choosing it from the stage picker. A direct request is
-    // refused on the actor check before the (now real, Stage 3C) requirement
-    // count is even consulted — see Backend/documents.test.ts for the
-    // automatic advance itself.
-    const attempt = await move(session, loanCase.id, "ready_for_submission");
+    // Login is a consequence of a lender update (ADR-019, ADR-040), not a
+    // person's choice from the stage picker.
+    const attempt = await move(session, loanCase.id, "login_completed");
     expect(attempt.status).toBe(409);
-    expect(attempt.body.message).toContain("system transition");
+    expect(attempt.body.message).toContain("cannot move");
   });
 
   it("refuses to reach `lost` as an ordinary stage move", async () => {
@@ -302,7 +296,7 @@ describe("the stage machine is enforced by the server", () => {
       body: { isOnHold: true, holdReason: "Customer travelling until March" },
     });
 
-    const attempt = await move(session, loanCase.id, "contacted");
+    const attempt = await move(session, loanCase.id, "eligibility_check");
     expect(attempt.status).toBe(409);
     expect(attempt.body.message).toContain("on hold");
   });
@@ -345,17 +339,17 @@ describe("hold, loss and reopening", () => {
   it("marks a case lost with a reason and reopens it where it was", async () => {
     const session = await signInAs("telecaller");
     const { loanCase } = await aCase(session);
-    await move(session, loanCase.id, "contacted");
+    await move(session, loanCase.id, "eligibility_check");
 
     const lost = await api(`/api/cases/${loanCase.id}/lost`, {
       method: "PUT",
       token: session.token,
-      body: { lostReason: "rate_too_high", lostNote: "Went with HDFC at 8.4%" },
+      body: { lostReason: "not_interested", lostNote: "Went with HDFC at 8.4%" },
     });
     expect(lost.status).toBe(200);
     expect(lost.body.stage).toBe("lost");
-    expect(lost.body.lostReason).toBe("rate_too_high");
-    expect(lost.body.stageBeforeLost).toBe("contacted");
+    expect(lost.body.lostReason).toBe("not_interested");
+    expect(lost.body.stageBeforeLost).toBe("eligibility_check");
 
     const reopened = await api(`/api/cases/${loanCase.id}/reopen`, {
       method: "POST",
@@ -363,7 +357,7 @@ describe("hold, loss and reopening", () => {
     });
     // Back where it was, not back to the beginning — a postponed customer
     // returning does not restart the conversation.
-    expect(reopened.body.stage).toBe("contacted");
+    expect(reopened.body.stage).toBe("eligibility_check");
     expect(reopened.body.lostReason).toBeNull();
   });
 

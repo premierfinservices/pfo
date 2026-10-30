@@ -19,7 +19,7 @@ import {
   type CaseSnapshot,
   deriveSystemStagePath,
   evaluateTransition,
-} from "@domain/case/transitions.js";
+} from "./legacy-transitions.js";
 import { type Requirement, summariseProgress } from "@domain/requirements/progress.js";
 import { financialYearOf, recentFinancialYears } from "@domain/requirements/financial-year.js";
 import {

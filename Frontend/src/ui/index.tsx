@@ -19,7 +19,6 @@ import {
   CASE_STAGE_LABELS,
   CASE_STAGE_PROGRESSION,
   isTerminalStage,
-  stageOrdinal,
   type CaseStage,
 } from "@domain/case/stages.js";
 
@@ -149,6 +148,13 @@ const STAGE_STYLES: Record<CaseStage, string> = {
   contacted: "bg-ink-100 text-ink-700",
   appointment_fixed: "bg-violet-100 text-violet-800",
   documents_pending: "bg-amber-100 text-amber-900",
+  eligibility_check: "bg-amber-100 text-amber-900",
+  documents_collected: "bg-sky-100 text-sky-900",
+  login_completed: "bg-blue-100 text-blue-900",
+  query_raised: "bg-amber-100 text-amber-900",
+  approved: "bg-emerald-100 text-emerald-900",
+  sanction_accepted: "bg-emerald-100 text-emerald-900",
+  rejected: "bg-red-100 text-red-900",
   ready_for_submission: "bg-sky-100 text-sky-900",
   submitted: "bg-blue-100 text-blue-900",
   sanctioned: "bg-emerald-100 text-emerald-900",
@@ -195,7 +201,16 @@ export function StageRail({ stage }: { stage: CaseStage }): ReactNode {
     );
   }
 
-  const ordinal = stageOrdinal(stage) ?? 0;
+  if (stage === "rejected") {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+        <span className="text-xs font-medium text-ink-500">{CASE_STAGE_LABELS[stage]}</span>
+      </div>
+    );
+  }
+
+  const ordinal = Math.max(0, (CASE_STAGE_PROGRESSION as readonly CaseStage[]).indexOf(stage));
   return (
     <div
       className="flex items-center gap-1"

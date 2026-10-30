@@ -24,8 +24,8 @@ describe("canTransitionSubmission", () => {
     }
   });
 
-  it("refuses withdrawal from query_raised directly — it must resolve back to under_process first", () => {
-    expect(canTransitionSubmission("query_raised", "withdrawn")).toBe(false);
+  it("allows withdrawal from query_raised directly, as the MIS does (ADR-040)", () => {
+    expect(canTransitionSubmission("query_raised", "withdrawn")).toBe(true);
   });
 
   it("refuses skipping steps", () => {

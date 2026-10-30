@@ -1,24 +1,12 @@
 /**
- * The one place a submission/offer outcome moves a case's stage — Phase 5.
+ * The one place a lender update moves a case's stage.
  *
- * Before this file, three call sites (`documents.ts`'s `reconcileStage`,
- * `submissions.ts`'s `finalizeIfFullySent`, `cases.ts`'s `snapshotOf`) each
- * hand-rolled a single-step `evaluateTransition` call and hard-coded
- * `hasSanctionedSubmissionWithOffer`/`hasDisbursedSubmission` to `false`,
- * because nothing before Phase 5 could make either true. Phase 5 makes both
- * real, and a single-step call is no longer safe: a submission can jump
- * straight from `submitted` to `disbursed` (sanction and disbursement
- * recorded in the same visit), and a case sitting at `ready_for_submission`
- * must walk `submitted -> sanctioned -> disbursed` in one go, each step its
- * own audited `case.stage_changed` event, or it is left stranded at
- * `submitted` with facts that justify further. `deriveSystemStagePath`
- * (`@domain/case/transitions.js`) already computes that whole path and
- * refuses to skip a step whose guard fails — this module is only the
- * Postgres wiring: read the facts, walk the path, write one row and one
- * event per step.
+ * `systemStageFor` (`@domain/case/transitions.js`) decides; this is only the
+ * Postgres wiring: read the applications, write one row and one event. Forward
+ * only, as in the MIS (ADR-040).
  */
 
-import { deriveSystemStagePath, type CaseSnapshot } from "@domain/case/transitions.js";
+import { highestJustifiedStage, systemStageFor } from "@domain/case/transitions.js";
 import type { CaseStage } from "@domain/case/stages.js";
 
 import type { Queryable } from "./db.js";
@@ -46,65 +34,22 @@ export async function lockCaseForOutcomeMutation(client: Queryable, caseId: stri
   await client.query(`select pg_advisory_xact_lock(hashtextextended($1, 1))`, [caseId]);
 }
 
-export interface SubmissionOutcomeFacts {
-  readonly liveSubmissionCount: number;
-  readonly hasSanctionedSubmissionWithOffer: boolean;
-  readonly hasDisbursedSubmission: boolean;
-}
-
-/**
- * The two facts nothing before Phase 5 could compute, plus the live-submission
- * count `Backend/cases.ts` and `Backend/submissions.ts` already counted
- * separately — now one query, so the three call sites cannot drift on what
- * "sanctioned with an offer" means.
- */
-export async function submissionOutcomeFacts(
-  client: Queryable,
-  caseId: string,
-): Promise<SubmissionOutcomeFacts> {
-  const { rows } = await client.query<{
-    live: string;
-    sanctioned_with_offer: boolean | null;
-    disbursed: boolean | null;
-  }>(
-    `select
-       count(*) filter (where status <> 'not_submitted') as live,
-       bool_or(
-         status in ('sanctioned', 'disbursed')
-         and exists (select 1 from offer o where o.submission_id = submission.id)
-       ) as sanctioned_with_offer,
-       bool_or(status = 'disbursed') as disbursed
-     from submission
-     where case_id = $1`,
+/** The furthest case stage this case's applications justify. */
+export async function justifiedStageOf(client: Queryable, caseId: string): Promise<CaseStage | null> {
+  const { rows } = await client.query<{ status: string }>(
+    `select status::text from submission where case_id = $1`,
     [caseId],
   );
-  const row = rows[0];
-  return {
-    liveSubmissionCount: Number(row?.live ?? 0),
-    hasSanctionedSubmissionWithOffer: row?.sanctioned_with_offer === true,
-    hasDisbursedSubmission: row?.disbursed === true,
-  };
+  return highestJustifiedStage(rows.map((row) => row.status));
 }
 
 /**
- * Advance a case through every stage its current facts justify, one
- * `case.stage_changed` event per step, then return the stage it ended at
- * (unchanged if nothing was justified, or if the case is on hold — a held
- * case does not advance out from under whoever put it on hold, matching the
- * early-return every existing caller already applied by hand).
- *
- * `outstandingRequirementCount` is passed in rather than computed here: the
- * two existing call sites already disagree, on purpose, about whether to
- * regenerate requirements first (`Backend/requirements.ts`'s
- * `outstandingRequirementCount` does; `documents.ts`'s `outstandingCountOnly`
- * deliberately does not, to avoid paying for a regeneration its caller just
- * ran). A submission/offer mutation touches no document, so it always wants
- * the cheap count.
+ * Move a case to where its applications now put it, then return the stage it
+ * ended at. A case on hold does not move out from under whoever held it.
  */
 export async function advanceCaseStage(
   client: Queryable,
   caseId: string,
-  outstandingRequirementCount: number,
   causedBy: CauseRef,
 ): Promise<CaseStage> {
   const { rows } = await client.query<{
@@ -117,32 +62,25 @@ export async function advanceCaseStage(
     [caseId],
   );
   const row = rows[0];
-  if (!row || row.is_on_hold) return row?.stage ?? "new";
+  if (!row) throw new Error(`No such case: ${caseId}`);
+  if (row.is_on_hold) return row.stage;
 
-  const facts = await submissionOutcomeFacts(client, caseId);
-  const snapshot: CaseSnapshot = {
+  const next = systemStageFor({
     stage: row.stage,
-    outstandingRequirementCount,
-    liveSubmissionCount: facts.liveSubmissionCount,
-    hasSanctionedSubmissionWithOffer: facts.hasSanctionedSubmissionWithOffer,
-    hasDisbursedSubmission: facts.hasDisbursedSubmission,
+    justifiedStage: await justifiedStageOf(client, caseId),
     isInvoiceRaised: row.is_invoice_raised,
     stageBeforeLost: row.stage_before_lost,
-  };
+  });
+  if (next === null) return row.stage;
 
-  const path = deriveSystemStagePath(snapshot);
-  let stage = row.stage;
-  for (const next of path) {
-    await client.query(`update loan_case set stage = $1 where id = $2`, [next, caseId]);
-    await recordSystemCaseEvent(client, {
-      caseId,
-      eventType: "case.stage_changed",
-      payloadBefore: { stage },
-      payloadAfter: { stage: next },
-      causedByEntityType: causedBy.entityType,
-      causedByEntityId: causedBy.entityId,
-    });
-    stage = next;
-  }
-  return stage;
+  await client.query(`update loan_case set stage = $1 where id = $2`, [next, caseId]);
+  await recordSystemCaseEvent(client, {
+    caseId,
+    eventType: "case.stage_changed",
+    payloadBefore: { stage: row.stage },
+    payloadAfter: { stage: next },
+    causedByEntityType: causedBy.entityType,
+    causedByEntityId: causedBy.entityId,
+  });
+  return next;
 }
