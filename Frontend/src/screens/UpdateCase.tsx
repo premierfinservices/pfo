@@ -369,24 +369,48 @@ function CaseTab({
   );
 }
 
+/** What the server says became of one file; an archive carries the answers for the files inside it. */
+interface UploadAnswer {
+  readonly fileName: string;
+  readonly result: string;
+  readonly storedAs?: string;
+  readonly readByAi?: boolean;
+  readonly reason?: string;
+  readonly files?: readonly UploadAnswer[];
+}
+
 /** One action: pick the case folder or drop the files. PFO files each one. */
 function UploadCard({ summary, refresh }: { summary: Summary; refresh: () => Promise<void> }): ReactNode {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [outcome, setOutcome] = useState<{ filed: number; repeats: number; others: string[]; failed: string[] } | null>(null);
+  const [outcome, setOutcome] = useState<{
+    filed: number;
+    repeats: number;
+    others: string[];
+    read: string[];
+    failed: string[];
+  } | null>(null);
   const [dragging, setDragging] = useState(false);
 
   const send = async (files: readonly File[]): Promise<void> => {
-    const result = { filed: 0, repeats: 0, others: [] as string[], failed: [] as string[] };
+    const result = { filed: 0, repeats: 0, others: [] as string[], read: [] as string[], failed: [] as string[] };
     setOutcome(null);
     setProgress({ done: 0, total: files.length });
     for (const [index, file] of files.entries()) {
       const parts = (file.webkitRelativePath || "").split("/");
       const folder = parts.length > 1 ? (parts[parts.length - 2] ?? "") : "";
       try {
-        const answer = await apiUpload<{ result: string }>(`/work/cases/${summary.id}/upload`, file, folder);
-        if (answer.result === "filed" || answer.result === "summary") result.filed += 1;
-        if (answer.result === "duplicate") result.repeats += 1;
-        if (answer.result === "other") result.others.push(file.name);
+        const answer = await apiUpload<UploadAnswer>(`/work/cases/${summary.id}/upload`, file, folder);
+        const tally = (item: UploadAnswer): void => {
+          if (item.result === "filed" || item.result === "summary") result.filed += 1;
+          if (item.result === "duplicate") result.repeats += 1;
+          if (item.result === "other") result.others.push(item.fileName);
+          if (item.readByAi) result.read.push(`${item.fileName} → ${item.storedAs ?? "filed"}`);
+          if (item.result === "unreadable_archive" || item.result === "failed") {
+            result.failed.push(`${item.fileName}: ${item.reason ?? "could not be filed"}`);
+          }
+          item.files?.forEach(tally);
+        };
+        tally(answer);
       } catch (error) {
         result.failed.push(`${file.name}: ${(error as Error).message}`);
       }
@@ -423,7 +447,7 @@ function UploadCard({ summary, refresh }: { summary: Summary; refresh: () => Pro
   return (
     <Card
       title="Upload received documents"
-      subtitle="Pick the whole case folder, even if only some documents have come. PFO files each one by its name, in any order."
+      subtitle="Pick the whole case folder, even if only some documents have come. PFO files each one by its name, or by reading it when the name says nothing, and opens zip files. Any order."
     >
       <div
         onDragOver={(event) => {
@@ -483,6 +507,9 @@ function UploadCard({ summary, refresh }: { summary: Summary; refresh: () => Pro
           </p>
           {outcome.others.length > 0 && (
             <p className="text-amber-800">Kept as Other Document, name not recognised: {outcome.others.join(", ")}</p>
+          )}
+          {outcome.read.length > 0 && (
+            <p className="text-ink-700">Identified by reading, please check: {outcome.read.join("; ")}</p>
           )}
           {outcome.failed.map((line) => (
             <p key={line} className="text-red-700">

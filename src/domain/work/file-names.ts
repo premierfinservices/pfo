@@ -26,7 +26,7 @@ export type FileKind =
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
-function monthPeriod(year: number, monthIndex: number) {
+export function monthPeriod(year: number, monthIndex: number) {
   const pad = (n: number): string => String(n).padStart(2, "0");
   const last = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
   return {

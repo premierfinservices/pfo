@@ -49,6 +49,7 @@
     "vitest": "^3.0.5"
   },
   "dependencies": {
+    "fflate": "^0.8.3",
     "pg": "^8.23.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

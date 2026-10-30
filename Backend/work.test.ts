@@ -6,7 +6,8 @@
  * is what passing this file means.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { zipSync } from "fflate";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AddressInfo } from "node:net";
 import { randomUUID } from "node:crypto";
 
@@ -20,6 +21,14 @@ import { join } from "node:path";
 
 import { createApiServer } from "./api-server.js";
 import { pool, withActor } from "./db.js";
+
+// The model is only ever asked about files whose names say nothing; tests decide its answer.
+const classify = vi.hoisted(() => vi.fn());
+vi.mock("./inbound-classification-client.js", () => ({ classifyAttachment: classify }));
+
+const unsure = { documentTypeCode: null, confidence: 0, periodStart: undefined, periodEnd: undefined, extractedFields: {}, reasoning: "", rawModelResponse: null };
+const readAs = (documentTypeCode: string, confidence = 0.95, over: Record<string, unknown> = {}) =>
+  classify.mockResolvedValue({ ...unsure, documentTypeCode, confidence, ...over });
 
 let baseUrl: string;
 let server: ReturnType<typeof createApiServer>;
@@ -132,6 +141,7 @@ const loginFields = (session: Session) => ({
 });
 
 beforeAll(async () => {
+  classify.mockResolvedValue(unsure);
   server = createApiServer();
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -490,6 +500,109 @@ describe("uploading a case folder", () => {
       body: "x",
     });
     expect(response.status).toBe(404);
+  });
+});
+
+describe("the document drop reads, renames and unpacks", () => {
+  beforeEach(() => classify.mockReset().mockResolvedValue(unsure));
+
+  const post = async (session: Session, caseId: string, name: string, content: string | Uint8Array, contentType = "application/pdf") => {
+    const response = await fetch(`${baseUrl}/api/work/cases/${caseId}/upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.token}`, "X-File-Name": encodeURIComponent(name), "Content-Type": contentType },
+      body: content,
+    });
+    const body: any = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    return body;
+  };
+  const stored = async (caseId: string) =>
+    (
+      await pool.query(
+        `select d.file_name, d.original_file_name, d.content_sha256, dt.code
+           from document_requirement r
+           join document d on d.id = r.uploaded_document_id
+           join document_type dt on dt.id = d.document_type_id
+          where r.case_id = $1 order by d.uploaded_at`,
+        [caseId],
+      )
+    ).rows;
+
+  it("treats the same bytes under another name as a repeat", async () => {
+    const session = await signInAs("telecaller");
+    const logged = await logCase(session);
+    expect((await post(session, logged.id, "PAN - Demo.pdf", "same bytes")).result).toBe("filed");
+    expect((await post(session, logged.id, "Copy of PAN.pdf", "same bytes")).result).toBe("duplicate");
+    expect(await stored(logged.id)).toHaveLength(1);
+  });
+
+  it("identifies a file whose name says nothing by what is in it, and files it under that type", async () => {
+    const session = await signInAs("telecaller");
+    const logged = await logCase(session);
+    readAs("pan_card");
+    const answer = await post(session, logged.id, "DOC-WA0016.pdf", "a scanned pan");
+    expect(answer).toMatchObject({ result: "filed", readByAi: true, documentTypeCode: "pan_card" });
+    const [row] = await stored(logged.id);
+    expect(row.code).toBe("pan_card");
+    expect(row.file_name).toMatch(/^PAN Card - .+\.pdf$/);
+    expect(row.original_file_name).toBe("DOC-WA0016.pdf");
+    expect(row.content_sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("files it as Other Document when the model is unsure, names a type that is not on offer, or cannot be reached", async () => {
+    const session = await signInAs("telecaller");
+    const logged = await logCase(session);
+    readAs("pan_card", 0.4);
+    expect((await post(session, logged.id, "a.pdf", "low confidence")).result).toBe("other");
+    readAs("not_a_real_type");
+    expect((await post(session, logged.id, "b.pdf", "invented type")).result).toBe("other");
+    classify.mockResolvedValue({ ...unsure, reasoning: "Could not reach the Claude API: network error" });
+    expect((await post(session, logged.id, "c.pdf", "model down")).result).toBe("other");
+    expect((await stored(logged.id)).map((r) => r.code)).toEqual(["other_document", "other_document", "other_document"]);
+  });
+
+  it("never sends a file to the model when its name already says what it is, or it is a repeat, or it is not a PDF or image", async () => {
+    const session = await signInAs("telecaller");
+    const logged = await logCase(session);
+    await post(session, logged.id, "PAN - Demo.pdf", "named");
+    await post(session, logged.id, "WA1.pdf", "first");
+    await post(session, logged.id, "WA1 again.pdf", "first");
+    await post(session, logged.id, "notes.docx", "word", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    expect(classify).toHaveBeenCalledTimes(1);
+  });
+
+  it("stores two documents of one type under different names", async () => {
+    const session = await signInAs("telecaller");
+    const logged = await logCase(session);
+    readAs("sale_deed");
+    await post(session, logged.id, "scan1.pdf", "page one");
+    await post(session, logged.id, "scan2.pdf", "page two");
+    const names = (await stored(logged.id)).map((r) => r.file_name);
+    expect(new Set(names).size).toBe(2);
+    expect(names[1]).toMatch(/\(2\)\.pdf$/);
+  });
+
+  it("opens a zip and files each file inside it as if it had been dropped", async () => {
+    const session = await signInAs("telecaller");
+    const logged = await logCase(session);
+    const enc = (v: string) => new TextEncoder().encode(v);
+    const zip = zipSync({ "KYC/PAN - Demo.pdf": enc("pan"), "KYC/Aadhaar - Demo.jpeg": enc("aadhaar"), "Pending Documents.txt": enc("x") });
+    const answer = await post(session, logged.id, "Documents.zip", zip, "application/zip");
+    expect(answer.result).toBe("archive");
+    expect(answer.files.map((f: any) => f.result).sort()).toEqual(["filed", "filed", "skipped"]);
+    expect((await stored(logged.id)).map((r) => r.code).sort()).toEqual(["aadhaar_card", "pan_card"]);
+  });
+
+  it("says what it could not open: a RAR, a broken zip, a zip inside a zip", async () => {
+    const session = await signInAs("telecaller");
+    const logged = await logCase(session);
+    expect((await post(session, logged.id, "Docs.rar", "rar bytes", "application/octet-stream")).result).toBe("unreadable_archive");
+    expect((await post(session, logged.id, "Broken.zip", "not a zip", "application/zip")).result).toBe("unreadable_archive");
+    const inner = zipSync({ "a.pdf": new TextEncoder().encode("a") });
+    const outer = zipSync({ "inner.zip": inner });
+    const answer = await post(session, logged.id, "Outer.zip", outer, "application/zip");
+    expect(answer.files[0]).toMatchObject({ fileName: "inner.zip", result: "unreadable_archive" });
+    expect(await stored(logged.id)).toHaveLength(0);
   });
 });
 

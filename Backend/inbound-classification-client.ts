@@ -29,6 +29,8 @@ export interface ClassifyAttachmentInput {
    * asked to choose among these, or say none fit, not to guess from an
    * open-ended taxonomy. */
   readonly candidateDocumentTypes: readonly CandidateDocumentType[];
+  /** Where the file came from, if not a bank's email; see buildClassificationPrompt. */
+  readonly source?: string;
 }
 
 function contentBlockFor(input: ClassifyAttachmentInput): Record<string, unknown> {
@@ -60,7 +62,7 @@ export async function classifyAttachment(input: ClassifyAttachmentInput): Promis
         messages: [
           {
             role: "user",
-            content: [contentBlockFor(input), { type: "text", text: buildClassificationPrompt(input.candidateDocumentTypes) }],
+            content: [contentBlockFor(input), { type: "text", text: buildClassificationPrompt(input.candidateDocumentTypes, input.source) }],
           },
         ],
       }),

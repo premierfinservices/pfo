@@ -380,7 +380,14 @@ export async function uploadDocument(
   actor: Actor,
   caseId: string,
   requirementId: string,
-  file: { bytes: Uint8Array; fileName: string; contentType?: string },
+  file: {
+    bytes: Uint8Array;
+    fileName: string;
+    contentType?: string;
+    /** Set when `fileName` is a standard name PFO chose, so the name it arrived with is kept. */
+    originalFileName?: string;
+    contentSha256?: string;
+  },
 ): Promise<RequirementView> {
   const header = await loadCaseHeader(client, caseId);
   requireCaseAccess(actor, header, "document.upload");
@@ -441,8 +448,8 @@ export async function uploadDocument(
     `insert into document
        (owner_kind, person_id, property_id, organisation_id, case_id,
         document_type_id, file_path, file_name, file_size_bytes,
-        period_start, period_end, version, uploaded_by)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        period_start, period_end, version, uploaded_by, original_file_name, content_sha256)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
      returning id`,
     [
       owner.kind,
@@ -458,6 +465,8 @@ export async function uploadDocument(
       subject.period_end,
       version,
       actor.userId,
+      file.originalFileName ?? null,
+      file.contentSha256 ?? null,
     ],
   );
   const documentId = inserted.rows[0]!.id;

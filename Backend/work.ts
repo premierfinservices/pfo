@@ -8,6 +8,8 @@
  * guidance line and the work queue read the same tasks and cannot disagree.
  */
 
+import { createHash } from "node:crypto";
+
 import { LOST_REASONS, type LostReason } from "@domain/case/stages.js";
 import { evaluateTransition } from "@domain/case/transitions.js";
 import {
@@ -24,6 +26,7 @@ import {
 } from "@domain/work/intake.js";
 import { nextStepLine, workFor, type WorkEvent } from "@domain/work/rules.js";
 import { belongsToApplicant, classifyCaseFile, monthlyReturnName, type FileMatch } from "@domain/work/file-names.js";
+import { standardFileName } from "@domain/work/standard-names.js";
 import { documentRowLabel, financialYearOf, type PeriodKind } from "@domain/requirements/index.js";
 import {
   NEXT_SUBMISSION_STATUSES,
@@ -33,12 +36,14 @@ import {
 } from "@domain/submissions/status.js";
 
 import { can, canActOnCase, type Actor } from "./authorize.js";
+import { archiveKind, unpackZip } from "./archive.js";
 import { advanceCaseStage, justifiedStageOf, lockCaseForOutcomeMutation } from "./case-stage.js";
 import { createCase, markLost } from "./cases.js";
 import { normaliseIdentifier } from "./customers.js";
 import { uploadDocument } from "./documents.js";
 import type { Queryable } from "./db.js";
 import { recordCaseEvent, recordSubmissionEvent, type SubmissionEventType } from "./events.js";
+import { readByContent } from "./file-reading.js";
 import { ApiError, refusalMessage } from "./http.js";
 import { regenerateRequirements } from "./requirements.js";
 
@@ -943,18 +948,59 @@ async function requirementForFile(
   return rows[0].id;
 }
 
+export interface UploadAnswer {
+  readonly fileName: string;
+  readonly result: "skipped" | "summary" | "duplicate" | "filed" | "other" | "archive" | "unreadable_archive" | "failed";
+  readonly documentTypeCode?: string;
+  /** What it was stored as, when PFO renamed it. */
+  readonly storedAs?: string;
+  /** The type came from reading the file, not its name. */
+  readonly readByAi?: boolean;
+  readonly reason?: string;
+  /** For an archive: what became of each file inside. */
+  readonly files?: readonly UploadAnswer[];
+}
+
 /**
  * One file from a case folder. The screen sends them one at a time so one bad
  * file cannot lose the rest; the person only ever does one thing, pick the folder.
+ *
+ * A zip is opened and each file inside goes through here as if dropped. A
+ * stored file is named by what it is, with the name it arrived with kept.
  */
 export async function uploadCaseFile(
   client: Queryable,
   actor: Actor,
   caseId: string,
   file: { bytes: Uint8Array; fileName: string; folder: string; contentType?: string },
-) {
+  insideArchive = false,
+): Promise<UploadAnswer> {
   const row = await loadCase(client, caseId);
   requireCase(actor, row, "document.upload");
+
+  const archive = archiveKind(file.fileName);
+  if (archive) {
+    const unreadable = (reason: string): UploadAnswer => ({ fileName: file.fileName, result: "unreadable_archive", reason });
+    if (archive === "unsupported") {
+      return unreadable("PFO cannot open RAR or 7z files. Extract it, then drop the folder.");
+    }
+    if (insideArchive) return unreadable("A zip inside a zip is not opened. Extract it, then drop the folder.");
+    const opened = unpackZip(file.bytes);
+    if (!opened.ok) return unreadable(opened.reason);
+    const files: UploadAnswer[] = [];
+    for (const inner of opened.files) {
+      try {
+        files.push(await uploadCaseFile(client, actor, caseId, { ...inner, folder: inner.folder || file.folder }, true));
+      } catch (error) {
+        // Only checks that run before any query (empty, too large, storage down): a
+        // database error would have aborted the transaction and must not be swallowed.
+        if (!(error instanceof ApiError)) throw error;
+        files.push({ fileName: inner.fileName, result: "failed", reason: error.message });
+      }
+    }
+    return { fileName: file.fileName, result: "archive", files };
+  }
+
   await regenerateRequirements(client, caseId);
 
   const kind = classifyCaseFile(file.fileName, file.folder);
@@ -963,27 +1009,81 @@ export async function uploadCaseFile(
   if (kind.kind === "financial_summary") {
     await client.query(
       `update loan_case set financial_summary = $1, financial_summary_at = now() where id = $2`,
-      [new TextDecoder().decode(file.bytes).replace(/^\uFEFF/, ""), caseId],
+      [new TextDecoder().decode(file.bytes).replace(/^﻿/, ""), caseId],
     );
     await recordCaseEvent(client, { actorUserId: actor.userId, caseId, eventType: "case.financial_summary_added" });
     return { fileName: file.fileName, result: "summary" };
   }
 
+  // A repeat is the same bytes, whatever the file is called. Documents from before
+  // the fingerprint existed are still caught by name and size.
+  const contentSha256 = createHash("sha256").update(file.bytes).digest("hex");
   const { rows: already } = await client.query(
     `select 1 from document_requirement r join document d on d.id = r.uploaded_document_id
-      where r.case_id = $1 and d.file_name = $2 and d.file_size_bytes = $3 limit 1`,
-    [caseId, file.fileName, file.bytes.byteLength],
+      where r.case_id = $1
+        and (d.content_sha256 = $2 or (d.content_sha256 is null and d.file_name = $3 and d.file_size_bytes = $4))
+      limit 1`,
+    [caseId, contentSha256, file.fileName, file.bytes.byteLength],
   );
   if (already[0]) return { fileName: file.fileName, result: "duplicate" };
 
-  const match = kind.match;
+  let match = kind.match;
+  let readByAi = false;
+  if (!match.recognised) {
+    const read = await readByContent(client, file);
+    if (read) {
+      match = read;
+      readByAi = true;
+    }
+  }
+
+  const { rows: typeRows } = await client.query<{ name: string }>(`select name from document_type where code = $1`, [
+    match.documentTypeCode,
+  ]);
+  const typeName = typeRows[0]?.name ?? match.documentTypeCode;
   const rowName = match.isMonthlyReturn
     ? monthlyReturnName(match.periodStart!)
-    : file.fileName.replace(/\.[^.]+$/, "");
+    : readByAi
+      ? typeName
+      : file.fileName.replace(/\.[^.]+$/, "");
   const requirementId = await requirementForFile(client, actor, caseId, match, rowName);
+
+  // Named by what it is, once known; a file nothing could place keeps its own name.
+  let storedName = file.fileName;
+  if (match.recognised) {
+    const { rows: owner } = await client.query<{ full_name: string | null }>(
+      `select p.full_name
+         from document_requirement r
+         left join case_party cp on cp.id = r.required_of_case_party_id
+         left join person p on p.id = cp.person_id
+        where r.id = $1`,
+      [requirementId],
+    );
+    const standard = standardFileName({
+      typeName,
+      ...(match.isMonthlyReturn ? { monthlyName: monthlyReturnName(match.periodStart!) } : {}),
+      periodStart: match.periodStart ?? null,
+      periodEnd: match.periodEnd ?? null,
+      personName: owner[0]?.full_name ?? null,
+      originalFileName: file.fileName,
+    });
+    // Two documents of one kind (deed pages, a second bank's statement) must not read the same.
+    const { rows: taken } = await client.query<{ file_name: string }>(
+      `select d.file_name from document_requirement r join document d on d.id = r.uploaded_document_id
+        where r.case_id = $1`,
+      [caseId],
+    );
+    const used = new Set(taken.map((t) => t.file_name));
+    const dot = standard.lastIndexOf(".") > 0 ? standard.lastIndexOf(".") : standard.length;
+    storedName = standard;
+    for (let n = 2; used.has(storedName); n += 1) storedName = `${standard.slice(0, dot)} (${n})${standard.slice(dot)}`;
+  }
+
   await uploadDocument(client, actor, caseId, requirementId, {
     bytes: file.bytes,
-    fileName: file.fileName,
+    fileName: storedName,
+    contentSha256,
+    ...(storedName !== file.fileName ? { originalFileName: file.fileName } : {}),
     ...(file.contentType ? { contentType: file.contentType } : {}),
   });
 
@@ -997,7 +1097,13 @@ export async function uploadCaseFile(
       [caseId],
     );
   }
-  return { fileName: file.fileName, result: match.recognised ? "filed" : "other", documentTypeCode: match.documentTypeCode };
+  return {
+    fileName: file.fileName,
+    result: match.recognised ? "filed" : "other",
+    documentTypeCode: match.documentTypeCode,
+    ...(storedName !== file.fileName ? { storedAs: storedName } : {}),
+    ...(readByAi ? { readByAi: true } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------

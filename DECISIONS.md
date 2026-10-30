@@ -1820,3 +1820,22 @@ content type recorded at upload would be better and is a small future change.
 **The tradeoffs, stated.** A file can reach a bank incomplete, which is what the office wants and sometimes will regret. Dropping the progress number removes a measure nobody trusted. Old stages stay in the TypeScript union and the Postgres enums, unwritable, because the prototype store and retired rules are written in them; removing them is a cleanup, not a requirement.
 
 **Not decided here.** Whether telecallers may send files and update applications. The MIS lets anyone; PFO's permissions let them only read. Unchanged until Tarun decides.
+
+---
+
+## ADR-041 — The document drop reads, renames and unpacks (step 2 of ADR-040)
+
+**Status:** Accepted. Tarun Ramesh, 30 October 2026 (renaming and archive handling chosen from options; reading by AI approved earlier the same day).
+
+**The problem.** Customers send documents as `IMG_2231.JPEG`, `DOC-WA0016.pdf`, repeated WhatsApp forwards and zip files. Step 1 filed by file name only, so everything unnamed became Other Document, a repeat under a new name was filed twice, and a zip was skipped silently.
+
+**The decision.**
+
+1. A file whose name says nothing, and only that, is read by the model (`Backend/file-reading.ts`, reusing the inbound-mail classifier). The answer is used only at confidence 0.75 or more and only when it names a document type PFO has. Anything else stays Other Document for a person to place. A missing key or unreachable API is the same: nothing is lost, nothing is guessed.
+2. A repeat is the same bytes. Each document stores a SHA-256 (`document.content_sha256`, migration 0048); rows from before it are still caught by name and size.
+3. A recognised file is stored under a standard name, such as `PAN Card - NAME.pdf` or `GSTR-3B Apr 2025 - NAME.pdf`, with `(2)` for a second of a kind. The name it arrived with is kept in `document.original_file_name`. A file nothing could place keeps its own name.
+4. A zip is opened and each file inside goes through the same path. RAR and 7z need a native tool the server does not have: they are reported, with the instruction to extract and drop the folder. A zip inside a zip is not opened. Limits: 500 files, 200 MB unpacked, checked from the zip's index.
+
+**The tradeoffs, stated.** Reading sends a customer's document to Anthropic's API; Tarun approved this, and a CA or lawyer should still confirm the privacy position and whether customer data may be shared across the two proprietorships. The model's answer is not reproducible on a retry, so the screen lists every file identified this way for a person to check. Only the stored name changes on rename, so anyone looking for a file by the customer's own name must look at the original name on the record. The zip limits come from the zip's declared sizes, which a hostile archive could understate; the 25 MB per-file cap still applies to everything inside, and uploads are staff only.
+
+**Not decided here.** GST and ITR figures worked out by PFO (step 3). Whether the model's identifications should be written to an audit table as inbound mail's are (they are not yet).

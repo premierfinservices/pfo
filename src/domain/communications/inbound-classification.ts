@@ -63,10 +63,16 @@ export function zeroConfidenceResult(reasoning: string, rawModelResponse: unknow
   };
 }
 
-export function buildClassificationPrompt(candidateDocumentTypes: readonly CandidateDocumentType[]): string {
+const BANK_EMAIL_SOURCE = "one attachment from an email a bank sent to a loan office";
+
+/** `source` says where the file came from; the default is a bank's email. */
+export function buildClassificationPrompt(
+  candidateDocumentTypes: readonly CandidateDocumentType[],
+  source: string = BANK_EMAIL_SOURCE,
+): string {
   const options = candidateDocumentTypes.map((type) => `- ${type.code}: ${type.name}`).join("\n");
   return (
-    "You are looking at one attachment from an email a bank sent to a loan office. " +
+    `You are looking at ${source}. ` +
     "Identify which of the following document types it is, if any, and extract the key dates and figures visible on it.\n\n" +
     `Candidate document types for this case (choose one of these codes, or null if none fit):\n${options}\n\n` +
     "Respond with ONLY a JSON object, no other text, in exactly this shape:\n" +
