@@ -1839,3 +1839,18 @@ content type recorded at upload would be better and is a small future change.
 **The tradeoffs, stated.** Reading sends a customer's document to Anthropic's API; Tarun approved this, and a CA or lawyer should still confirm the privacy position and whether customer data may be shared across the two proprietorships. The model's answer is not reproducible on a retry, so the screen lists every file identified this way for a person to check. Only the stored name changes on rename, so anyone looking for a file by the customer's own name must look at the original name on the record. The zip limits come from the zip's declared sizes, which a hostile archive could understate; the 25 MB per-file cap still applies to everything inside, and uploads are staff only.
 
 **Not decided here.** GST and ITR figures worked out by PFO (step 3). Whether the model's identifications should be written to an audit table as inbound mail's are (they are not yet).
+
+
+---
+
+## ADR-042 — A telecaller may send their own case's file to lenders
+
+**Status:** Accepted. Tarun Ramesh, 30 October 2026. Closes the first "not decided" item of ADR-040.
+
+**The problem.** The MIS lets anyone send a file to lenders. PFO's telecaller held `submission.read` only, so a telecaller who had collected a customer's documents had to hand the file to the login desk just to send it.
+
+**The decision.** The telecaller role gains `submission.create` at scope `own`: they may send a case they own, and no other. It is sending only. Moving a lender's status (`submission.update_status`) stays with the login desk, because sending was the question asked. Migration 0049 adds the grant; `roles.ts` is unchanged in spirit and now holds it, and `seed.ts` keeps it out of the frozen migration 0008 (`GRANTED_AFTER_SEED`).
+
+**The tradeoffs, stated.** A telecaller can now put a customer's documents in an email to a bank, which the permission matrix had reserved for the login desk. Scope `own` limits that to their own cases. The permission-matrix test that proves 0008 matches `roles.ts` cannot see a grant added in a later migration, so `Backend/role-grants-drift.test.ts` now compares the migrated database with `roles.ts` directly.
+
+**Not decided here.** Whether telecallers may also update an application's status (login, query, sanction). The MIS lets anyone; PFO still reserves it for the login desk until Tarun says otherwise.

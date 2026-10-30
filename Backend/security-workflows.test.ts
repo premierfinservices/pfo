@@ -252,6 +252,51 @@ afterAll(async () => {
   if (!pool.ended) await pool.end();
 }, 30_000);
 
+describe("a telecaller sending their own case to a lender, as aos_app (ADR-042)", () => {
+  // The work tests run as the database owner, which row-level security does not
+  // bind. This is the same step as the restricted role production runs as.
+  it("works for the owner under row-level security, and not for a colleague", async () => {
+    const owner = await signIn((await createEmployee("telecaller")).username);
+    const colleague = await signIn((await createEmployee("telecaller")).username);
+
+    const logged = await api("/api/work/log-case", {
+      method: "POST",
+      token: owner.token,
+      body: {
+        customerName: "rls demo",
+        mobile: `9${String(Date.now()).slice(-9)}`,
+        place: "coimbatore",
+        amount: "25L",
+        loanType: "Business Loan",
+        variant: "Fresh",
+        leadSource: "direct_referral",
+        employmentType: "proprietorship",
+        pickupDate: new Date(Date.now() + 5.5 * 3_600_000 + 86_400_000).toISOString().slice(0, 10),
+      },
+    });
+    expect(logged.status, `log-case: ${JSON.stringify(logged.body)}`).toBe(200);
+
+    const options = await api(`/api/work/cases/${logged.body.id}/lenders`, { token: owner.token });
+    expect(options.status, `lender list: ${JSON.stringify(options.body)}`).toBe(200);
+    const lenders = [{ id: options.body[0].id, banker: "" }];
+
+    const sent = await api(`/api/work/cases/${logged.body.id}/send`, {
+      method: "POST",
+      token: owner.token,
+      body: { lenders },
+    });
+    expect(sent.status, `send: ${JSON.stringify(sent.body)}`).toBe(200);
+    expect(sent.body.applications).toHaveLength(1);
+
+    const refused = await api(`/api/work/cases/${logged.body.id}/send`, {
+      method: "POST",
+      token: colleague.token,
+      body: { lenders },
+    });
+    expect(refused.status).toBe(404);
+  });
+});
+
 describe("document upload/download, submission and mail, served by an API running as aos_app", () => {
   it("carries a case from creation through a sent bank submission, entirely as aos_app", async () => {
     const owner = await createEmployee("telecaller");

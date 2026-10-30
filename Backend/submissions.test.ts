@@ -248,10 +248,9 @@ describe("bank submission and email dispatch, over real HTTP and a real mail bac
     const loanCase = await aReadyCase(owner, verifier);
     const [branchId] = await twoBranchIds(owner.token);
 
-    // `submission.create` is a login-desk permission, not a telecaller one
-    // (Docs/Permission Matrix.md) — the telecaller who owns the case collects
-    // documents; the login executive lodges the file. Every submission call
-    // below uses `verifier`'s token for that reason.
+    // The login desk lodges the file here. A telecaller may now send their own
+    // case too (`submission.create:own`, ADR-042); this test keeps `verifier`
+    // because it is about the package, not about who may send.
     const created = await api(`/api/cases/${loanCase.id}/submissions`, {
       method: "POST",
       token: verifier.token,
@@ -461,8 +460,8 @@ async function setUpReadyCaseWithSubmission(): Promise<{
   const verifier = await signInAs("login_executive");
   const loanCase = await aReadyCase(owner, verifier);
   const [branchId] = await twoBranchIds(owner.token);
-  // `submission.create` is a login-desk permission, not a telecaller one —
-  // the actor performing every submission call below must hold it.
+  // The login desk performs every submission call below (a telecaller can
+  // send their own case too, ADR-042; these tests are about retry, not that).
   const actor = actorFor(verifier, ["login_executive"]);
 
   const submission = await withActor(null, (client) =>

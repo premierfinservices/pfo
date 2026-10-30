@@ -734,6 +734,37 @@ describe("sending and the applications", () => {
   });
 });
 
+describe("a telecaller sending files to lenders (Tarun, 30 Oct 2026)", () => {
+  it("can send their own case, and sees the application it creates", async () => {
+    const telecaller = await signInAs("telecaller");
+    const logged = await logCase(telecaller);
+    const sent = await ok(telecaller, logged.id, "send", { lenders: [{ id: await aLender(), banker: "ravi" }] });
+
+    expect(sent.applications).toHaveLength(1);
+    expect(sent.applications[0].statusLabel).toBe("Not Logged In");
+    expect(sent.tasks.map((t: any) => t.title)).toContain("Confirm login with HDFC Bank");
+  });
+
+  it("cannot send a colleague's case", async () => {
+    const owner = await signInAs("telecaller");
+    const stranger = await signInAs("telecaller");
+    const logged = await logCase(owner);
+    const refused = await act(stranger, logged.id, "send", { lenders: [{ id: await aLender(), banker: "" }] });
+    expect(refused.status).toBe(404);
+  });
+
+  it("still cannot move a lender's status: sending is all this grants", async () => {
+    const telecaller = await signInAs("telecaller");
+    const logged = await logCase(telecaller);
+    const sent = await ok(telecaller, logged.id, "send", { lenders: [{ id: await aLender(), banker: "" }] });
+    const refused = await act(telecaller, logged.id, `applications/${sent.applications[0].id}`, {
+      status: "login_completed",
+      ...loginFields(telecaller),
+    });
+    expect(refused.status).toBe(403);
+  });
+});
+
 describe("rescheduling and dropping", () => {
   it("moves the earliest task's date, keeping the task and recording old and new", async () => {
     const session = await signInAs("telecaller");

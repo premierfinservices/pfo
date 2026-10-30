@@ -81,7 +81,7 @@ TC = Telecaller · LE = Login Executive · MG = Manager · FI = Finance · AD = 
 | Permission | TC | LE | MG | FI | AD |
 |---|---|---|---|---|---|
 | `submission.read` | own | all | all | all | all |
-| `submission.create` | | all | all | | |
+| `submission.create` | own | all | all | | |
 | `submission.update_status` | | all | all | | |
 | `offer.read` | own | all | all | all | all |
 | `offer.record` | | all | all | | |
@@ -128,6 +128,11 @@ most important asymmetry in the matrix. A telecaller must be able to discover
 that the caller is an existing customer — that recognition is the product's
 central promise (Principle #4). What they cannot do is browse a colleague's
 cases.
+
+**A telecaller may send their own case's file to lenders** (`submission.create:own`,
+Tarun, 30 Oct 2026, ADR-042; migration 0049). The MIS lets anyone, and it fits how
+the office works. It is sending only: moving a lender's status
+(`submission.update_status`) stays with the login desk.
 
 **Login Executive holds nearly everything at `all`.** The login desk works
 whatever file is in front of it, regardless of who sourced the lead. It stops at

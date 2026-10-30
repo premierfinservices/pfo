@@ -1349,10 +1349,35 @@ describe("authorization at the store boundary", () => {
     return loanCase;
   }
 
-  it("rejects a telecaller sending a case to a bank — the milestone's own example", () => {
+  // The milestone's example was "reject a telecaller sending a case to a bank".
+  // Tarun, 30 Oct 2026: a telecaller may send their OWN case (`submission.create`
+  // at scope own), as the MIS lets anyone. What stays refused is sending a
+  // colleague's case, so the same refusal is proved against a telecaller who
+  // does not own it.
+  it("rejects a telecaller sending a colleague's case to a bank", () => {
     const { caseId, telecallerId } = caseOwnedByTelecaller();
     const db = getDb();
     const branch = db.organisations.find(
+      (org) => org.roles.includes("branch") && org.parentOrganisationId !== undefined,
+    );
+    const colleagueId = db.users.find(
+      (u) => u.roles.length === 1 && u.roles[0] === "telecaller" && u.id !== telecallerId,
+    )?.id;
+    if (!branch || !colleagueId) throw new Error("test setup: expected a seeded branch and a second telecaller");
+
+    const result = createSubmission(
+      { caseId, branchOrganisationId: branch.id, recipients: [{ email: "rm@bank.com" }] },
+      colleagueId,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("submission.create");
+    expect(getDb().submissions.some((s) => s.caseId === caseId)).toBe(false);
+  });
+
+  it("lets a telecaller send their own case to a bank", () => {
+    const { caseId, telecallerId } = caseOwnedByTelecaller();
+    const branch = getDb().organisations.find(
       (org) => org.roles.includes("branch") && org.parentOrganisationId !== undefined,
     );
     if (!branch) throw new Error("test setup: expected a seeded branch");
@@ -1362,9 +1387,8 @@ describe("authorization at the store boundary", () => {
       telecallerId,
     );
 
-    expect(result.ok).toBe(false);
-    expect(result.message).toContain("submission.create");
-    expect(getDb().submissions.some((s) => s.caseId === caseId)).toBe(false);
+    expect(result.ok, result.message).toBe(true);
+    expect(getDb().submissions.some((s) => s.caseId === caseId)).toBe(true);
   });
 
   it("lets the Login Team send the same case to the same bank", () => {

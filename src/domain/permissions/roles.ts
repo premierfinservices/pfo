@@ -152,6 +152,10 @@ export const ROLE_GRANTS: Record<Role, readonly Grant[]> = {
     { permission: "document.upload", scope: "own" },
 
     { permission: "submission.read", scope: "own" },
+    // Tarun, 30 Oct 2026: a telecaller may send their own case's file to
+    // lenders, as the MIS lets anyone. Sending only: moving a lender's status
+    // (`submission.update_status`) stays with the login desk. Migration 0049.
+    { permission: "submission.create", scope: "own" },
     { permission: "offer.read", scope: "own" },
 
     { permission: "task.read", scope: "own" },

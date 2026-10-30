@@ -34,6 +34,23 @@ const SEEDED_IDLE_THRESHOLDS: readonly (readonly [string, number])[] = [
   ["idle_days.disbursed", 14],
 ];
 
+/**
+ * Grants that reached the database in a later migration, so 0008 must not emit
+ * them: it is applied and frozen. Each is still in roles.ts, which is the truth;
+ * `role-grants-drift.test.ts` checks the migrated database against it.
+ *   telecaller submission.create (scope own): 0049, Tarun 30 Oct 2026
+ */
+const GRANTED_AFTER_SEED: readonly (readonly [string, string])[] = [["telecaller", "submission.create"]];
+
+/** Every grant 0008 emitted, in roles.ts order. */
+function seededGrants() {
+  return ROLES.flatMap((role) =>
+    ROLE_GRANTS[role]
+      .filter((grant) => !GRANTED_AFTER_SEED.some(([r, p]) => r === role && p === grant.permission))
+      .map((grant) => ({ role, ...grant })),
+  );
+}
+
 /** Postgres string literal. Doubling the quote is the whole of the escaping rule. */
 function quote(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
@@ -100,11 +117,8 @@ export function buildPermissionSeedSql(): string {
     "insert into role_permission (role, permission, scope) values",
   );
 
-  const grantRows = ROLES.flatMap((role) =>
-    ROLE_GRANTS[role].map(
-      (grant) =>
-        `  (${quote(role)}, ${quote(grant.permission)}, ${quote(grant.scope)})`,
-    ),
+  const grantRows = seededGrants().map(
+    (grant) => `  (${quote(grant.role)}, ${quote(grant.permission)}, ${quote(grant.scope)})`,
   );
   lines.push(grantRows.join(",\n") + "\non conflict (role, permission) do update set");
   lines.push(
@@ -112,11 +126,9 @@ export function buildPermissionSeedSql(): string {
     "",
     "delete from role_permission",
     " where (role, permission) not in (",
-    ROLES.flatMap((role) =>
-      ROLE_GRANTS[role].map(
-        (grant) => `       (${quote(role)}, ${quote(grant.permission)})`,
-      ),
-    ).join(",\n"),
+    seededGrants()
+      .map((grant) => `       (${quote(grant.role)}, ${quote(grant.permission)})`)
+      .join(",\n"),
     "     );",
     "",
     "-- Now the withdrawn permissions themselves, with no grants left pointing at",

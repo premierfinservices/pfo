@@ -752,14 +752,33 @@ describe("permissions", () => {
     expect(outcome.ok).toBe(true);
   });
 
-  it("refuses a Telecaller, who may upload a document but may not submit one", async () => {
+  // A telecaller may send their own case (`submission.create` at scope own,
+  // Tarun, 30 Oct 2026). The refusals below are for a telecaller who does not
+  // own the case: it was a blanket telecaller refusal before.
+  function colleagueTelecaller(fixture: Fixture): string {
+    const id = getDb().users.find(
+      (user) => user.roles.length === 1 && user.roles[0] === "telecaller" && user.id !== fixture.telecallerId,
+    )?.id;
+    if (!id) throw new Error("test setup: expected a second telecaller");
+    return id;
+  }
+
+  it("lets the Telecaller who owns the case prepare its package", async () => {
+    const fixture = setup();
+    await uploadAndVerify(fixture, 1);
+    const prepared = prepareFor(fixture, verifiedDocumentIds(fixture), fixture.telecallerId);
+    expect(prepared.ok).toBe(true);
+  });
+
+  it("refuses a Telecaller who does not own the case, who may not submit it", async () => {
     const fixture = setup();
     await uploadAndVerify(fixture, 1);
     const documentIds = verifiedDocumentIds(fixture);
     const provider = new RecordingProvider();
+    const colleagueId = colleagueTelecaller(fixture);
 
     // Not merely a hidden button: the store boundary refuses.
-    const prepared = prepareFor(fixture, documentIds, fixture.telecallerId);
+    const prepared = prepareFor(fixture, documentIds, colleagueId);
     expect(prepared.ok).toBe(false);
     if (!prepared.ok) expect(prepared.message).toContain("submission.create");
 
@@ -770,7 +789,7 @@ describe("permissions", () => {
         recipients: [{ email: "karthik@examplebank.com", kind: "to" }],
         fingerprint: "anything",
       },
-      fixture.telecallerId,
+      colleagueId,
       provider,
     );
     expect(outcome.ok).toBe(false);
@@ -799,7 +818,7 @@ describe("permissions", () => {
 
     const [sent] = packagesFor(fixture.submissionId);
     provider.heal();
-    const retry = await retryDocumentPackage(sent!.id, fixture.telecallerId, provider);
+    const retry = await retryDocumentPackage(sent!.id, colleagueTelecaller(fixture), provider);
 
     expect(retry.ok).toBe(false);
     expect(retry.message).toContain("submission.create");
