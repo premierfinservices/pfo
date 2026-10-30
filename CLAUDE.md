@@ -1,5 +1,7 @@
 # PFO Project Instructions
 
+- **Resuming work, or starting with no context? Read `Docs/Resume on Home PC.md` first.** It says where the MIS-parity work stands, what to read, and what not to touch.
+
 - Always invoke the `andrej-karpathy-skills:karpathy-guidelines` skill when writing, reviewing, or refactoring any code in this project.
 
 ## Which PC is this, right now

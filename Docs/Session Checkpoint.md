@@ -1,3 +1,5 @@
+> **Superseded 30 Oct 2026.** The banker work below is committed and live. For current status and how to resume, read `Docs/Resume on Home PC.md`. Everything below is history.
+
 # Session Checkpoint — 2026-09-17, banker master-data session (read this section first, then the rest as history)
 
 **PENDING: code is written, tested, and NOT YET committed, pushed, built,
