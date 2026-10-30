@@ -23,7 +23,18 @@ Written 30 October 2026 for a Claude session (or a person) that has **no memory 
 
 Production: `main` is at or after `8a42b93`, migrated to 0048, running on the Unfold Media Corp PC. After the migration the server was verified healthy and no data was lost, but **nobody has yet signed in and clicked through the new screens in a browser**. That is the first thing to ask Tarun about.
 
-Tests at last run: unit 749/749; integration 296/298. The 2 failures predate this work: `Backend/api.test.ts` still expects `AL-` case numbers after the rebrand to `PF-`. Do not "fix" them by accident while doing something else; it is a small separate job.
+Tests at last run (Home PC, 30 Oct evening): unit 751/751; integration 302/306. The 4 failures are not from this work. Two predate it: `Backend/api.test.ts` still expects `AL-` case numbers after the rebrand to `PF-`. Do not "fix" them by accident; it is a small separate job. The other two are environmental on the Home PC: the `customers` test fails once `pfo_test` has filled up (drop and rerun), and `migrate-import-side-effect` fails because `core.autocrlf=true` puts a CR after the `#!` line of `Backend/migrate.mjs` (a `.gitattributes` with `*.mjs text eol=lf` would fix it; not done).
+
+## Added the evening of 30 Oct 2026 (Home PC): apply this on the Unfold PC first
+
+Two new migrations, **not yet applied to production**:
+
+- **0050 fixes a live bug.** 0045 added columns to `submission`, but 0034 had made `aos_app`'s read access column-by-column, so `aos_app` could not read them. If the production server runs as `aos_app` (check `PFO_DB_USER` in the Unfold PC's `.env`), **Log a Case and Update Case return 500 (`permission denied for table submission`) until 0050 is applied.** `Backend/app-role-column-grants.test.ts` now fails if any masked table gains a column `aos_app` cannot read. Every earlier work test ran as the superuser and could not see this.
+- **0049 lets a telecaller send their own case's file to lenders** (ADR-042). Sending only: moving a lender's status is still the login desk's. `Backend/role-grants-drift.test.ts` checks the migrated database against `roles.ts`, which the 0008 snapshot test cannot.
+
+Deploy as in "How a change reaches production", including a backup and a rehearsal on a restored copy. After it, sign in as a telecaller on a practice case: log a case, then send it to a lender.
+
+Decisions Tarun made on 30 Oct (details in the open-decisions list below): telecallers may send files (done); AI reading is to be replaced by local OCR, **design not yet written** (recommended: `tesseract.js` plus a PDF renderer from npm, no install on the server; Tamil to be confirmed; this replaces the reading part of ADR-041); he handles the offsite backup and the shared password himself; the three superseded PRDs are to be rewritten keeping what still applies.
 
 ## Read in this order
 
@@ -76,7 +87,7 @@ Do not ask a Home PC session to do steps 1 to 6. They need the Unfold PC.
 ## Traps that nearly caused damage
 
 - **Never check out a branch in the production folder** (`...\PFO` on the Unfold PC). The live server runs from it. Use a git worktree for feature work, and push a branch tip straight to `main` if it is a clean fast-forward.
-- **Never edit a migration that has been applied.** Production recorded each file's checksum. Migrations 0011 onward have CRLF line endings on the Unfold PC's disk, and the checksums were recorded with them; a fresh LF clone will make the runner refuse on production. Add a new numbered migration instead (next is 0049).
+- **Never edit a migration that has been applied.** Production recorded each file's checksum. Migrations 0011 onward have CRLF line endings on the Unfold PC's disk, and the checksums were recorded with them; a fresh LF clone will make the runner refuse on production. Add a new numbered migration instead (next is 0051).
 - **Never run plain `npm run dev` on the Unfold PC.** Its `predev` hook kills any `node.exe` on the production ports.
 - **`pfo_test` fills up** across runs, then a customer-list test fails on the 500-row limit. Drop the database and rerun. It also fails with a checksum error if an applied migration is edited.
 - **Vitest fails a test whose mock throws**, even when the code under test catches it. Model a failure as a returned value instead.
@@ -85,13 +96,13 @@ Do not ask a Home PC session to do steps 1 to 6. They need the Unfold PC.
 
 ## Open decisions and loose ends (Tarun's to decide)
 
-1. **May telecallers send files to lenders and update applications?** The MIS lets anyone; PFO's permissions let telecallers only read. Recommended: allow. Unchanged until he decides. (One telecaller is telecaller-only; one person holds both roles.)
+1. **Telecallers and lenders.** *Decided 30 Oct:* a telecaller may send their own case's file to lenders (ADR-042, migration 0049). **Still open:** whether they may also update an application's status (login, query, sanction); the MIS lets anyone, PFO reserves it for the login desk.
 2. **Sign-in check of what went live.** Log a Case, Update Case, the upload card, the telecaller and login-executive views (tested through the API only, never in a browser). Use a practice case; do not send a real email.
-3. **Privacy of AI reading.** Reading sends a customer's document to Anthropic's API. Tarun approved it. A CA or lawyer should still confirm the privacy position, including whether customer data may be shared across the two proprietorships. Not confirmed as done. Alternative if it matters: local OCR (Tesseract) plus rules.
+3. **Privacy of AI reading.** *Decided 30 Oct:* reading will be done locally with Tesseract OCR plus rules instead of sending documents to Anthropic's API. Not built; needs a short design first (see above). Until it is built, the current API reading stays off unless `PFO_ANTHROPIC_API_KEY` is set. Whether customer data may be shared across the two proprietorships is still worth a CA's or lawyer's confirmation.
 4. **Duplicate-mobile warning shows another owner's customer name, case number and stage** to any telecaller (`mobileMatches` in `Backend/work.ts`). This mirrors the MIS, where the warning names the existing case, but telecallers' own cases are hidden elsewhere in PFO. An automated review flagged it as an information-disclosure risk. A fix would return only "this number exists" for cases the person cannot read, and show details only for their own. It changes how the warning reads, so it is Tarun's call. Not changed.
-5. **A real offsite backup.** `D:\PFO-Backups-Offsite` is on the same PC as everything else. Get a copy that leaves the building before MCM's data moves in.
-6. **The password used for the live `tarun` account was shared in chat** and should be changed.
-7. **Rewrite** `Requirements and Progress.md`, `Loan Lifecycle.md` and `Workflow.md` to match ADR-040.
+5. **A real offsite backup.** `D:\PFO-Backups-Offsite` is on the same PC as everything else. Get a copy that leaves the building before MCM's data moves in. *Tarun will handle this himself.*
+6. **The password used for the live `tarun` account was shared in chat** and should be changed. *Tarun will handle this himself.*
+7. **Rewrite** `Requirements and Progress.md`, `Loan Lifecycle.md` and `Workflow.md` to match ADR-040, keeping what still applies. *Agreed 30 Oct; not yet done.*
 
 ## Known limits of what is built
 
