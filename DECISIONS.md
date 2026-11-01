@@ -1864,3 +1864,13 @@ content type recorded at upload would be better and is a small future change.
 **The duplicate-mobile warning.** `mobileMatches` used to return the customer name, case number and stage of every case on a mobile, including cases owned by another telecaller that PFO hides everywhere else. It now names only cases the caller may read (`canActOnCase(..., "case.read")`) and returns the rest as a count, `hidden`. The number is still reported as taken, so the 409 and the "different customer" tick work as before; the screen and the 409 message say "N other cases you cannot open". The override note on the new case likewise names only the cases the caller could see.
 
 **The tradeoff.** A telecaller can still learn that a mobile number is in use. That is the point of the warning and is not another owner's customer data. They can no longer learn who the customer is or what stage the case is at.
+
+## ADR-044 — Send to lenders emails the documents
+
+**Status:** Accepted. Tarun Ramesh, 1 November 2026. Closes the gap named in the "Not in this step" part of ADR-040's sending flow.
+
+**The problem.** The Send to lenders tab only recorded a lender and banker (the MIS's own behaviour) and raised "Confirm login with {bank}" at once. The mail pipeline lived on the Banks tab. The button said "Send", the task said "confirm login", and nothing had left the office.
+
+**The decision.** Ticking lenders now starts the real mail flow. For each lender the server makes the application (`Not Logged In`) and its recipient from the banker's email, typed on the spot if none is on file and then saved to the banker. The documents are chosen once, one email per lender is reviewed, and sending uses the existing `preparePackage` and `sendPackage` unchanged. **The follow-up task is raised only after a mail has gone** (`afterPackageSent`, called by the package send and retry routes), and not twice for a file already recorded as sent. A "Record only, no email" button keeps the old behaviour for a pre-check made before any documents exist.
+
+**The tradeoffs, stated.** An email needs at least one uploaded document, so with none the email button is disabled and recording is offered. If someone closes the panel before sending, the applications exist and the lender shows "already sent" on this tab, although no mail went; the Banks tab sends them. The same hook means a send from the Banks tab now also raises Confirm login, which it did not before.

@@ -15,7 +15,7 @@ import { hashPassword } from "@domain/auth/password.js";
 import type { Role } from "@domain/permissions/index.js";
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -33,7 +33,24 @@ const readAs = (documentTypeCode: string, confidence = 0.95, over: Record<string
 let baseUrl: string;
 let server: ReturnType<typeof createApiServer>;
 let storage: ChildProcess;
+let mailServer: ChildProcess;
 const storageRoot = mkdtempSync(join(tmpdir(), "pfo-work-test-"));
+// A capture-mode mail backend: messages land on disk and nothing reaches Gmail.
+const mailCapture = mkdtempSync(join(tmpdir(), "pfo-work-mail-"));
+
+function startMail(): ChildProcess {
+  return spawn(process.execPath, ["Backend/mail-server.mjs"], {
+    env: { ...process.env, PFO_MAIL_PORT: "4330", PFO_MAIL_PROVIDER: "capture", PFO_MAIL_CAPTURE_DIR: mailCapture },
+    stdio: "ignore",
+  });
+}
+
+async function waitFor(url: string): Promise<void> {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    if (await fetch(url).then((r) => r.ok, () => false)) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
 
 const PASSWORD = "integration-test-password";
 
@@ -158,11 +175,16 @@ beforeAll(async () => {
     if (up) break;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
+
+  mailServer = startMail();
+  await waitFor("http://127.0.0.1:4330/health");
 });
 
 afterAll(async () => {
   storage.kill();
+  mailServer.kill();
   rmSync(storageRoot, { recursive: true, force: true });
+  rmSync(mailCapture, { recursive: true, force: true });
   await pool.query(`
     update document_requirement_rule r
        set is_active = r.code not like 'mis\\_%'
@@ -884,5 +906,144 @@ describe("who sees what", () => {
     await expect(pool.query(`update loan_case set stage = 'contacted' where id = $1`, [logged.id])).rejects.toThrow(
       /loan_case_stage_not_retired/,
     );
+  });
+});
+
+describe("sending to lenders by email", () => {
+  const post = (session: Session, path: string, body: unknown = {}) =>
+    api(path, { method: "POST", token: session.token, body });
+
+  /** A case with one PAN document in, so there is something to attach. */
+  async function caseWithDocument(session: Session): Promise<string> {
+    const logged = await logCase(session);
+    const response = await fetch(`${baseUrl}/api/work/cases/${logged.id}/upload`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.token}`,
+        "X-File-Name": encodeURIComponent("PAN - Demo.pdf"),
+        "X-File-Folder": "",
+      },
+      body: "bytes of the PAN card",
+    });
+    expect(response.status).toBe(200);
+    return logged.id as string;
+  }
+
+  const email = (session: Session, caseId: string, lenders: unknown[]) =>
+    post(session, `/api/work/cases/${caseId}/send`, { mode: "email", lenders });
+
+  const openConfirmTasks = async (caseId: string): Promise<number> =>
+    (await pool.query(`select 1 from task where case_id = $1 and kind = 'confirm_login' and completed_at is null`, [caseId]))
+      .rows.length;
+
+  async function documentIdsFor(session: Session, base: string): Promise<string[]> {
+    const docs = (await api(`${base}/sendable-documents`, { token: session.token })).body;
+    return docs.filter((d: any) => !d.blockedBecause).map((d: any) => d.documentId);
+  }
+
+  it("makes the application and its recipient, saves the banker's email, and raises no task until mail goes", async () => {
+    const session = await signInAs("login_executive");
+    const caseId = await caseWithDocument(session);
+    const sent = await email(session, caseId, [{ id: await aLender(), banker: "ravi", email: "Ravi.Kumar@example.com" }]);
+    expect(sent.status, JSON.stringify(sent.body)).toBe(200);
+    expect(sent.body.applications).toHaveLength(1);
+    expect(sent.body.created).toEqual([
+      expect.objectContaining({ lender: "HDFC Bank", submissionId: sent.body.applications[0].id }),
+    ]);
+
+    const { rows } = await pool.query(
+      `select email, recipient_kind, is_primary from submission_recipient where submission_id = $1`,
+      [sent.body.applications[0].id],
+    );
+    expect(rows).toEqual([{ email: "ravi.kumar@example.com", recipient_kind: "to", is_primary: true }]);
+    expect(await openConfirmTasks(caseId)).toBe(0);
+
+    // Next time the banker is picked, the address comes with the name.
+    const other = await caseWithDocument(session);
+    const options = (await api(`/api/work/cases/${other}/lenders`, { token: session.token })).body;
+    expect(options.find((o: any) => o.name === "HDFC Bank").bankerEmails).toMatchObject({
+      RAVI: "ravi.kumar@example.com",
+    });
+  });
+
+  it("asks for an email rather than creating an application nobody can mail", async () => {
+    const session = await signInAs("login_executive");
+    const caseId = await caseWithDocument(session);
+    const none = await email(session, caseId, [{ id: await aLender(), banker: "nobody known" }]);
+    expect(none.status).toBe(400);
+    expect(none.body.message).toContain("HDFC Bank");
+    const bad = await email(session, caseId, [{ id: await aLender(), banker: "x", email: "not an address" }]);
+    expect(bad.status).toBe(400);
+    expect((await api(`/api/work/cases/${caseId}`, { token: session.token })).body.applications).toHaveLength(0);
+  });
+
+  it("emails the chosen documents, marks the file sent, and only then raises Confirm login", async () => {
+    const session = await signInAs("login_executive");
+    const caseId = await caseWithDocument(session);
+    const created = (await email(session, caseId, [{ id: await aLender(), banker: "ravi", email: "ravi@example.com" }])).body;
+    const base = `/api/cases/${caseId}/submissions/${created.created[0].submissionId}`;
+    const documentIds = await documentIdsFor(session, base);
+    expect(documentIds.length).toBeGreaterThan(0);
+
+    const prepared = await post(session, `${base}/package/prepare`, { documentIds });
+    expect(prepared.status, JSON.stringify(prepared.body)).toBe(200);
+    expect(prepared.body.plan.to.map((r: any) => r.email)).toEqual(["ravi@example.com"]);
+
+    const before = readdirSync(mailCapture).length;
+    const result = await post(session, `${base}/package/send`, { documentIds, fingerprint: prepared.body.fingerprint });
+    expect(result.status, JSON.stringify(result.body)).toBe(200);
+    expect(result.body.failedCount).toBe(0);
+    expect(readdirSync(mailCapture).length).toBeGreaterThan(before);
+
+    const summary = (await api(`/api/work/cases/${caseId}`, { token: session.token })).body;
+    expect(summary.applications[0].statusLabel).toBe("Not Logged In");
+    expect(summary.tasks.map((t: any) => t.title)).toContain("Confirm login with HDFC Bank");
+    expect(await openConfirmTasks(caseId)).toBe(1);
+  });
+
+  it("does not raise a second Confirm login when a file already recorded as sent is then emailed", async () => {
+    const session = await signInAs("login_executive");
+    const caseId = await caseWithDocument(session);
+    const recorded = await ok(session, caseId, "send", { lenders: [{ id: await aLender(), banker: "ravi" }] });
+    const submissionId = recorded.applications[0].id as string;
+    expect(await openConfirmTasks(caseId)).toBe(1);
+
+    await pool.query(
+      `insert into submission_recipient (submission_id, email, contact_name, is_primary, recipient_kind, display_order)
+       values ($1, 'ravi@example.com', 'RAVI', true, 'to', 10)`,
+      [submissionId],
+    );
+    const base = `/api/cases/${caseId}/submissions/${submissionId}`;
+    const documentIds = await documentIdsFor(session, base);
+    const prepared = await post(session, `${base}/package/prepare`, { documentIds });
+    const result = await post(session, `${base}/package/send`, { documentIds, fingerprint: prepared.body.fingerprint });
+    expect(result.status, JSON.stringify(result.body)).toBe(200);
+    expect(await openConfirmTasks(caseId)).toBe(1);
+  });
+
+  it("leaves Confirm login unraised when the mail does not go", async () => {
+    const session = await signInAs("login_executive");
+    const caseId = await caseWithDocument(session);
+    const created = (await email(session, caseId, [{ id: await aLender(), banker: "ravi", email: "ravi@example.com" }])).body;
+    const base = `/api/cases/${caseId}/submissions/${created.created[0].submissionId}`;
+    const documentIds = await documentIdsFor(session, base);
+    const prepared = await post(session, `${base}/package/prepare`, { documentIds });
+
+    mailServer.kill();
+    try {
+      const result = await post(session, `${base}/package/send`, { documentIds, fingerprint: prepared.body.fingerprint });
+      expect(result.body.failedCount).toBeGreaterThan(0);
+      expect(await openConfirmTasks(caseId)).toBe(0);
+    } finally {
+      mailServer = startMail();
+      await waitFor("http://127.0.0.1:4330/health");
+    }
+  });
+
+  it("lets a telecaller email their own case's file", async () => {
+    const session = await signInAs("telecaller");
+    const caseId = await caseWithDocument(session);
+    const created = await email(session, caseId, [{ id: await aLender(), banker: "ravi", email: "ravi@example.com" }]);
+    expect(created.status, JSON.stringify(created.body)).toBe(200);
   });
 });

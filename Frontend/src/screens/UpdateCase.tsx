@@ -14,6 +14,7 @@ import { shortDate } from "@domain/work/rules.js";
 
 import { api, apiUpload } from "../api/client.js";
 import { useApiQuery, useMutation } from "../api/hooks.js";
+import type { ApiPreparedPackage, ApiSendResult, ApiSendableDocument } from "../api/types.js";
 import { useSession } from "../session.js";
 import { Badge, Button, Card, Empty, Field, Input, Select, StageBadge, cx } from "../ui/index.js";
 import { dateFromToday, type WorkLists } from "./LogCase.js";
@@ -69,6 +70,14 @@ interface Summary {
   readonly uploaded: readonly { name: string; fileName: string }[];
   readonly financialSummary: string | null;
   readonly applications: readonly Application[];
+  /** Only on the answer to a send: the applications it just made. */
+  readonly created?: readonly CreatedApplication[];
+}
+
+interface CreatedApplication {
+  readonly lenderId: string;
+  readonly lender: string;
+  readonly submissionId: string;
 }
 
 interface LenderOption {
@@ -77,6 +86,8 @@ interface LenderOption {
   readonly supports: boolean;
   readonly already: boolean;
   readonly bankers: readonly string[];
+  /** Banker name (capitals) to the address already on file. */
+  readonly bankerEmails: Readonly<Record<string, string>>;
 }
 
 const TODAY = (): string => dateFromToday(0);
@@ -166,7 +177,7 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
     return <Empty>{loaded.error?.message ?? "This case is not available."}</Empty>;
   }
 
-  const act = async (path: string, body: Record<string, unknown>): Promise<void> => {
+  const act = async (path: string, body: Record<string, unknown>): Promise<Summary | null> => {
     const result = await mutation.run(() =>
       api<Summary>(`/work/cases/${caseId}/${path}`, { method: "POST", body }),
     );
@@ -174,6 +185,7 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
       setLatest(result);
       onChanged();
     }
+    return result ?? null;
   };
 
   const closed = summary.stage === "lost" || summary.stage === "closed";
@@ -232,7 +244,7 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
       </div>
 
       {tab === "case" && <CaseTab summary={summary} act={act} pending={mutation.pending} closed={closed} refresh={refresh} />}
-      {tab === "send" && <SendTab summary={summary} act={act} pending={mutation.pending} />}
+      {tab === "send" && <SendTab summary={summary} act={act} pending={mutation.pending} refresh={refresh} />}
       {tab === "applications" && (
         <ApplicationsTab summary={summary} lists={lists.data} act={act} pending={mutation.pending} />
       )}
@@ -240,7 +252,7 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
   );
 }
 
-type Act = (path: string, body: Record<string, unknown>) => Promise<void>;
+type Act = (path: string, body: Record<string, unknown>) => Promise<Summary | null>;
 
 function CaseTab({
   summary,
@@ -580,11 +592,23 @@ function PendingList({ summary, act, pending }: { summary: Summary; act: Act; pe
   );
 }
 
-function SendTab({ summary, act, pending }: { summary: Summary; act: Act; pending: boolean }): ReactNode {
+function SendTab({
+  summary,
+  act,
+  pending,
+  refresh,
+}: {
+  summary: Summary;
+  act: Act;
+  pending: boolean;
+  refresh: () => Promise<void>;
+}): ReactNode {
   const [options, setOptions] = useState<readonly LenderOption[] | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
+  const [emails, setEmails] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
+  const [composing, setComposing] = useState<readonly CreatedApplication[] | null>(null);
   const count = summary.applications.length;
 
   useEffect(() => {
@@ -596,8 +620,35 @@ function SendTab({ summary, act, pending }: { summary: Summary; act: Act; pendin
   if (failed) return <Empty>{failed}</Empty>;
   if (!options) return <Empty>Loading lenders…</Empty>;
 
+  if (composing) {
+    return (
+      <EmailPanel
+        caseId={summary.id}
+        created={composing}
+        onDone={() => {
+          setComposing(null);
+          void refresh();
+        }}
+      />
+    );
+  }
+
   const shown = options.filter((lender) => lender.name.toLowerCase().includes(search.toLowerCase()));
   const ticked = Object.keys(picked);
+  const noDocuments = summary.uploaded.length === 0;
+  const missingEmail = ticked.some((id) => (emails[id] ?? "").trim() === "");
+
+  const startEmail = async (): Promise<void> => {
+    const result = await act("send", {
+      mode: "email",
+      lenders: ticked.map((id) => ({ id, banker: picked[id], email: emails[id] })),
+    });
+    if (result?.created && result.created.length > 0) {
+      setComposing(result.created);
+      setPicked({});
+      setEmails({});
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -641,13 +692,26 @@ function SendTab({ summary, act, pending }: { summary: Summary; act: Act; pendin
                     placeholder="Banker (pick or type)"
                     list={`bankers-${lender.id}`}
                     value={picked[lender.id] ?? ""}
-                    onChange={(event) => setPicked((current) => ({ ...current, [lender.id]: event.target.value }))}
+                    onChange={(event) => {
+                      const name = event.target.value;
+                      setPicked((current) => ({ ...current, [lender.id]: name }));
+                      // A banker already on file brings their address along.
+                      const known = lender.bankerEmails[name.trim().toUpperCase()];
+                      if (known) setEmails((current) => ({ ...current, [lender.id]: known }));
+                    }}
                   />
                   <datalist id={`bankers-${lender.id}`}>
                     {lender.bankers.map((name) => (
                       <option key={name} value={name} />
                     ))}
                   </datalist>
+                  <Input
+                    className="max-w-64"
+                    type="email"
+                    placeholder="Banker email"
+                    value={emails[lender.id] ?? ""}
+                    onChange={(event) => setEmails((current) => ({ ...current, [lender.id]: event.target.value }))}
+                  />
                 </>
               )}
             </li>
@@ -655,23 +719,259 @@ function SendTab({ summary, act, pending }: { summary: Summary; act: Act; pendin
         })}
       </ul>
 
+      {noDocuments && (
+        <p className="text-sm text-ink-600">
+          No documents are uploaded on this case yet, so there is nothing to email. Upload them on the Case tab, or
+          record the lender without emailing.
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
         <Button
           variant="primary"
+          disabled={pending || ticked.length === 0 || noDocuments || missingEmail}
+          onClick={() => void startEmail()}
+        >
+          Email documents to {ticked.length} lender{ticked.length === 1 ? "" : "s"}
+        </Button>
+        <Button
+          variant="ghost"
           disabled={pending || ticked.length === 0}
           onClick={() => {
-            void act("send", {
-              lenders: ticked.map((id) => ({ id, banker: picked[id] })),
-            });
+            void act("send", { lenders: ticked.map((id) => ({ id, banker: picked[id] })) });
             setPicked({});
+            setEmails({});
           }}
         >
-          Send to {ticked.length} lender{ticked.length === 1 ? "" : "s"}
+          Record only, no email
         </Button>
-        <Link to={`/cases/${summary.id}?tab=banks`} className="text-sm underline">
-          Email documents to a banker
-        </Link>
       </div>
+      {ticked.length > 0 && missingEmail && !noDocuments && (
+        <p className="text-xs text-ink-500">Type each banker's email so the documents have somewhere to go.</p>
+      )}
+    </div>
+  );
+}
+
+const kilobytes = (bytes: number): string =>
+  bytes >= 1_048_576 ? `${(bytes / 1_048_576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
+interface Outcome {
+  readonly ok: boolean;
+  readonly message: string;
+  readonly packageId?: string;
+}
+
+/**
+ * Choose the documents once, read each lender's email, send them all. The
+ * applications already exist (`Not Logged In`); the follow-up task is raised
+ * by the server only when a mail has actually gone.
+ */
+function EmailPanel({
+  caseId,
+  created,
+  onDone,
+}: {
+  caseId: string;
+  created: readonly CreatedApplication[];
+  onDone: () => void;
+}): ReactNode {
+  const base = (submissionId: string): string => `/cases/${caseId}/submissions/${submissionId}`;
+  const docs = useApiQuery<readonly ApiSendableDocument[]>(`${base(created[0]!.submissionId)}/sendable-documents`);
+  const [selected, setSelected] = useState<ReadonlySet<string> | null>(null);
+  const [step, setStep] = useState<"choose" | "review" | "sent">("choose");
+  const [prepared, setPrepared] = useState<Record<string, ApiPreparedPackage>>({});
+  const [outcomes, setOutcomes] = useState<Record<string, Outcome>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (docs.loading) return <Empty>Loading documents…</Empty>;
+  if (docs.error || !docs.data) return <Empty>{docs.error?.message ?? "Could not load the documents."}</Empty>;
+
+  const usable = docs.data.filter((doc) => !doc.blockedBecause);
+  const chosen = selected ?? new Set(usable.map((doc) => doc.documentId));
+  const documentIds = [...chosen];
+
+  const toggle = (id: string): void => {
+    const next = new Set(chosen);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelected(next);
+  };
+
+  const review = async (): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      const plans: Record<string, ApiPreparedPackage> = {};
+      for (const item of created) {
+        plans[item.submissionId] = await api<ApiPreparedPackage>(`${base(item.submissionId)}/package/prepare`, {
+          method: "POST",
+          body: { documentIds },
+        });
+      }
+      setPrepared(plans);
+      setStep("review");
+    } catch (failure) {
+      setError((failure as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendAll = async (): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    const results: Record<string, Outcome> = {};
+    for (const item of created) {
+      try {
+        const sent = await api<ApiSendResult>(`${base(item.submissionId)}/package/send`, {
+          method: "POST",
+          body: { documentIds, fingerprint: prepared[item.submissionId]!.fingerprint },
+        });
+        results[item.submissionId] = {
+          ok: sent.failedCount === 0,
+          message: sent.message,
+          packageId: sent.submissionPackageId,
+        };
+      } catch (failure) {
+        results[item.submissionId] = { ok: false, message: (failure as Error).message };
+      }
+    }
+    setOutcomes(results);
+    setStep("sent");
+    setBusy(false);
+  };
+
+  const retry = async (item: CreatedApplication): Promise<void> => {
+    const packageId = outcomes[item.submissionId]?.packageId;
+    if (!packageId) return;
+    setBusy(true);
+    try {
+      const sent = await api<ApiSendResult>(`${base(item.submissionId)}/packages/${packageId}/retry`, {
+        method: "POST",
+        body: {},
+      });
+      setOutcomes((current) => ({
+        ...current,
+        [item.submissionId]: { ok: sent.failedCount === 0, message: sent.message, packageId },
+      }));
+    } catch (failure) {
+      setOutcomes((current) => ({
+        ...current,
+        [item.submissionId]: { ok: false, message: (failure as Error).message, packageId },
+      }));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const names = created.map((item) => item.lender).join(", ");
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-ink-600">
+        Emailing: <strong>{names}</strong>
+      </p>
+      {error && <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">{error}</p>}
+
+      {step === "choose" && (
+        <>
+          {usable.length === 0 ? (
+            <Empty>No documents can be sent yet.</Empty>
+          ) : (
+            <ul className="max-h-80 divide-y divide-ink-100 overflow-y-auto rounded-lg bg-white ring-1 ring-ink-150">
+              {docs.data.map((doc) => (
+                <li key={doc.documentId} className={cx("flex items-center justify-between gap-3 px-3 py-2", doc.blockedBecause && "opacity-60")}>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      disabled={!!doc.blockedBecause}
+                      checked={chosen.has(doc.documentId)}
+                      onChange={() => toggle(doc.documentId)}
+                    />
+                    {doc.label}
+                  </label>
+                  <span className="text-xs text-ink-500">{doc.blockedBecause ?? kilobytes(doc.fileSizeBytes)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="primary" disabled={busy || documentIds.length === 0} onClick={() => void review()}>
+              Review the emails
+            </Button>
+            <Button variant="ghost" disabled={busy} onClick={onDone}>
+              Not now
+            </Button>
+          </div>
+          <p className="text-xs text-ink-500">
+            If you leave now, the applications stay as Not Logged In with the banker's email saved. Send them later from
+            the Banks tab on the full case, under "Send documents".
+          </p>
+        </>
+      )}
+
+      {step === "review" && (
+        <>
+          <div className="max-h-96 space-y-3 overflow-y-auto">
+            {created.map((item) => {
+              const plan = prepared[item.submissionId]!.plan;
+              return (
+                <div key={item.submissionId} className="rounded-md bg-ink-50 p-3">
+                  <p className="text-sm font-medium text-ink-900">
+                    {item.lender}: to {plan.to.map((r) => r.name ?? r.email).join(", ")}
+                    {plan.to.some((r) => r.name) ? ` (${plan.to.map((r) => r.email).join(", ")})` : ""}
+                  </p>
+                  {plan.emails.map((email) => (
+                    <div key={email.sequence} className="mt-2">
+                      <p className="text-xs font-semibold text-ink-900">{email.subject}</p>
+                      <p className="text-xs text-ink-500">
+                        {email.documents.length} attachment{email.documents.length === 1 ? "" : "s"} ·{" "}
+                        {kilobytes(email.totalBytes)}
+                      </p>
+                      <pre className="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-ink-700">{email.body}</pre>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="primary" disabled={busy} onClick={() => void sendAll()}>
+              {busy ? "Sending…" : `Send ${created.length} email${created.length === 1 ? "" : "s"}`}
+            </Button>
+            <Button variant="ghost" disabled={busy} onClick={() => setStep("choose")}>
+              Back
+            </Button>
+          </div>
+        </>
+      )}
+
+      {step === "sent" && (
+        <>
+          <ul className="space-y-2">
+            {created.map((item) => {
+              const outcome = outcomes[item.submissionId];
+              return (
+                <li key={item.submissionId} className="flex flex-wrap items-center gap-2 text-sm">
+                  <Badge tone={outcome?.ok ? "good" : "warn"}>{outcome?.ok ? "Sent" : "Not sent"}</Badge>
+                  <span className="font-medium text-ink-900">{item.lender}</span>
+                  <span className="text-ink-600">{outcome?.message}</span>
+                  {outcome && !outcome.ok && outcome.packageId && (
+                    <Button variant="ghost" disabled={busy} onClick={() => void retry(item)}>
+                      Try again
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <Button variant="primary" disabled={busy} onClick={onDone}>
+            Done
+          </Button>
+        </>
+      )}
     </div>
   );
 }

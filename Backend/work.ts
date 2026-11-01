@@ -51,6 +51,9 @@ import { regenerateRequirements } from "./requirements.js";
 // The engine
 // ---------------------------------------------------------------------------
 
+/** The same shape `submission_recipient_email_shaped` enforces (0024). */
+const EMAIL_SHAPE = /^[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+$/;
+
 /** Marks a row a person removed, so Restore never revives one a rule retired. */
 const NOT_NEEDED_REASON = "Not needed on this case";
 
@@ -1125,13 +1128,23 @@ export async function uploadCaseFile(
 export async function lenderOptions(client: Queryable, actor: Actor, caseId: string) {
   const row = await loadCase(client, caseId);
   requireCase(actor, row, "submission.create");
-  const { rows } = await client.query<{ id: string; name: string; supports: boolean; already: boolean; bankers: string[] }>(
+  const { rows } = await client.query<{
+    id: string;
+    name: string;
+    supports: boolean;
+    already: boolean;
+    bankers: string[];
+    bankerEmails: Record<string, string>;
+  }>(
     `select o.id, o.canonical_name as name,
             ($2::text = any (p.supported_loan_types)) as supports,
             exists (select 1 from submission s where s.case_id = $1 and s.institution_organisation_id = o.id
                      and s.status not in ('rejected', 'withdrawn', 'not_eligible_precheck')) as already,
             coalesce((select array_agg(distinct bc.contact_name) from bank_contact bc
-                       where bc.institution_organisation_id = o.id and bc.is_active and bc.contact_name is not null), '{}') as bankers
+                       where bc.institution_organisation_id = o.id and bc.is_active and bc.contact_name is not null), '{}') as bankers,
+            coalesce((select jsonb_object_agg(upper(bc.contact_name), lower(btrim(bc.work_email))) from bank_contact bc
+                       where bc.institution_organisation_id = o.id and bc.is_active and bc.contact_name is not null
+                         and nullif(btrim(bc.work_email), '') is not null), '{}'::jsonb) as "bankerEmails"
        from organisation o
        join lender_profile p on p.organisation_id = o.id
       where o.is_active and o.parent_organisation_id is null and 'lender' = any (o.roles)
@@ -1146,14 +1159,26 @@ export async function sendToLenders(client: Queryable, actor: Actor, caseId: str
   requireCase(actor, row, "submission.create");
   requireOpen(row);
 
-  const picks = Array.isArray(body.lenders) ? (body.lenders as { id?: unknown; banker?: unknown }[]) : [];
+  const picks = Array.isArray(body.lenders)
+    ? (body.lenders as { id?: unknown; banker?: unknown; email?: unknown }[])
+    : [];
   if (picks.length === 0) throw new ApiError(400, "Tick at least one lender.");
+
+  // "email": make the application and its recipient, and leave the file for the
+  // Banks tab's mail flow to send; the follow-up task waits for the mail
+  // (`afterPackageSent`). Anything else only records the lender and banker.
+  const emailMode = body.mode === "email";
 
   const skipped: string[] = [];
   const created: string[] = [];
+  const createdIds: { lenderId: string; lender: string; submissionId: string }[] = [];
   for (const pick of picks) {
     const lenderId = String(pick.id ?? "");
     const banker = capitals(String(pick.banker ?? ""));
+    const typedEmail = emailMode ? String(pick.email ?? "").trim().toLowerCase() : "";
+    if (typedEmail !== "" && !EMAIL_SHAPE.test(typedEmail)) {
+      throw new ApiError(400, `"${typedEmail}" does not look like an email address.`);
+    }
     const { rows: lenderRows } = await client.query<{
       name: string;
       branch_id: string | null;
@@ -1186,20 +1211,52 @@ export async function sendToLenders(client: Queryable, actor: Actor, caseId: str
     }
 
     let contactId: string | null = null;
+    let recipientEmail = typedEmail;
     if (banker !== "") {
-      const known = await client.query<{ id: string }>(
-        `select id from bank_contact where institution_organisation_id = $1 and upper(contact_name) = $2 and is_active limit 1`,
+      const known = await client.query<{ id: string; work_email: string | null }>(
+        `select id, work_email from bank_contact
+          where institution_organisation_id = $1 and upper(contact_name) = $2 and is_active limit 1`,
         [lenderId, banker],
+      );
+      contactId = known.rows[0]?.id ?? null;
+      const onFile = known.rows[0]?.work_email?.trim().toLowerCase() ?? "";
+      if (contactId) {
+        if (recipientEmail === "") recipientEmail = onFile;
+        // A banker with no address gets the one typed now; one with an address keeps it.
+        else if (onFile === "") {
+          await client.query(`update bank_contact set work_email = $2, updated_by = $3 where id = $1`, [
+            contactId,
+            recipientEmail,
+            actor.userId,
+          ]);
+        }
+      } else {
+        const added = await client.query<{ id: string }>(
+          `insert into bank_contact (institution_organisation_id, branch_organisation_id, contact_name, work_email, created_by)
+           values ($1, $2, $3, $4, $5) returning id`,
+          [lenderId, lender.branch_id, banker, recipientEmail || null, actor.userId],
+        );
+        contactId = added.rows[0]!.id;
+      }
+    } else if (recipientEmail !== "") {
+      // An address with no name: the same address at the same lender is the same banker.
+      const known = await client.query<{ id: string }>(
+        `select id from bank_contact
+          where institution_organisation_id = $1 and lower(btrim(work_email)) = $2 and is_active limit 1`,
+        [lenderId, recipientEmail],
       );
       contactId = known.rows[0]?.id ?? null;
       if (!contactId) {
         const added = await client.query<{ id: string }>(
-          `insert into bank_contact (institution_organisation_id, branch_organisation_id, contact_name, created_by)
+          `insert into bank_contact (institution_organisation_id, branch_organisation_id, work_email, created_by)
            values ($1, $2, $3, $4) returning id`,
-          [lenderId, lender.branch_id, banker, actor.userId],
+          [lenderId, lender.branch_id, recipientEmail, actor.userId],
         );
         contactId = added.rows[0]!.id;
       }
+    }
+    if (emailMode && recipientEmail === "") {
+      throw new ApiError(400, `Type ${lender.name}'s banker email, so the documents have somewhere to go.`);
     }
 
     const inserted = await client.query<{ id: string }>(
@@ -1230,17 +1287,48 @@ export async function sendToLenders(client: Queryable, actor: Actor, caseId: str
       entityId: submissionId,
       eventType: "submission.created",
     });
-    await applyWork(client, actor, caseId, { type: "sent_to_lender", bank: lender.name, submissionId });
+    if (emailMode) {
+      await client.query(
+        `insert into submission_recipient
+           (submission_id, bank_contact_id, email, contact_name, is_primary, recipient_kind, display_order, created_by)
+         values ($1, $2, $3, $4, true, 'to', 10, $5)`,
+        [submissionId, contactId, recipientEmail, banker || null, actor.userId],
+      );
+    } else {
+      await applyWork(client, actor, caseId, { type: "sent_to_lender", bank: lender.name, submissionId });
+    }
     created.push(lender.name);
+    createdIds.push({ lenderId, lender: lender.name, submissionId });
   }
 
   const said = [
-    created.length ? `Sent to ${created.join(", ")}.` : null,
+    created.length ? (emailMode ? `Ready to email ${created.join(", ")}.` : `Sent to ${created.join(", ")}.`) : null,
     skipped.length ? `Already with ${skipped.join(", ")}.` : null,
   ]
     .filter(Boolean)
     .join(" ");
-  return await caseSummary(client, actor, caseId, said);
+  return { ...(await caseSummary(client, actor, caseId, said)), created: createdIds };
+}
+
+/**
+ * After a package's mail has gone: the follow-up task a recorded send raises
+ * straight away. Only once the file is really out (`submitted`), and only if
+ * the send was not already recorded and given its task.
+ */
+export async function afterPackageSent(
+  client: Queryable,
+  actor: Actor,
+  caseId: string,
+  submissionId: string,
+): Promise<void> {
+  const { rows } = await client.query<{ status: string; bank: string | null }>(
+    `select status::text, bank_name_at_submission as bank from submission where id = $1 and case_id = $2`,
+    [submissionId, caseId],
+  );
+  if (rows[0]?.status !== "submitted") return;
+  const raised = await client.query(`select 1 from task where submission_id = $1 and kind = 'confirm_login'`, [submissionId]);
+  if (raised.rows[0]) return;
+  await applyWork(client, actor, caseId, { type: "sent_to_lender", bank: rows[0].bank ?? "the lender", submissionId });
 }
 
 // ---------------------------------------------------------------------------

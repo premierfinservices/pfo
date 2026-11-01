@@ -109,7 +109,7 @@ Do not ask a Home PC session to do steps 1 to 6. They need the Unfold PC.
 - A split ITR (separate computation, P&L, balance sheet PDFs) with no combined ITR PDF leaves its ITR line pending until someone marks it "Not needed".
 - The checklist can ask for an ITR year not yet filed (assessment year 2026-27 appeared). Check against real cases.
 - On real case folders, file names were recognised for 2,184 of 2,693 files (81%), and GST folders 100%. The rest are mostly unrenamed WhatsApp images; those go to Other Document unless AI reading is on.
-- Emailing documents still happens from the case's Banks tab. The Send to lenders tab only records lender and banker.
+- *Changed 1 Nov (ADR-044):* Send to lenders now emails. It makes the application and recipient, you choose documents once, review one email per lender, and send; "Record only, no email" keeps the old record-only behaviour. Not yet tried against a real mailbox: dev uses capture-mode mail. If a person closes the panel before sending, the application stays Not Logged In and is sent from the Banks tab.
 - Old stage names remain in the TypeScript union and Postgres enums, unwritable, for the prototype store and retired rules.
 - The AI's identifications are not written to an audit table (inbound mail's are).
 - The upload zip limits (500 files, 200 MB) come from the zip's own declared sizes.

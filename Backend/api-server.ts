@@ -39,6 +39,7 @@ import {
   dropCase,
   lenderOptions,
   logCase,
+  afterPackageSent,
   mobileMatches,
   pickList,
   requirementNotNeeded,
@@ -1223,7 +1224,10 @@ async function route(
 
   const sendMatch = new RegExp(`^/api/cases/(${UUID})/submissions/(${UUID})/package/send$`).exec(path);
   if (sendMatch && method === "POST") {
-    return await sendPackage(client, requireActor(actor), sendMatch[1]!, sendMatch[2]!, body);
+    const sender = requireActor(actor);
+    const result = await sendPackage(client, sender, sendMatch[1]!, sendMatch[2]!, body);
+    await afterPackageSent(client, sender, sendMatch[1]!, sendMatch[2]!);
+    return result;
   }
 
   const packagesMatch = new RegExp(`^/api/cases/(${UUID})/submissions/(${UUID})/packages$`).exec(path);
@@ -1233,13 +1237,10 @@ async function route(
 
   const retryMatch = new RegExp(`^/api/cases/(${UUID})/submissions/(${UUID})/packages/(${UUID})/retry$`).exec(path);
   if (retryMatch && method === "POST") {
-    return await retryPackage(
-      client,
-      requireActor(actor),
-      retryMatch[1]!,
-      retryMatch[2]!,
-      retryMatch[3]!,
-    );
+    const retrier = requireActor(actor);
+    const result = await retryPackage(client, retrier, retryMatch[1]!, retryMatch[2]!, retryMatch[3]!);
+    await afterPackageSent(client, retrier, retryMatch[1]!, retryMatch[2]!);
+    return result;
   }
 
   // ── Loan outcome tracking (Phase 5) ────────────────────────────────────────
