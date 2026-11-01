@@ -1,191 +1,95 @@
 # Workflow
 
-**Status:** Draft for review.
+**Status:** Rewritten 1 November 2026 to match ADR-040 and `PRD/Intake and Work Engine.md`. For Tarun's review. The earlier transition table is superseded.
 
-How a case moves. `Loan Lifecycle.md` defines the stages; this defines the
-transitions, their guards, and the edge cases that break naive designs.
+How a case moves. `Loan Lifecycle.md` defines the stages; this defines the transitions and the edge cases that break naive designs. The tasks each action raises are in `Intake and Work Engine.md`, Part 4, and are not repeated here.
 
 ---
 
 ## Case stage transitions
 
-| From | To | Trigger | Guard | Actor |
-|---|---|---|---|---|
-| New | Contacted | First communication logged | — | User |
-| New | Lost | Marked lost | Reason required | User |
-| Contacted | Appointment Fixed | Appointment created | Date in future | User |
-| Contacted | Documents Pending | Loan product confirmed | Product set; requirements generated | User |
-| Appointment Fixed | Documents Pending | Meeting completed | Product set | User |
-| Appointment Fixed | Contacted | Appointment cancelled | — | User |
-| Documents Pending | Ready for Submission | Last applicable requirement verified | **No applicable requirement outstanding** | System |
-| Ready for Submission | Documents Pending | New requirement appears | Any applicable requirement unmet | System |
-| Ready for Submission | Submitted | First submission **dispatched** | ≥1 submission not in Not Submitted | System |
-| Submitted | Sanctioned | Any submission → Sanctioned | Offer attached (BR-023) | System |
-| Sanctioned | Disbursed | Any submission → Disbursed | At most one disbursed (BR-022) | System |
-| Disbursed | Closed | Close-out completed | Invoice raised | User |
-| *any non-terminal* | Lost | Marked lost | Reason from controlled list | User |
-| Lost | *stage it was lost from* | Reopened | — | User |
+| From | To | Trigger | Actor |
+|---|---|---|---|
+| (none) | Documents Pending | Case logged | Person |
+| Documents Pending | Eligibility Check | Documents marked Partially Collected, or Complete with eligibility unanswered | Person |
+| Eligibility Check | Documents Pending | Answered eligible, documents outstanding | Person |
+| Eligibility Check | Documents Collected | Answered eligible, documents all in | Person |
+| Documents Pending | Documents Collected | Documents Complete and eligibility already Eligible | Person |
+| Eligibility Check | Lost | Answered not eligible | Person |
+| Documents Pending, Eligibility Check or Collected | Login Completed | An application reaches Login Completed or Under Review (a pre-check on partial documents is allowed) | System |
+| Login Completed or later | Query Raised by Bank | An application reaches Query Raised by Bank | System |
+| Any earlier stage | Approved | An application reaches Approved or Sanctioned | System |
+| Any earlier stage | Sanction Accepted | An application reaches Sanction Accepted | System |
+| Any earlier stage | Disbursed | An application is Disbursed, with amount and date | System |
+| Disbursed | Closed | Close-out completed, invoice raised | Finance |
+| Any open stage | Rejected | Set by a person; one lender's rejection never closes a case | Person |
+| Any non-terminal stage | Lost | Marked lost, reason from the MIS closure list | Person |
+| Lost | The stage it left | Reopened | Person |
 
-Every transition writes an event naming its actor (BR-050, BR-052). System
-transitions name the system and cite the change that caused them.
+Every transition writes an event naming its actor (BR-050, BR-052). System transitions name the system and cite the application change that caused them.
 
----
-
-## The backwards transition that matters
-
-`Ready for Submission → Documents Pending` is the one people forget, and it is
-not an error case. It fires when a co-applicant is added in week three, or a bank
-asks for a document nobody anticipated.
-
-It must be **automatic and visible**: the case moves back, progress drops, and
-the timeline says why — *"Ready for Submission → Documents Pending: co-applicant
-added, 4 new requirements."* Silently leaving the case in `Ready for Submission`
-while it is no longer ready is the failure this prevents. See ADR-010.
+**Forward only.** A lender update never moves a case backward, so a case at Approved stays there when another lender raises a query. **Sending to a lender does not move the stage**; the login does. **Eligibility is never a gate.** A manager can correct a stage by hand, with a note and an event.
 
 ---
 
-## Submission status transitions
+## Application status transitions
 
-Independent per submission. A case may hold many of these simultaneously.
+Independent per application. A case may hold many at once. The statuses are the MIS's eleven:
 
 ```
-Not Submitted → Submitted → Under Process → Eligibility Received → Sanctioned → Disbursed
-                     ↓            ↓                  ↓                  ↓
-                  Rejected    Query Raised       Rejected           Withdrawn
-                                   ↓
-                            Under Process
+Not Logged In ─▶ Login Completed ─▶ Under Review ─▶ Approved ─▶ Sanctioned ─▶ Sanction Accepted ─▶ Disbursed
+     │                 │                 │  ▲            │            │               │
+     │                 │                 ▼  │            │            └──▶ Withdrawn / Closed
+     │                 └──▶ Query Raised by Bank         └──▶ Rejected / Withdrawn / Closed
+     ├──▶ Not Eligible (Pre-check)
+     └──▶ Withdrawn / Closed
 ```
 
-### `Not Submitted` is a real state, not a placeholder
-
-It is load-bearing now that the case stage advances on **dispatch** rather than
-on row creation. A submission in `Not Submitted` means a real decision has been
-made and recorded — *this file is going to this branch, on this product, through
-this relationship manager* — before the file physically goes out.
-
-That gap is where the work happens: assembling the set, getting the RM's
-agreement to receive it, deciding the order in which banks are approached. It is
-also how a file gets prepared for three banks and sent to one. Collapsing it
-would either lose that decision or report a file as at the bank while it sits on
-a desk.
-
-A submission sitting in `Not Submitted` for too long is a health signal, not an
-error.
+The next statuses offered from each, and the fields each needs, are the table in `Intake and Work Engine.md`, Part 1. A "Show all statuses" tick lets someone correct a mistake.
 
 Rules:
 
-- `Query Raised → Under Process` is a loop, and it is the single most common
-  real-world transition. Each query is recorded separately with what was asked
-  and what was sent, because "how many queries did this bank raise" is a real
-  question about that branch.
-- `Rejected` requires a reason from a controlled list (BR-024).
-- `Sanctioned` requires an offer (BR-023).
-- `Withdrawn` is *our* choice to stop; `Rejected` is theirs. Never conflate them
-  — the distinction is the whole value of the rejection dataset.
+- **Query Raised by Bank ⇄ Under Review is a loop,** and the most common real-world transition. Each query is recorded with what was asked.
+- **Rejected** requires a reason. **Sanctioned** requires a sanction amount and date, which PFO saves as the offer (BR-023). One disbursement per case (BR-022).
+- **Withdrawn / Closed is our choice to stop; Rejected is theirs.** Never conflate them: the distinction is the value of the rejection data.
+- **Not Eligible (Pre-check)** means the lender declined before login. It is not counted as a login and closes only that application.
+- **Not Logged In covers "sent".** `not_submitted` and `submitted` show as one status, with "Sent on {date}" once emailed. A sent file always has a next step: "Confirm login with {bank}" two days on.
+- **Who may move a lender's status:** the login team, managers and management. A telecaller may send their own case's file (ADR-042) but may not update status (ADR-043).
 
 ---
 
 ## Edge cases
 
-These are the situations that a naive state machine handles wrongly.
+**Approved at one lender, rejected at another.** Normal. The case stays Approved; each application keeps its own status.
 
-**Sanctioned at one bank, rejected at another.** Normal. Case stage is
-`Sanctioned`; both submissions keep their own status. No conflict, because the
-axes are separate.
+**Rejected everywhere.** The case does **not** move automatically. The next move is often another lender. It stays where it is, shows in the work queue, and a person marks it Rejected or Lost, because only a person knows whether options remain.
 
-**Rejected everywhere.** Every submission rejected. The case does **not**
-auto-move to Lost — the next move is usually to submit to a sixth bank. It stays
-`Submitted` and surfaces in "needs attention". Marking Lost is a human decision,
-because only a human knows whether options remain.
+**Sanction nearing expiry.** Offers carry an expiry. An expired offer does not reverse the stage; it raises a task for the owner (`Offer from {bank} expires {date}`).
 
-**Sanction lapses.** Offers carry `valid_until`. An expired sanction does not
-reverse the case stage; it raises a task and flags the case's health. The bank
-sanctioned; that fact happened.
+**Customer accepts one lender after sanction.** Unaccepted applications go to Withdrawn / Closed, not Rejected.
 
-**Customer accepts a different bank after sanction.** The unaccepted submissions
-go to `Withdrawn`, not `Rejected`.
+**Re-submission after a rejection.** A corrected file sent back to the same lender is a **new application**, never a status reset. The rejection is history.
 
-**Re-submission after rejection.** A rejected file, corrected and sent back to the
-same branch, is a **new submission** — never a status reset on the old one. The
-rejection is history and must survive; a reset would erase the fact the bank ever
-said no.
+**Loan type changes mid-case.** The pending list is recomputed. Documents already collected are never discarded; they belong to the person, not the case (ADR-007).
 
-**Loan product changes mid-case.** The customer wanted a purchase loan; it becomes
-a plot purchase. Requirements regenerate: already-satisfied ones keep their
-status, newly applicable ones appear as pending, no-longer-relevant ones become
-`not_applicable` rather than being deleted (BR-034). Documents already collected
-are never discarded — they belong to the person, not the case (ADR-007).
+**Eligibility changes later.** A case marked not eligible can be reopened if circumstances change. Reopening restores the stage it was lost from and keeps the loss in history.
 
-**Property changes.** Same treatment. Property-linked requirements regenerate; the
-old property stays linked to the case's history rather than being unlinked.
+**Two cases for one customer.** A home loan and a business loan can run in parallel. The person is shared. Log a Case shows the match inline as the mobile is typed.
 
-**Two cases for one customer at once.** A home loan and a business loan running in
-parallel. Both are independent cases; the person is shared; their KYC satisfies
-both without re-upload. This should be surfaced — each case shows the other.
-
-**Duplicate case discovered.** Two telecallers logged the same enquiry. Resolved
-by marking one Lost with reason `Duplicate case` and linking it to the survivor.
-Cases are not merged — merging is for identities (people, organisations), not for
-process records, because two cases genuinely happened and both timelines are
-true.
+**The same mobile appears twice.** Log a Case shows the existing case inline, with a "This is a different customer" tick that is recorded. Nothing is silently merged and nothing is refused (Principle 7). A person sees only the cases they may read; for any others the screen says how many there are and nothing more (ADR-043). A duplicate that was logged by mistake is retired by marking one Lost with "Duplicate record". Cases are never merged: merging is for identities (people, organisations), not process records, because both timelines are true.
 
 ---
 
 ## What triggers what
 
-Stated so automation is not invented ad hoc later:
+The consequences of each event belong to a workflow layer that the interface observes, because business logic never lives in the UI. The full table of events, the tasks each closes and raises, due dates and assignees is `Intake and Work Engine.md`, Part 4: one pure rule table (`src/domain/work/rules.ts`), tested by `Backend/work.test.ts`.
 
-| Event | Consequence |
-|---|---|
-| Case created | Requirements generated from loan product + party set |
-| Party added | Requirements for that party generated |
-| Party removed | That party's requirements → `not_applicable` |
-| Document verified | Requirement → verified; progress recomputed; stage re-evaluated |
-| Requirement waived | Excluded from progress; event with actor and reason (BR-035) |
-| Submission **dispatched** — leaves `Not Submitted` | Case stage → Submitted |
-| Submission → Sanctioned | Case stage → Sanctioned; task to present the offer |
-| Offer nearing expiry | Task raised to the case owner |
-| Case idle beyond threshold | Health degrades; appears in "needs attention" |
-| Hold expires | Case returns to active views |
-
-**None of these are hardcoded in the interface.** They belong to a workflow layer
-that the UI observes — required by the brief's rule that business logic never
-lives in the UI.
+In short: every action closes the tasks it finishes and raises the next, and the case screen states that next step in a fixed line. Tasks are never deleted (BR-041).
 
 ---
 
 ## Open questions
 
-1. **Idle thresholds** — how many days without contact before a case is stale?
-   Probably differs per stage: three days in `New` is bad, three days in
-   `Submitted` is normal bank turnaround. The values live in
-   `operational_threshold`, keyed by stage (ADR-025); the numbers are the open
-   part.
-
-2. **Hold semantics — the transition table does not say what a hold blocks.**
-   ADR-021 makes hold orthogonal to stage and says a held case is excluded from
-   attention views. It does not say:
-
-   - **May a held case transition at all?** A bank sanctions a file while the
-     customer is travelling — the sanction happened, and refusing to record it
-     would put the two axes out of step, which is the failure ADR-019 exists to
-     prevent. The likely answer is that **system** transitions proceed and
-     **user** transitions do not, but that is a business call, not an inference.
-   - **Does marking a held case lost clear the hold?** A lost case is terminal
-     and cannot be "on hold pending follow-up", so the hold is meaningless
-     afterwards. Clearing it silently loses the reason the case stalled, which is
-     often *why* it was lost.
-
-   **This is the last gap in the workflow that a schema cannot decide for
-   itself.** The columns exist either way; the guard does not. Until it is
-   answered, `evaluateTransition` does not consider the hold flag at all, which
-   is the conservative reading — holds affect what surfaces in attention views
-   and nothing else.
-3. **Can a case skip `Ready for Submission`?** In practice files are sometimes
-   sent to a bank with a document still missing, on the RM's word. Currently the
-   waiver mechanism (BR-035) covers this. Confirm that is enough and no skip is
-   needed.
-
-4. ~~**Who closes a case?**~~ **Resolved: Finance.** Closing asserts the invoice
-   is raised, and Finance is the only role holding `case.close`
-   (`Docs/Permission Matrix.md`).
+1. **Hold semantics.** ADR-021 makes hold orthogonal to stage and removes a held case from the work queue. It does not say whether a held case may change stage. A lender sanctions a file while the customer is travelling: the sanction happened, and refusing to record it would put the two axes out of step. The likely answer is that **system** transitions proceed and **user** ones do not, but that is a business call. Until it is answered, stage logic ignores the hold flag. Does marking a held case Lost clear the hold? Clearing it loses the reason the case stalled.
+2. **Reminder cadence.** "Confirm login with {bank}" is due two days after sending, and queries two days after being raised. Are those the right intervals for every lender?
+3. **Rejected versus Lost.** The MIS keeps both. Is there a rule for when a case with every application rejected becomes one or the other?

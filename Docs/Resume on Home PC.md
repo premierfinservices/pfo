@@ -96,13 +96,13 @@ Do not ask a Home PC session to do steps 1 to 6. They need the Unfold PC.
 
 ## Open decisions and loose ends (Tarun's to decide)
 
-1. **Telecallers and lenders.** *Decided 30 Oct:* a telecaller may send their own case's file to lenders (ADR-042, migration 0049). **Still open:** whether they may also update an application's status (login, query, sanction); the MIS lets anyone, PFO reserves it for the login desk.
+1. **Telecallers and lenders.** *Decided 30 Oct:* a telecaller may send their own case's file to lenders (ADR-042, migration 0049). *Decided 1 Nov (ADR-043):* they may not update an application's status; the login team, managers and management do.
 2. **Sign-in check of what went live.** Log a Case, Update Case, the upload card, the telecaller and login-executive views (tested through the API only, never in a browser). Use a practice case; do not send a real email.
 3. **Privacy of AI reading.** *Decided 30 Oct:* reading will be done locally with Tesseract OCR plus rules instead of sending documents to Anthropic's API. Not built; needs a short design first (see above). Until it is built, the current API reading stays off unless `PFO_ANTHROPIC_API_KEY` is set. Whether customer data may be shared across the two proprietorships is still worth a CA's or lawyer's confirmation.
-4. **Duplicate-mobile warning shows another owner's customer name, case number and stage** to any telecaller (`mobileMatches` in `Backend/work.ts`). This mirrors the MIS, where the warning names the existing case, but telecallers' own cases are hidden elsewhere in PFO. An automated review flagged it as an information-disclosure risk. A fix would return only "this number exists" for cases the person cannot read, and show details only for their own. It changes how the warning reads, so it is Tarun's call. Not changed.
+4. **Duplicate-mobile warning shows another owner's customer name, case number and stage** to any telecaller (`mobileMatches` in `Backend/work.ts`). This mirrors the MIS, where the warning names the existing case, but telecallers' own cases are hidden elsewhere in PFO. An automated review flagged it as an information-disclosure risk. *Fixed 1 Nov (ADR-043):* the warning now names only cases the person can read and counts the rest ("2 other cases you cannot open"). Not yet deployed.
 5. **A real offsite backup.** `D:\PFO-Backups-Offsite` is on the same PC as everything else. Get a copy that leaves the building before MCM's data moves in. *Tarun will handle this himself.*
 6. **The password used for the live `tarun` account was shared in chat** and should be changed. *Tarun will handle this himself.*
-7. **Rewrite** `Requirements and Progress.md`, `Loan Lifecycle.md` and `Workflow.md` to match ADR-040, keeping what still applies. *Agreed 30 Oct; not yet done.*
+7. **Rewrite** `Requirements and Progress.md`, `Loan Lifecycle.md` and `Workflow.md` to match ADR-040, keeping what still applies. *Agreed 30 Oct; rewritten 1 Nov, awaiting Tarun's read. Where they go beyond the spec (the Rejected-reopen and reminder-interval questions) they say so under "Open questions".*
 
 ## Known limits of what is built
 

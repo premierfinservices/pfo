@@ -297,19 +297,21 @@ export async function workLists(client: Queryable) {
   };
 }
 
-/** Cases already on this mobile. Masked person data never travels: only the
- * case number, name and stage, which the caller may see anyway. */
+/** Cases already on this mobile. Only cases the caller may read are named
+ * (case number, name, stage); the rest are counted in `hidden`, so a
+ * telecaller learns the number is taken without seeing another owner's case. */
 export async function mobileMatches(client: Queryable, actor: Actor, mobile: string) {
   if (!can(actor, "case.create", "all")) throw new ApiError(403, refusalMessage("case.create"));
   const normal = normaliseMobile(mobile);
-  if (!normal) return { valid: false, matches: [] };
+  if (!normal) return { valid: false, matches: [], hidden: 0 };
   const { rows } = await client.query<{
     id: string;
     case_number: string;
     full_name: string;
     stage: string;
+    owner_user_id: string;
   }>(
-    `select c.id, c.case_number, p.full_name, c.stage::text
+    `select c.id, c.case_number, p.full_name, c.stage::text, c.owner_user_id
        from person_identifier i
        join person p on p.id = i.person_id
        join case_party cp on cp.person_id = p.id and cp.removed_at is null
@@ -318,15 +320,25 @@ export async function mobileMatches(client: Queryable, actor: Actor, mobile: str
       order by c.created_at desc`,
     [normaliseIdentifier("phone", normal)],
   );
+  const visible = rows.filter((row) => canActOnCase(actor, row.owner_user_id, "case.read"));
   return {
     valid: true,
-    matches: rows.map((row) => ({
+    matches: visible.map((row) => ({
       id: row.id,
       caseNumber: row.case_number,
       customerName: row.full_name,
       stage: row.stage,
     })),
+    hidden: rows.length - visible.length,
   };
+}
+
+/** "PF-1, PF-2 and 1 other case" for the cases a caller may name. */
+function describeMatches(existing: { matches: { caseNumber: string }[]; hidden: number }): string {
+  const named = existing.matches.map((match) => match.caseNumber).join(", ");
+  if (existing.hidden === 0) return named;
+  const other = `${existing.hidden} other case${existing.hidden === 1 ? "" : "s"}`;
+  return named === "" ? other : `${named} and ${other}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -373,10 +385,11 @@ export async function logCase(client: Queryable, actor: Actor, body: Record<stri
   // explicit "different customer" tick, and the override is recorded.
   const existing = await mobileMatches(client, actor, mobile);
   const overridden = body.differentCustomer === true;
-  if (existing.matches.length > 0 && !overridden) {
+  const taken = existing.matches.length + existing.hidden > 0;
+  if (taken && !overridden) {
     throw new ApiError(
       409,
-      `This mobile is already on ${existing.matches.map((match) => match.caseNumber).join(", ")}. ` +
+      `This mobile is already on ${describeMatches(existing)}. ` +
         `Open that case, or tick "This is a different customer".`,
     );
   }
@@ -401,9 +414,7 @@ export async function logCase(client: Queryable, actor: Actor, body: Record<stri
     isPractice: body.isPractice === true,
   })) as { id: string };
 
-  const note = existing.matches.length
-    ? `Shares mobile with ${existing.matches.map((match) => match.caseNumber).join(", ")}, recorded as a different customer.`
-    : null;
+  const note = taken ? `Shares mobile with ${describeMatches(existing)}, recorded as a different customer.` : null;
   await client.query(
     `update loan_case
         set loan_type = $1, loan_variant = $2, place = $3, owner_user_id = $4, duplicate_override_note = $5

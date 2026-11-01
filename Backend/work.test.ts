@@ -225,6 +225,26 @@ describe("Log a Case", () => {
     expect(rows[0].duplicate_override_note).toContain(first.caseNumber);
   });
 
+  it("tells a telecaller a mobile is taken without naming another owner's case", async () => {
+    const manager = await signInAs("manager");
+    const mobile = freshMobile();
+    const theirs = await logCase(manager, { mobile });
+    const telecaller = await signInAs("telecaller");
+
+    const match = await api(`/api/work/mobile?mobile=${mobile}`, { token: telecaller.token });
+    expect(match.body.matches).toEqual([]);
+    expect(match.body.hidden).toBe(1);
+
+    const refused = await api("/api/work/log-case", { method: "POST", token: telecaller.token, body: caseBody({ mobile }) });
+    expect(refused.status).toBe(409);
+    expect(refused.body.message).toContain("1 other case");
+    expect(refused.body.message).not.toContain(theirs.caseNumber);
+
+    const second = await logCase(telecaller, { mobile, differentCustomer: true });
+    const { rows } = await pool.query(`select duplicate_override_note from loan_case where id = $1`, [second.id]);
+    expect(rows[0].duplicate_override_note).not.toContain(theirs.caseNumber);
+  });
+
   it("assigns the telecaller chosen, not the person typing", async () => {
     const manager = await signInAs("manager");
     const telecaller = await signInAs("telecaller");

@@ -1854,3 +1854,13 @@ content type recorded at upload would be better and is a small future change.
 **The tradeoffs, stated.** A telecaller can now put a customer's documents in an email to a bank, which the permission matrix had reserved for the login desk. Scope `own` limits that to their own cases. The permission-matrix test that proves 0008 matches `roles.ts` cannot see a grant added in a later migration, so `Backend/role-grants-drift.test.ts` now compares the migrated database with `roles.ts` directly.
 
 **Not decided here.** Whether telecallers may also update an application's status (login, query, sanction). The MIS lets anyone; PFO still reserves it for the login desk until Tarun says otherwise.
+
+## ADR-043 — Telecallers cannot move a lender's status; the duplicate-mobile warning names only cases the caller can read
+
+**Status:** Accepted. Tarun Ramesh, 1 November 2026. Closes the "not decided" item of ADR-042.
+
+**Status updates.** Login, query, sanction and the other lender-status moves stay with the login team, managers and management. A telecaller sends a file (ADR-042) and does not move it. This departs from the MIS, where anyone can, on purpose: PFO already enforces it (`submission.update_status` is not in the telecaller grant), so nothing changes in code.
+
+**The duplicate-mobile warning.** `mobileMatches` used to return the customer name, case number and stage of every case on a mobile, including cases owned by another telecaller that PFO hides everywhere else. It now names only cases the caller may read (`canActOnCase(..., "case.read")`) and returns the rest as a count, `hidden`. The number is still reported as taken, so the 409 and the "different customer" tick work as before; the screen and the 409 message say "N other cases you cannot open". The override note on the new case likewise names only the cases the caller could see.
+
+**The tradeoff.** A telecaller can still learn that a mobile number is in use. That is the point of the warning and is not another owner's customer data. They can no longer learn who the customer is or what stage the case is at.

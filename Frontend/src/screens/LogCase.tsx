@@ -32,6 +32,7 @@ export interface WorkLists {
 interface MobileMatch {
   readonly valid: boolean;
   readonly matches: readonly { id: string; caseNumber: string; customerName: string; stage: string }[];
+  readonly hidden: number;
 }
 
 /** yyyy-mm-dd in India, `days` from today. */
@@ -86,7 +87,9 @@ export function LogCase(): ReactNode {
   const data = lists.data;
 
   const matches = match?.matches ?? [];
-  const blocked = matches.length > 0 && !different;
+  const hidden = match?.hidden ?? 0;
+  const taken = matches.length + hidden > 0;
+  const blocked = taken && !different;
   const telecallers = data.people.filter(
     (person) => person.roles.includes("telecaller") || person.roles.includes("manager") || person.id === session.user.id,
   );
@@ -134,7 +137,7 @@ export function LogCase(): ReactNode {
             )}
           </Field>
 
-          {matches.length > 0 && (
+          {taken && (
             <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200 sm:col-span-2">
               <p className="font-medium">This mobile is already on:</p>
               <ul className="mt-1 space-y-0.5">
@@ -146,6 +149,7 @@ export function LogCase(): ReactNode {
                     {item.customerName}
                   </li>
                 ))}
+                {hidden > 0 && <li>{hidden} other case{hidden === 1 ? "" : "s"} you cannot open</li>}
               </ul>
               <label className="mt-2 flex items-center gap-2">
                 <input type="checkbox" checked={different} onChange={(event) => setDifferent(event.target.checked)} />

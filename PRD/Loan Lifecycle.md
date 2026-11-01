@@ -1,157 +1,100 @@
 # Loan Lifecycle
 
-**Status:** Draft for review.
+**Status:** Rewritten 1 November 2026 to match ADR-040 and `PRD/Intake and Work Engine.md`. For Tarun's review. The earlier ten-stage lifecycle (ADR-020) is superseded.
 
-Every stage a case can occupy, what each one means, and what it takes to leave.
+Every stage a case can occupy, what each one means, and what moves it. If this document and `Intake and Work Engine.md` disagree, the Intake and Work Engine spec wins.
 
 ---
 
 ## Two axes, not one
 
-Restating ADR-004 because everything here depends on it:
+Kept from ADR-004, because everything here depends on it:
 
-- **Case stage** — where the *customer's journey* stands. One value, always.
-- **Submission status** — where *one file at one bank* stands. Many at once.
+- **Case stage**: where the *customer's file* stands. One value, always.
+- **Application status**: where *one file at one lender* stands. Many at once.
 
-A case is `Submitted` while its five submissions are variously sanctioned,
-rejected and pending. Neither axis can express the other.
+A case is at *Approved* while its five applications are variously sanctioned, rejected and waiting. Neither axis can express the other.
+
+---
+
+## Where a case begins
+
+A case enters PFO only when the customer has **promised to send documents**. Leads, calls and appointments that have not reached that point are not cases, and PFO does not track them. This is the MIS's rule, and it is why New, Contacted and Appointment Fixed no longer exist.
 
 ---
 
 ## The stages
 
-| # | Stage | Means | Leaves when |
+| # | Stage | Means | Reached when |
 |---|---|---|---|
-| 1 | **New** | Lead captured. Nobody has spoken to them yet. | First contact is logged |
-| 2 | **Contacted** | Spoken to. Interest and rough requirement established. | Appointment set, or requirement firm enough to proceed |
-| 3 | **Appointment Fixed** | Meeting scheduled. | Meeting happens, or is abandoned |
-| 4 | **Documents Pending** | Loan product known, requirements generated, collection under way. | Every applicable requirement is `verified` |
-| 5 | **Ready for Submission** | File complete and verified. Awaiting bank selection. | First submission is **dispatched** — not merely created |
-| 6 | **Submitted** | At least one live submission at a bank. | A submission reaches Sanctioned |
-| 7 | **Sanctioned** | At least one bank has sanctioned, with an offer on file. | A submission reaches Disbursed |
-| 8 | **Disbursed** | Money has moved. | Commercial close-out done |
-| 9 | **Closed** | Complete. Invoice raised, commission settled. | Terminal |
-| — | **Lost** | Will not proceed. Always carries a reason. | Terminal, but reopenable |
+| 1 | **Documents Pending** | Customer promised documents; collection under way | Case logged |
+| 2 | **Eligibility Check** | Enough is in to ask whether the case is worth taking forward | Documents marked Partially Collected, or Complete with eligibility unanswered |
+| 3 | **Documents Collected** | Everything is in; send to lenders | Documents Complete and eligibility Eligible |
+| 4 | **Login Completed** | A lender has logged the file in | Any application reaches Login Completed or Under Review |
+| 5 | **Query Raised by Bank** | A lender has a query | Any application reaches Query Raised by Bank |
+| 6 | **Approved** | A lender has approved or sanctioned | Any application reaches Approved or Sanctioned |
+| 7 | **Sanction Accepted** | Customer accepted a sanction | Any application reaches Sanction Accepted |
+| 8 | **Disbursed** | Money has moved | An application is Disbursed, with amount and date |
+| 9 | **Rejected** | No lender has taken it | Set by a person |
+| - | **Closed** | Invoice raised | Finance closes |
+| - | **Lost** | Will not proceed; reopenable | Not eligible, or customer dropped, with a reason |
 
-Ten stages. Two of them — `Closed` and `Lost` — are terminal.
+Stages 1 to 8 are ordered, and **Closed**, **Lost** and **Rejected** sit outside that order. Closed is terminal. Lost can be reopened; whether Rejected can is open (below).
 
-**Created is not dispatched.** A submission row is created in status
-`not_submitted`, which is a real and useful state: a bank, a product and a
-contact have been chosen, but the file has not physically gone out. The case
-leaves *Ready for Submission* when a submission moves **beyond** `not_submitted`,
-not when the row appears. Advancing the case on row creation would report a file
-as at the bank while it sits on the desk.
+**Sending is not a stage.** Emailing a file to a lender records which lender and banker; the case does not move. The *login* moves it. A file sent on partial documents for a pre-check can go from Documents Pending or Eligibility Check straight to Login Completed. This replaces the old rule that a case leaves Ready for Submission when a submission is dispatched.
 
-**Stage ordinality.** The eight non-terminal stages are ordered, and that order is
-what "a requirement becomes applicable from stage X" compares against. The two
-terminal stages have **no position in that order** — asking whether a requirement
-is due on a lost case is meaningless. Enforced in `src/domain/case/stages.ts`.
+**Eligibility is asked, never decided.** A person answers "Is this case eligible?" with Eligible or Not eligible. PFO does not compute it from the checklist, and it is never a gate: a file can go to a banker for a pre-check before the question is answered. Not eligible moves the case to Lost.
 
 ---
 
-## Three stages I removed, and why (ADR-020)
+## Stages that were removed, and why (ADR-040)
 
-**"Documents Requested" and "Documents Received" as separate stages.** Partial
-receipt is the normal state — four of nine documents in, two verified, one
-rejected by the checker. "Received" cannot be answered yes or no, so as a stage
-it would be perpetually ambiguous and set by whoever last touched the case.
+**New, Contacted, Appointment Fixed.** They described the sales conversation before documents are promised, which is not what PFO tracks. An appointment is, at most, a task with a due date.
 
-The requirement engine already expresses this precisely, with a number. One stage
-(`Documents Pending`) plus `progress = verified / applicable` says strictly more
-than two stages ever could.
+**Ready for Submission and Submitted.** Ready for Submission was gated on every applicable requirement being verified, which is not how the office works: it collects enough to check eligibility, and sends with documents still outstanding when that suits the case. Submitted meant "dispatched to a lender"; the login now carries that meaning.
 
-> **Rule: do not encode as a stage what a metric expresses better.** Stages are
-> for changes of *kind*. Progress within a kind is a measurement.
+**Sanctioned** is replaced by the MIS's Approved, which covers a lender approving or sanctioning.
 
-**"Verification Pending" as a separate stage.** Same argument — verification is a
-per-document status (BR-032), and rolling it up into a case stage loses which
-document is actually waiting.
+Old stage values remain in the TypeScript union and the Postgres enums, unwritable, because the prototype store and retired rules are written in them. Removing them is a cleanup, not a requirement.
 
-**"Eligibility Received".** This is a submission status, and a per-bank one. As a
-case stage it would be false the moment two banks disagree.
+The earlier rule still stands: **do not encode as a stage what a field or a task expresses better.** Whether documents are in is the `document_status` field (Not Assessed, Pending, Partially Collected, Complete), set by a person. Who needs to do what next is a task.
+
+---
+
+## Stage is stored, and moves forward only
+
+Stage is a **stored column**. Every change writes an event naming who or what caused it (BR-050).
+
+- A lender update moves the case **forward only**, by the order above, never backward. A case at Approved stays there if another lender raises a query. Rejection at one lender never moves a case anywhere, because another may still be live.
+- The system moves stages 4 to 8 itself when an application changes, so the two axes cannot drift. The event names the system as actor and the application as cause.
+- **A case is not moved to Rejected automatically** when every application is rejected. The next move is often another lender, and only a person knows whether options remain.
+- A manager can correct a stage by hand, with a note and an event.
 
 ---
 
 ## On Hold is not a stage (ADR-021)
 
-Cases stall for reasons that have nothing to do with progress: the customer is
-travelling, the property fell through, a co-applicant's documents are stuck in
-another state.
-
-Making this a stage would destroy information — when the hold lifts, you need to
-know *where the case was*. So hold is **orthogonal**: a flag on the case carrying
-a reason and a follow-up date, and it can coexist with any non-terminal stage.
-
-A held case is excluded from "needs attention" views until its follow-up date,
-which is the entire operational point — holds exist so that a stalled case stops
-generating noise without being forgotten.
-
-*This is a design addition, not in the original stage list. Rationale: without
-it, users will express holds by parking cases in a wrong stage, and the stage
-data becomes unreliable.*
-
----
-
-## Stage is stored, and auto-advanced
-
-Stage is a **stored column**, not a derived value. Transitions are explicit and
-every one writes an event (BR-050).
-
-But stages 6–8 have a definitional relationship to submissions: a case *is*
-`Sanctioned` precisely when some submission is sanctioned. Requiring a human to
-also click "advance stage" guarantees drift between the two axes.
-
-Resolution: the system advances these stages automatically when a submission
-status changes, and the resulting event names **the system** as actor with the
-triggering submission as cause. Stored, so there is one source of truth;
-automatic, so it cannot drift; evented, so it is auditable.
-
-Auto-advance is one-directional. A rejection at one bank never moves a case
-backwards, because another bank may still be live.
-
-See ADR-019. *(This also corrects a wrong citation in `Data Model.md`, which
-attributed the stored-stage decision to ADR-005.)*
+Unchanged. Cases stall for reasons unrelated to progress: the customer is travelling, a co-applicant's documents are stuck. Hold is a flag carrying a reason and a follow-up date, orthogonal to stage, so that when it lifts you know where the case was. A held case drops out of the work queue until its follow-up date.
 
 ---
 
 ## Lost
 
-Reachable from **any** non-terminal stage, including `Sanctioned` — customers walk
-away after sanction, usually over rate or a competing offer, and that is among the
-most commercially important things the company can learn.
+Reachable from any non-terminal stage. Lost reasons are the MIS closure reasons:
 
-Reason is mandatory and comes from a controlled list (BR-024's sibling rule):
+Customer not interested · Not eligible / rejected by all lenders · Customer unreachable · Documents not provided · Duplicate record · Other (see notes)
 
-Rate too high · Sanctioned elsewhere · Customer not eligible · Documents
-unavailable · Property issue · Customer postponed · Unreachable · Not
-interested · Duplicate case
-
-Free text may accompany the reason, never replace it.
-
-**Reopening** is allowed — a postponed customer returning in six months is common.
-It restores the case to the stage it was lost from, records an event, and keeps
-the loss in history. A new case is *not* created, because that would sever the
-earlier conversation from the new one.
+A reason is mandatory; free text may accompany it, never replace it. Anyone who can update the case may mark it Lost. **Reopening** is allowed and restores the case to the stage it was lost from, keeps the loss in history, and does not create a new case. A "Duplicate record" loss is how a second case for the same enquiry is retired (cases are never merged).
 
 ---
 
 ## Closed vs Disbursed
 
-Deliberately separate. Disbursement is the customer's endpoint; the company's
-work continues — invoice, commission from the bank, referrer payout. A case
-sitting in `Disbursed` for two months is a real operational signal that money is
-owed to Amaze, and collapsing the two stages would hide it.
+Still deliberately separate. Disbursement is the customer's endpoint; the company's work continues with the invoice and the commission. A case in Disbursed for two months is a real signal that money is owed. "Disbursed: case complete" in the MIS maps to **Closed**, not Lost. Only **Finance** closes a case, because closing asserts the invoice is raised (`case.close`).
 
 ---
 
 ## Open questions
 
-1. **Does `Appointment Fixed` earn its place?** It is arguably a task
-   (`task` with a due date), not a stage. It survives here because "how many
-   appointments this week" is a question management will ask. If that turns out
-   not to be asked, it should be removed and expressed as a task.
-2. **Partial disbursement** is normal in construction-linked home loans — money
-   arrives in tranches. Does `Disbursed` mean *first* tranche or *final*? This
-   affects when commission is due, and needs a business answer.
-3. **Who may mark a case Lost?** Owner alone, or does management confirm above a
-   ticket size?
+1. **Partial disbursement.** Home loans disbursed in tranches: does Disbursed mean the *first* tranche or the *final*? It affects when commission is due, and needs a business answer.
+2. **Reopening a Rejected case** after the customer finds another route: is it the same case or a new one? Today a person reopens it.

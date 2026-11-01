@@ -1,183 +1,96 @@
 # Requirements and Progress
 
-**Status:** Draft for review.
+**Status:** Rewritten 1 November 2026 to match ADR-040 and `PRD/Intake and Work Engine.md`. For Tarun's review. The earlier model, where generated requirements drove a progress percentage and the case stage (ADR-010, ADR-035), is superseded.
 
-How PFO decides what a case still needs, and how "done" it is — without ever
-penalising a case for information that does not apply to it.
-
-This document exists because two requirements in the brief are actually the same
-requirement: *optional participants must never be forced*, and *progress must
-never depend on optional information*. Both reduce to one rule.
+What PFO asks a case to collect, and how it avoids asking for things that do not apply.
 
 ---
 
-## The rule
+## What changed, in one paragraph
 
-> **A case is measured only against what that specific case genuinely requires.**
-
-Not against a universal checklist. Not against the most complex case the system
-can represent. Against its own contextual requirement set.
-
-The corollary, and the reason most systems get this wrong:
-
-> **"Not applicable" and "required but missing" are different states, and the
-> system must know the difference.**
-
-A salaried applicant with no co-applicant, no guarantor and no property
-identified yet can be at **100% complete** and correctly ready for submission.
-Nothing about that case is missing. A system that shows him at 40% because the
-guarantor fields are empty is lying, and users will learn to ignore the number —
-which destroys it as a signal permanently.
+The office collects enough to check eligibility, drops the case if that fails, and only then collects the rest. The old design instead assumed a full file per loan type, verified document by document, before anything could go to a bank. So the checklist is now **information**: it tells a person what is still pending. It does not move a stage, does not stop a file being sent, and there is no progress percentage. Whether documents are in is a field a person sets (`document_status`), and whether the case is eligible is a question a person answers.
 
 ---
 
-## Part 1 — The simplest case must be genuinely simple
+## The rule that survives
 
-The default shape of a case is:
+> **A case is measured only against what that specific case genuinely needs.**
 
-```
-Case
-└── Applicant          (exactly one, always)
-```
+A salaried applicant with no co-applicant, no guarantor and no property can have nothing pending, and that is correct. A list that asks for a guarantor's papers because some other loan type needs them teaches people to ignore the list. This is why the checklist is short and conditional.
 
-That is a complete, valid, workable case. Everything else is optional:
+"Not applicable" and "still missing" remain different things: a document that does not apply to this customer is *not on the list*, rather than on the list and ticked off.
+
+---
+
+## Part 1: The simplest case stays simple
+
+A case is a customer and a loan. Everything else is optional:
 
 | Participant | When it exists |
 |---|---|
 | Co-applicant | Joint applications only |
-| Guarantor | When a bank asks for one |
+| Guarantor | When a lender asks for one |
 | Referrer | When the case came through someone |
 | Organisation (employer) | Salaried applicants |
 | Organisation (borrower firm) | Business loans, LAP |
-| Property | Secured loans, and often only from a later stage |
+| Property | Secured loans |
 
-Design consequences, stated as hard rules:
+Hard rules, unchanged:
 
-1. **Nothing optional appears on a creation screen.** Creating a case asks for
-   the applicant and the loan type. Nothing else.
-2. **Optional participants are added by an explicit user action** — "Add
-   co-applicant" — never by a form field sitting empty waiting to be filled.
-3. **Empty optional sections are hidden, not shown greyed out.** An empty
-   Guarantor panel on 90% of cases is visual noise that teaches users to skim
-   past the screen.
-4. **Adding a participant later is normal, not an edit-correction.** It generates
-   that participant's requirements at the moment they are added, and it is an
-   event.
+1. **Log a Case asks only for what the MIS asks:** name, mobile, place, amount, loan type, variant, lead source, employment type, telecaller and pickup date. GST, ITR and existing-loan questions are asked later, only when they change the pending list.
+2. **Optional participants are added by an explicit action**, never by an empty field waiting to be filled.
+3. **Empty optional sections are hidden, not greyed out.**
+4. **Adding a participant later is normal.** It adds that participant's items to the pending list and is an event.
 
 ---
 
-## Part 2 — Requirements are generated, not listed
+## Part 2: The pending list
 
-A case's requirement set is derived from its actual composition:
+Short checklists replace the earlier rule set. The rule engine stays, because it already does this job, but its 105 rules are switched off (not deleted: Principle 6) and 22 short ones take their place:
 
-```
-Loan type          →  Home loan / LAP / Personal / Business / Balance transfer
-Applicant profile  →  Salaried / Self-employed / Business owner
-Party set          →  Which optional participants actually exist
-Property           →  Whether the loan is secured, and whether a property is identified
-Target bank        →  Bank-specific additions, once a submission exists
-Stage              →  Some requirements only become applicable later
-```
+- One list per loan type, seeded from the checklists Tarun already uses in the `organize` skill
+- Conditions kept to four: salaried or self-employed, GST yes or no, co-applicant present, property involved
+- Standing corrections are seeded as rules: no loan application form or signature, e-Aadhaar accepted with no back side, an EB bill in the owner's name counts as business address proof, an ITR PDF is assumed to include computation and P&L, other-loan statements only if a loan is evident, and no GST or current account removes those items
 
-Each of those inputs contributes requirement rows. Two consequences worth being
-explicit about:
+**Removing or adding an item.** A person can remove any item from one case in one tap, or add one. No reason is required. This replaces the waiver workflow, with its named approver and recorded reason, which the office never wanted.
 
-- **A requirement for a party that does not exist is never generated.** No
-  co-applicant means no co-applicant KYC rows. Not rows marked N/A — no rows at
-  all. Absence is silence.
-- **Adding a co-applicant in week three adds new requirements and moves progress
-  backwards.** This is correct and must not be hidden. The timeline shows why:
-  *"Progress 100% → 72%: co-applicant added, 4 new documents required."* An
-  honest number that moves is more useful than a flattering one that doesn't.
+**Verification** of each document is optional. It is no longer needed for anything to proceed.
 
-### Requirement status values
+### What the list never does
 
-| Status | Meaning | Counts toward progress? |
-|---|---|---|
-| `pending` | Required, not received | Yes — denominator |
-| `received` | Uploaded, not yet verified | Yes — partial credit |
-| `verified` | Checked by a named human | Yes — numerator |
-| `waived` | Required, deliberately skipped, with reason and name | Excluded, and visible |
-| `not_applicable` | Does not apply to this case | **Excluded entirely** |
-
-`not_applicable` exists for requirements that were generated and then turned out
-not to apply — a bank dropping a demand, an ITR year that predates the business.
-It is *not* how absent participants are handled; those simply never generate
-rows.
-
-### Progress
-
-```
-progress = verified / (total requirements − waived − not_applicable)
-```
-
-Optional information that does not apply is never in the denominator. It is
-arithmetically impossible for an unused optional field to reduce a case's score.
+- It never moves a stage.
+- It never blocks sending to a lender. When items are pending, Send to lenders says so in a plain line ("3 items still pending: ... You can still send.") and carries on.
+- It never produces a score. The progress percentage is removed from case screens.
 
 ---
 
-## Part 3 — Applicability by stage
+## Part 3: Applicability by stage
 
-Some requirements are real but not yet due. A property valuation is required for
-a home loan, but demanding it on day two — before a property is even chosen —
-makes the checklist wrong and the progress bar useless.
-
-Each requirement therefore carries an **applicable-from stage**. Before that
-stage it is not counted and not shown as missing; it appears in an "upcoming"
-grouping instead.
-
-This is what lets the login executive's screen answer exactly one question —
-*what is missing before this file can go to the bank* — without listing things
-that nobody could possibly have yet.
+The earlier idea that a requirement becomes due *from* a stage is dropped. Items either apply to this case or they do not; nothing is held back as "upcoming". What the office collects first is decided by the person, through document status and the eligibility question, not by a stage table.
 
 ---
 
-## Part 4 — Case health
+## Part 4: Is the case in trouble?
 
-Progress measures completeness. Health measures whether the case is *in trouble*,
-which is a different question and must not be collapsed into the same number.
+Completeness is no longer measured, so the only health question left is whether something is **overdue**. That is answered by real tasks (the work engine in `Intake and Work Engine.md`, Part 4): each action closes the tasks it finishes and raises the next, and the work queue leads with Overdue, Today and Upcoming. Each case screen also states the next step in a fixed line, not a popup.
 
-Health is contextual, and every input is relative to what the case actually is:
-
-- Days since the last customer contact
-- Days stalled in the current stage, compared to the norm for that stage
-- Overdue tasks
-- Documents received but unverified for too long
-- Submissions with no bank response beyond expected turnaround
-- Sanction offers approaching expiry
-
-Health is never reduced by an absent optional participant. A simple case is not
-an unhealthy case.
-
-Deliberately excluded from V1: any predictive or scored "likelihood to convert."
-That needs historical data the company does not have yet, and a wrong prediction
-early would discredit the whole idea. Revisit when there is a year of outcomes in
-the event log.
+Still excluded: any predictive "likelihood to convert" score. It needs a year of outcomes in the event log first.
 
 ---
 
-## Part 5 — What this forbids
-
-Stated as prohibitions, because these are the failure modes:
+## Part 5: What this forbids
 
 - No "complete your profile" nagging for fields that do not apply.
 - No required fields that exist because some other loan type needs them.
-- No progress bar that can never reach 100% on a simple case.
-- No screen that shows an empty section for an absent participant.
-- No blocking a stage transition on a requirement that is `not_applicable` or
-  waived.
+- No score or percentage that a simple case can never reach.
+- No empty section for an absent participant.
+- No blocking a stage change or a send on the pending list.
 - No universal document checklist applied to every case regardless of type.
 
 ---
 
-## Part 6 — Open questions
+## Open questions
 
-1. **Who can waive a requirement?** Waiving lets a file move to a bank without a
-   document. Login executive, or management approval?
-2. **Bank-specific checklists in V1** — real per-bank templates, or one master
-   list per loan type plus manual additions? Templates are more correct and more
-   setup work before anyone can use the system.
-3. **Self-employed profiles** vary a lot (ITR years, GST, business vintage). Is
-   one self-employed profile enough for V1, or do we need to split it?
-4. **Does progress belong in the UI at all for telecallers?** It answers the
-   login executive's question. It may be noise on a calling screen.
+1. **A split ITR** (separate computation, P&L and balance sheet PDFs, no combined ITR) leaves its ITR line pending until someone removes it. Is that the right default?
+2. **Assessment years not yet filed** can appear on the list (2026-27 did). This needs checking against real cases.
+3. **Per-lender checklists.** One list per loan type, plus manual additions, is what is built. Real per-lender templates are not, and need a decision on whether they are worth the setup.
