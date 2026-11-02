@@ -136,3 +136,135 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/*
+ * The GST and ITR summary graphs (Frontend/src/screens/FinancialSummary.tsx).
+ * Bars grow up from the baseline, one after another; when a filter changes the
+ * old bars sink first and the new set rises. All of it is a one-shot response
+ * to something the person just did (nothing loops except the loading shimmer),
+ * and the reduced-motion rule above flattens every duration, so none of it is
+ * needed to read the figures.
+ */
+@keyframes fs-rise {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes fs-sink {
+  from {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  to {
+    transform: scaleY(0);
+    opacity: 0.2;
+  }
+}
+
+@keyframes fs-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fs-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fs-pop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* A soft warm wash on figures that just changed because a new summary arrived. */
+@keyframes fs-flash {
+  0% {
+    background-color: var(--color-gold-100);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes fs-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.fs-bar {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: fs-rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 38ms);
+}
+
+.fs-bar-out {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: fs-sink 240ms ease-in both;
+  animation-delay: 0ms;
+}
+
+.fs-late {
+  animation: fs-fade 300ms ease-out both;
+  animation-delay: 450ms;
+}
+
+.fs-line {
+  stroke-dasharray: 1;
+  animation: fs-draw 650ms ease-out both;
+}
+
+.fs-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fs-pop 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 38ms + 200ms);
+}
+
+.fs-flash {
+  border-radius: var(--radius-sm);
+  animation: fs-flash 1400ms ease-out both;
+}
+
+.fs-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-ink-100) 25%,
+    var(--color-ink-50) 37%,
+    var(--color-ink-100) 63%
+  );
+  background-size: 200% 100%;
+  animation: fs-shimmer 1.4s linear infinite;
+}
+
+/* People who asked for reduced motion get the finished graph at once, with no stagger delay. */
+@media (prefers-reduced-motion: reduce) {
+  .fs-bar,
+  .fs-bar-out,
+  .fs-dot,
+  .fs-late,
+  .fs-line {
+    animation: none !important;
+  }
+}

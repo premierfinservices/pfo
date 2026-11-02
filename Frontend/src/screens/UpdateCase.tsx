@@ -18,6 +18,7 @@ import type { ApiPreparedPackage, ApiSendResult, ApiSendableDocument } from "../
 import { useSession } from "../session.js";
 import { Badge, Button, Card, Empty, Field, Input, Select, StageBadge, cx } from "../ui/index.js";
 import { dateFromToday, type WorkLists } from "./LogCase.js";
+import { FinancialSummary, SummarySkeleton } from "./FinancialSummary.js";
 
 interface PickRow {
   readonly id: string;
@@ -171,7 +172,7 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
   const [tab, setTab] = useState<Tab>("case");
   const mutation = useMutation();
 
-  if (loaded.loading || lists.loading) return <Empty>Loading case…</Empty>;
+  if (loaded.loading || lists.loading) return <SummarySkeleton />;
   const summary = latest ?? loaded.data;
   if (loaded.error || !summary || !lists.data) {
     return <Empty>{loaded.error?.message ?? "This case is not available."}</Empty>;
@@ -289,11 +290,7 @@ function CaseTab({
     <div className="space-y-4">
       {asking && (
         <Card title="Is this case eligible?" subtitle="Your decision. Check what has come in, then answer.">
-          {summary.financialSummary && (
-            <pre className="mb-4 overflow-x-auto rounded-md bg-ink-50 p-3 font-mono text-xs leading-5 text-ink-800 ring-1 ring-ink-150">
-              {summary.financialSummary}
-            </pre>
-          )}
+          {summary.financialSummary && <FinancialSummary text={summary.financialSummary} />}
           {summary.documentStatus !== "complete" && (
             <Field label="If eligible, collect the rest on">
               <Input
