@@ -12,7 +12,41 @@ Written 30 October 2026 for a Claude session (or a person) that has **no memory 
 - The MIS stays the working system until its data is imported (step 4 below). Tarun says "go live" when he is ready.
 - Tarun is the decision maker. He prefers a straight assessment to validation, wants decisions recorded with reasons, and treats "unknown" as a valid answer. Do not invent numbers, rules or dates.
 
-## Where things stand (30 Oct 2026)
+## Checkpoint, 2 November 2026 (read this first; it overrides the older status below)
+
+`main` is at the commit that adds this section, pushed to `origin`. Running on the Unfold Media Corp PC. Migrations are applied through 0052; the next number is 0053. Decisions: ADR-045 (firm field) and ADR-046 (sync and reports).
+
+| Step | What | State |
+|---|---|---|
+| 1 | Log a Case, Update Case, MIS stages, tasks, checklists | Live |
+| 2 | Document drop: dedupe, rename, open zips | Live. Reading unnamed files is off: Tarun will not pay for an API account, and local OCR is parked (`Docs/Local OCR Design.md`). Files arrive already named by `organize` |
+| 3 | GST and ITR summary | Live. It reads the `GST and ITR Summary.txt` that `organize` writes; PFO does not work the figures out itself. Files with several filers show the original text |
+| 4 | Firm field, MIS sync, MIS reports | Live, built 2 Nov 2026 |
+
+**While the MIS and PFO both run**
+
+- The MIS is the source for MCM. Task `PFO MIS Sync` copies cases Active in the MIS with a lead date from 13 Oct 2026, every 30 minutes from 08:00 to 21:00. Log: `C:\PFO\Logs\mis-sync.log`. Nothing alerts on failure, so check the log if PFO looks out of date.
+- Currently 14 cases, 19 applications, 31 tasks. Synced cases refuse edits in PFO except document uploads. A re-run overwrites them from the MIS.
+- By hand: `npm run mis:sync` is a dry run that rolls back; add `-- --apply` to keep it. `-- --go-live` hands the cases to PFO for good, and only Tarun says when.
+- Every case is MCM (Tarun, 2 Nov 2026). Log a Case still asks for the firm.
+- PF-2026-00001 and MCM-0020 are the same customer and stay separate by Tarun's decision. The first holds the uploaded documents. Each sync names the pair and changes neither.
+
+**Checked on 2 Nov 2026.** 239 values compared row by row with the MIS, all matching (one flagged difference was the checker reading a blank amount as 0). 12 Dashboard figures matched over all MIS rows; the disbursement ones were 0 for that period, so only tests cover those definitions. Reports and Update Case were opened in a browser on a restored rehearsal copy, not on production.
+
+**Tests.** Three integration failures, none from this work: two in `Backend/api.test.ts` expect `AL-` case numbers, and `Backend/supervisor.test.ts` cannot find openssl on this PC. To run integration tests in a worktree, junction `node_modules` to the main folder's and pass the database login through the environment. `Backend/migrate.mjs` refuses to run from a worktree because line endings change the checksums, so migrate from the main folder.
+
+**Open, for Tarun**
+
+1. Go-live for MCM, and whether the 8 older Active MIS cases come across. Nothing is built for them yet.
+2. Change the weak temporary passwords on the 9 live accounts, managers first.
+3. Confirm the certificate warning has gone in Brave, and try the Reports screen on production.
+4. The stage badge (a derived status line is recommended), the "mark documents Complete?" prompt, why a case gets two GST rows for one month, and a per-filer switch for several-filer summaries.
+
+**Housekeeping.** Merged worktrees under `.claude/worktrees/` can be removed. Each has a `node_modules` junction, so remove the junction first or the shared folder is at risk. The scratch database `pfo_rehearsal_0049` and `C:\PFO\RehearsalStorage_0049` can go too.
+
+**Pushing from this PC.** Git cannot show a sign-in prompt from Claude's shell. `git -c credential.helper= -c "credential.helper=!gh auth git-credential" push origin main` uses the GitHub CLI login for that one command.
+
+## Where things stood on 30 Oct 2026 (history)
 
 | Step | What | State |
 |---|---|---|
