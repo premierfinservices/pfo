@@ -326,6 +326,66 @@ describe("Log a Case", () => {
   });
 });
 
+describe("a case the MIS manages (ADR-046)", () => {
+  async function managedCase() {
+    const manager = await signInAs("manager");
+    const logged = await logCase(manager);
+    await pool.query(`update loan_case set mis_case_id = $1, mis_managed = true where id = $2`, [`MCM-T${logged.id.slice(0, 8)}`, logged.id]);
+    return { manager, id: logged.id as string };
+  }
+
+  it("refuses edits through both case APIs, and says where to make them", async () => {
+    const { manager, id } = await managedCase();
+    const viaWork = await act(manager, id, "documents", { received: "partial" });
+    expect(viaWork.status).toBe(409);
+    expect(viaWork.body.message).toContain("MIS");
+    const viaCases = await api(`/api/cases/${id}/hold`, { method: "POST", token: manager.token, body: { isOnHold: true, holdReason: "x" } });
+    expect(viaCases.status).toBe(409);
+  });
+
+  it("still reads, and shows that it is managed", async () => {
+    const { manager, id } = await managedCase();
+    const read = await api(`/api/work/cases/${id}`, { token: manager.token });
+    expect(read.status).toBe(200);
+    expect(read.body.misManaged).toBe(true);
+    const detail = await api(`/api/cases/${id}`, { token: manager.token });
+    expect(detail.body.misManaged).toBe(true);
+  });
+
+  it("works normally again once released", async () => {
+    const { manager, id } = await managedCase();
+    await pool.query(`update loan_case set mis_managed = false where id = $1`, [id]);
+    const done = await act(manager, id, "reschedule", { date: today(2) });
+    expect(done.status).not.toBe(409);
+  });
+});
+
+describe("the MIS reports", () => {
+  it("are for those who hold report.view, and narrow by firm", async () => {
+    const telecaller = await signInAs("telecaller");
+    expect((await api("/api/reports/mis", { token: telecaller.token })).status).toBe(403);
+
+    const manager = await signInAs("manager");
+    const mcm = await logCase(manager, { firm: "mcm", amount: "10L" });
+    const premier = await logCase(manager, { firm: "premier" });
+    const onlyMcm = await api("/api/reports/mis?period=all&firm=mcm", { token: manager.token });
+    expect(onlyMcm.status).toBe(200);
+    expect(onlyMcm.body.cards.activeCases.caseIds).toContain(mcm.id);
+    expect(onlyMcm.body.cards.activeCases.caseIds).not.toContain(premier.id);
+    const row = onlyMcm.body.telecallers.find((t: any) => t.leads.caseIds.includes(mcm.id));
+    expect(row.name).toBeTruthy();
+  });
+
+  it("leaves practice cases out, and refuses a bad period", async () => {
+    const manager = await signInAs("manager");
+    const practice = await logCase(manager, { isPractice: true });
+    const all = await api("/api/reports/mis?period=all", { token: manager.token });
+    expect(all.body.cards.activeCases.caseIds).not.toContain(practice.id);
+    expect((await api("/api/reports/mis?period=nonsense", { token: manager.token })).status).toBe(400);
+    expect((await api("/api/reports/mis?from=2026-02-01&to=2026-01-01", { token: manager.token })).status).toBe(400);
+  });
+});
+
 describe("the MIS lender list", () => {
   it("holds every MIS lender once, keeps PFO's names, and switches public sector banks off", async () => {
     const { rows } = await pool.query(

@@ -223,7 +223,13 @@ function CaseHeader({
             </Badge>
           )}
           {loanCase.isOnHold && <Badge tone="warn">On hold</Badge>}
+          {loanCase.misManaged && (
+            <Badge tone="warn" title="Read-only here until go-live. Make changes in the MIS; document uploads still work.">
+              Managed in the MIS
+            </Badge>
+          )}
         </div>
+        {loanCase.misCaseNotes && <p className="mt-1 text-sm text-ink-600">MIS notes: {loanCase.misCaseNotes}</p>}
 
         <div className="mt-2 max-w-xs">
           <StageRail stage={loanCase.stage} />

@@ -1884,3 +1884,17 @@ content type recorded at upload would be better and is a small future change.
 **The decision.** `loan_case.firm` (migration 0051), `mcm` or `premier`, not null, checked by a constraint rather than an enum so a third firm is a constraint swap. Existing rows default to `premier`: everything logged in PFO so far is Premier's. Log a Case asks for the firm and has no default, so a case cannot be filed under the wrong firm by skipping a field. The firm is on the `case.logged` event. It shows as a badge on the case list and Update Case, and filters the case list, the Update Case picker and the work queue (`?firm=mcm|premier`, absent means both). The MCM import sets `mcm`.
 
 **Not built.** Correcting a case's firm after it is logged (a manager edit), and firm-aware reports. Both come with the reports step.
+
+## ADR-046 — Live MCM cases sync one way from the MIS; MIS reports in PFO (step 4 of ADR-040)
+
+**Status:** Accepted. Tarun Ramesh, 2 November 2026.
+
+**Scope.** Cases that are Active in the MIS with a lead date from 13 October 2026. All are MCM. Archived or closed cases and older leads are held off. A case already copied stays in step, so archiving it in the MIS closes it here.
+
+**The rule while both run.** The MIS is the source for MCM cases. `npm run mis:sync` copies them one way, finds each record by its MIS ID, and writes only what differs, so it can run any number of times. A re-run overwrites a synced case from the MIS. Premier cases are entered in PFO and never touched. The API refuses edits to a case with `mis_managed` set, except document uploads, because the MIS holds no documents and nothing can overwrite them. `npm run mis:sync -- --go-live` hands the cases over and the sync then leaves them alone. Without `--apply` the command does everything in a transaction, reports, and rolls back. It also compares the headline figures in PFO with the same figures from the MIS's rows, and any difference undoes the run.
+
+**Dates.** The MIS's dates are written as held, read directly from the stored cells and treated as Indian time. `lead_received_on` holds the lead date, which reports count by. The event log says when the sync ran; it is not back-dated (BR-051). Three things have no true date in the MIS, and each is handled in the open: a dispatch time, which the schema requires past Not Logged In, is the login date, else when the application was entered; a rejection is dated from the MIS Change Log; a cancelled follow-up has no completion date, so it is not imported.
+
+**Not guessed.** A rejection's category is `not_categorised_mis`, inactive and never offered, with the MIS's words in `bank_reason_text`. An unmapped status, lender, mobile or employee is reported and that record left out. A mobile that changes in the MIS, or a name on a person PFO already held, is reported and not overwritten, because that person may be on other cases.
+
+**Reports.** `/reports` (`report.view` at `all`) shows the MIS Dashboard's cards, pipeline, lead tables, telecaller and login cohorts and workload, by period, firm and person. `computeMisReport` is one pure function with each definition copied from the MIS's formula and the cell named beside it. Every number opens its cases. Not copied: charts, sparklines and the Management View's data-quality section.

@@ -64,6 +64,8 @@ interface Summary {
   readonly loanVariant: string | null;
   readonly place: string | null;
   readonly firm: string;
+  readonly misManaged: boolean;
+  readonly misCaseNotes: string | null;
   readonly isPractice: boolean;
   readonly isOnHold: boolean;
   readonly documentStatus: string;
@@ -237,6 +239,14 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
         {summary.done && <span className="text-ink-600">{summary.done} </span>}
         <span className="font-medium">{summary.next}</span>
       </div>
+
+      {summary.misManaged && (
+        <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200" role="note">
+          <span className="font-medium">Managed in the MIS until go-live.</span> Read-only here: make changes in the MIS and
+          they arrive on the next sync. You can still upload documents.
+          {summary.misCaseNotes && <span className="mt-1 block text-ink-600">MIS notes: {summary.misCaseNotes}</span>}
+        </div>
+      )}
 
       {mutation.error && <p className="text-sm text-red-700">{mutation.error}</p>}
 

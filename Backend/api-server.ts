@@ -53,6 +53,7 @@ import {
   workLists,
   workQueue,
 } from "./work.js";
+import { misReport } from "./reports.js";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type pg from "pg";
@@ -941,7 +942,24 @@ async function route(
   // permissions, held at different scopes by different roles; folding them
   // into one field patch would make `case.update` silently grant all of them.
 
+  // ── Cases the MIS still manages are read-only here until go-live (ADR-046) ─
+  // Uploads stay open: the MIS holds no documents, so nothing can overwrite them.
+  if (method !== "GET") {
+    const misCase = new RegExp(`^/api(?:/work)?/cases/(${UUID})(/.*)?$`).exec(path);
+    const isUpload =
+      misCase?.[2] === "/upload" || new RegExp(`^/requirements/${UUID}/documents$`).test(misCase?.[2] ?? "");
+    if (misCase && !isUpload) {
+      const { rows } = await client.query(`select 1 from loan_case where id = $1 and mis_managed`, [misCase[1]]);
+      if (rows[0]) {
+        throw new ApiError(409, "This case is managed in the MIS until go-live. Make the change there; it reaches PFO on the next sync.");
+      }
+    }
+  }
+
   // ── Log a Case, Update Case, the work queue (ADR-040) ─────────────────────
+  if (method === "GET" && path === "/api/reports/mis") {
+    return await misReport(client, requireActor(actor), new URL(req.url ?? "/", "http://localhost").searchParams);
+  }
   if (method === "GET" && path === "/api/work/lists") {
     requireActor(actor);
     return await workLists(client);

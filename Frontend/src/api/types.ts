@@ -83,6 +83,11 @@ export interface ApiCase {
   readonly place: string | null;
   /** `mcm` or `premier` (migration 0051). */
   readonly firm: string;
+  /** The MIS Case ID this came from, if any. */
+  readonly misCaseId: string | null;
+  /** True until go-live: read-only here, worked in the MIS (ADR-046). */
+  readonly misManaged: boolean;
+  readonly misCaseNotes: string | null;
   /**
    * Present on `/api/cases` (the All Cases list) only, from Stage 3C —
    * `Backend/requirements.ts`'s `caseListProgress`, computed from real

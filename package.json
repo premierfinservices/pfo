@@ -21,6 +21,7 @@
     "bootstrap-production": "vite-node --config vite.server.config.ts Backend/bootstrap-production.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "migrate": "node Backend/migrate.mjs",
+    "mis:sync": "vite-node --config vite.server.config.ts Backend/mis-sync-cli.ts --",
     "migrate:status": "node Backend/migrate.mjs --status",
     "storage-server": "node Backend/storage-server.mjs",
     "mail-server": "node Backend/mail-server.mjs",

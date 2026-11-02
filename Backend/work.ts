@@ -75,6 +75,8 @@ interface CaseRow {
   loan_variant: string | null;
   place: string | null;
   firm: string;
+  mis_managed: boolean;
+  mis_case_notes: string | null;
   is_practice: boolean;
   applicant_name: string | null;
   owner_name: string | null;
@@ -83,7 +85,7 @@ interface CaseRow {
 const CASE_SELECT = `
   select c.id, c.case_number, c.stage::text, c.owner_user_id, c.is_on_hold, c.is_invoice_raised,
          c.stage_before_lost::text, c.financial_summary, c.document_status, c.eligibility_status, c.lost_reason::text,
-         c.requested_amount::text, c.loan_type, c.loan_variant, c.place, c.firm, c.is_practice,
+         c.requested_amount::text, c.loan_type, c.loan_variant, c.place, c.firm, c.mis_managed, c.mis_case_notes, c.is_practice,
          p.full_name as applicant_name, op.full_name as owner_name
     from loan_case c
     left join case_party cp on cp.case_id = c.id and cp.is_primary and cp.removed_at is null
@@ -427,7 +429,8 @@ export async function logCase(client: Queryable, actor: Actor, body: Record<stri
   await client.query(
     `update loan_case
         set loan_type = $1, loan_variant = $2, place = $3, owner_user_id = $4, duplicate_override_note = $5,
-            firm = $6
+            firm = $6, original_owner_user_id = $4,
+            lead_received_on = (created_at at time zone 'Asia/Kolkata')::date
       where id = $7`,
     [loanType, variant || null, place, ownerUserId, note, firm.code, created.id],
   );
@@ -646,6 +649,8 @@ export async function caseSummary(client: Queryable, actor: Actor, caseId: strin
     loanVariant: row.loan_variant,
     place: row.place,
     firm: row.firm,
+    misManaged: row.mis_managed,
+    misCaseNotes: row.mis_case_notes,
     isPractice: row.is_practice,
     isOnHold: row.is_on_hold,
     documentStatus: row.document_status,

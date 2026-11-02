@@ -42,7 +42,7 @@ const COLUMNS = `c.id, c.case_number, c.loan_product_id, c.requested_amount, c.s
                  c.lost_reason, c.lost_note, c.lost_at, c.stage_before_lost,
                  c.is_invoice_raised, c.closed_at, c.created_at, c.updated_at,
                  c.is_practice, c.document_status, c.eligibility_status,
-                 c.loan_type, c.loan_variant, c.place, c.firm`;
+                 c.loan_type, c.loan_variant, c.place, c.firm, c.mis_case_id, c.mis_managed, c.mis_case_notes`;
 
 /**
  * The primary applicant travels with every case row.
@@ -100,6 +100,9 @@ export function caseFromRow(
     loanVariant: row.loan_variant,
     place: row.place,
     firm: row.firm,
+    misCaseId: row.mis_case_id,
+    misManaged: row.mis_managed,
+    misCaseNotes: row.mis_case_notes,
     applicantId: row.applicant_id ?? null,
     applicantName: row.applicant_name ?? null,
     applicantPhone: row.applicant_phone ?? null,

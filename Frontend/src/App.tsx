@@ -17,6 +17,7 @@ import { CaseDetail } from "./screens/CaseDetail.js";
 import { CaseList } from "./screens/CaseList.js";
 import { ChangePassword } from "./screens/ChangePassword.js";
 import { LenderCatalogue } from "./screens/LenderCatalogue.js";
+import { Reports } from "./screens/Reports.js";
 import { LendingProducts } from "./screens/LendingProducts.js";
 import { MasterData } from "./screens/MasterData.js";
 import { LogCase } from "./screens/LogCase.js";
@@ -43,6 +44,7 @@ export function App(): ReactNode {
           <Route path="/cases" element={<CaseList />} />
           <Route path="/cases/new" element={<LogCase />} />
           <Route path="/update-case" element={<UpdateCase />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="/cases/:caseId" element={<CaseDetail />} />
           <Route path="/people/:personId" element={<PersonProfile />} />
           <Route path="/admin/lending-products" element={<LendingProducts />} />
@@ -140,6 +142,11 @@ function TopBar(): ReactNode {
           <NavLink to="/cases" className={navLinkClass}>
             {casesLabel(session)}
           </NavLink>
+          {session.can("report.view", "all") && (
+            <NavLink to="/reports" className={navLinkClass}>
+              Reports
+            </NavLink>
+          )}
           {session.can("case.create", "all") && (
             <Link to="/cases/new">
               <Button variant="primary">Log a Case</Button>
