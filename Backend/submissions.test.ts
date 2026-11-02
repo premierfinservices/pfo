@@ -766,3 +766,55 @@ describe("concurrency — sendPackage serialises on the submission (Phase 3)", (
     expect(rows.every((r) => r.status === "submitted")).toBe(true);
   });
 });
+
+describe("one file backing two requirement rows (found on a real case)", () => {
+  async function twoRowsOneFile(): Promise<{ actor: Actor; caseId: string; submissionId: string; sharedDocumentId: string }> {
+    const { actor, caseId, submissionId } = await setUpReadyCaseWithSubmission();
+    const { rows } = await pool.query<{ id: string; doc: string }>(
+      `select id, coalesce(uploaded_document_id, satisfied_by_document_id) as doc
+         from document_requirement
+        where case_id = $1 and status in ('received', 'verified')
+        order by id`,
+      [caseId],
+    );
+    expect(rows.length).toBeGreaterThan(1);
+    // The second requirement now resolves to the same file as the first.
+    await pool.query(
+      `update document_requirement set uploaded_document_id = $1, satisfied_by_document_id = $1 where id = $2`,
+      [rows[0]!.doc, rows[1]!.id],
+    );
+    return { actor, caseId, submissionId, sharedDocumentId: rows[0]!.doc };
+  }
+
+  it("offers that file once, and a package of everything offered can be prepared", async () => {
+    const { actor, caseId, submissionId, sharedDocumentId } = await twoRowsOneFile();
+
+    const offered = await withActor(null, (client) => sendableDocuments(client, actor, caseId, submissionId));
+    const ids = offered.map((r) => r.documentId);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.filter((id) => id === sharedDocumentId)).toHaveLength(1);
+
+    // Before the fix this failed every time: N rows matched against N-1 chosen files.
+    const prepared = await withActor(null, (client) =>
+      preparePackage(client, actor, caseId, submissionId, { documentIds: ids }),
+    );
+    expect(prepared.fingerprint).toBeTruthy();
+  });
+
+  it("names the document, by file name, when a chosen one is really no longer sendable", async () => {
+    const { actor, caseId, submissionId } = await setUpReadyCaseWithSubmission();
+    const offered = await withActor(null, (client) => sendableDocuments(client, actor, caseId, submissionId));
+    const ids = offered.map((r) => r.documentId);
+
+    // Reject the requirement behind the last document, after the person has chosen it.
+    await pool.query(
+      `update document_requirement set status = 'rejected'
+        where case_id = $1 and coalesce(uploaded_document_id, satisfied_by_document_id) = $2`,
+      [caseId, ids[ids.length - 1]],
+    );
+
+    await expect(
+      withActor(null, (client) => preparePackage(client, actor, caseId, submissionId, { documentIds: ids })),
+    ).rejects.toThrow(/can no longer be sent from this case: .*pan-card\.pdf/);
+  });
+});

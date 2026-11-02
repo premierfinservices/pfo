@@ -1324,14 +1324,19 @@ function SendPackageModal({
                       document.blockedBecause && "opacity-60",
                     )}
                   >
-                    <span className="flex items-center gap-2">
+                    <span className="flex min-w-0 items-center gap-2">
                       <input
                         type="checkbox"
                         disabled={!!document.blockedBecause}
                         checked={selected.has(document.documentId)}
                         onChange={() => toggle(document.documentId)}
                       />
-                      <span className="text-sm text-ink-900">{document.label}</span>
+                      <span className="min-w-0 text-sm text-ink-900">
+                        {document.label}
+                        <span className="block truncate text-xs text-ink-500" title={document.fileName}>
+                          {document.fileName}
+                        </span>
+                      </span>
                     </span>
                     <span className="text-xs text-ink-500">
                       {document.blockedBecause ?? bytes(document.fileSizeBytes)}

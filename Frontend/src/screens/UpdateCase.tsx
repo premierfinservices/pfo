@@ -880,14 +880,21 @@ function EmailPanel({
             <ul className="max-h-80 divide-y divide-ink-100 overflow-y-auto rounded-lg bg-white ring-1 ring-ink-150">
               {docs.data.map((doc) => (
                 <li key={doc.documentId} className={cx("flex items-center justify-between gap-3 px-3 py-2", doc.blockedBecause && "opacity-60")}>
-                  <label className="flex items-center gap-2 text-sm">
+                  <label className="flex min-w-0 items-center gap-2 text-sm">
                     <input
                       type="checkbox"
                       disabled={!!doc.blockedBecause}
                       checked={chosen.has(doc.documentId)}
                       onChange={() => toggle(doc.documentId)}
                     />
-                    {doc.label}
+                    <span className="min-w-0">
+                      {doc.label}
+                      {/* Several documents share a type ("Existing Loan Statement" five times),
+                          so the file name is what tells them apart. */}
+                      <span className="block truncate text-xs text-ink-500" title={doc.fileName}>
+                        {doc.fileName}
+                      </span>
+                    </span>
                   </label>
                   <span className="text-xs text-ink-500">{doc.blockedBecause ?? kilobytes(doc.fileSizeBytes)}</span>
                 </li>

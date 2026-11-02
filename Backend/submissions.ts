@@ -68,6 +68,7 @@ import {
   type BankerRecipient,
   type EmailSender,
 } from "@domain/submissions/compose.js";
+import { onePerDocument, unavailableDocumentsMessage } from "@domain/submissions/distinct-documents.js";
 import {
   describeEmailFailure,
   type EmailAttachment,
@@ -728,7 +729,8 @@ export async function sendableDocuments(
   requireCaseAccess(actor, header, "submission.create");
   await loadSubmission(client, caseId, submissionId);
 
-  const rows = await sendableDocumentRows(client, caseId);
+  // One row per file: a file that satisfies two requirements is offered once.
+  const rows = onePerDocument((await sendableDocumentRows(client, caseId)).map((row) => ({ ...row, documentId: row.document_id })));
   return rows.map((row) => {
     const candidate = toCandidate(row);
     const reason = ineligibility(candidate);
@@ -828,14 +830,22 @@ async function selectedCandidates(
   caseId: string,
   documentIds: readonly string[],
 ): Promise<CandidateDocument[]> {
-  const rows = await sendableDocumentRows(client, caseId);
+  // Count files, not requirement rows: one file may back two rows.
+  const rows = onePerDocument((await sendableDocumentRows(client, caseId)).map((row) => ({ ...row, documentId: row.document_id })));
   const chosen = new Set(documentIds);
   const candidates = rows.filter((row) => chosen.has(row.document_id)).map(toCandidate);
   if (candidates.length !== chosen.size) {
-    throw new ApiError(
-      409,
-      "One of the chosen documents can no longer be sent from this case. Reopen the dialog and choose again.",
-    );
+    // Say which ones. Ids that are not on the case at all (stale, or not even
+    // ours) cannot be named, so the message falls back to the general wording.
+    const found = new Set(candidates.map((c) => c.documentId));
+    const missing = [...chosen].filter((id) => !found.has(id) && /^[0-9a-f-]{36}$/i.test(id));
+    const { rows: named } = missing.length
+      ? await client.query<{ file_name: string }>(
+          `select file_name from document where id = any($1::uuid[]) and case_id = $2 order by file_name`,
+          [missing, caseId],
+        )
+      : { rows: [] };
+    throw new ApiError(409, unavailableDocumentsMessage(named.map((r) => r.file_name)));
   }
   return candidates;
 }
