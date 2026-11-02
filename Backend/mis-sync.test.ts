@@ -144,6 +144,7 @@ describe("what the MIS's words mean", () => {
     expect(inSyncScope(customer({ leadDate: "2026-10-13T00:00:00" }))).toBe(true);
     expect(inSyncScope(customer({ leadDate: "2026-10-12T00:00:00" }))).toBe(false);
     expect(inSyncScope(customer({ location: "Archived" }))).toBe(false);
+    expect(inSyncScope(customer({ caseId: "MCM-0027" }))).toBe(false);
   });
 
   it("reads a naive MIS time as Indian time, with no day shift", () => {

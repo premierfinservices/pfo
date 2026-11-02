@@ -87,7 +87,11 @@ export interface MisData {
 /** Tarun, 2 Nov 2026: cases with a lead date from here on, and only live ones. */
 export const MIS_SYNC_FROM = "2026-10-13";
 
+/** Tarun, 2 Nov 2026: stays in the MIS, never comes to PFO. */
+export const MIS_SYNC_EXCLUDED: ReadonlySet<string> = new Set(["MCM-0027"]);
+
 export function inSyncScope(customer: MisCustomer): boolean {
+  if (MIS_SYNC_EXCLUDED.has(customer.caseId)) return false;
   return customer.location === "Active" && customer.leadDate !== null && customer.leadDate.slice(0, 10) >= MIS_SYNC_FROM;
 }
 
