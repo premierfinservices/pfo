@@ -41,6 +41,7 @@ import {
   logCase,
   afterPackageSent,
   mobileMatches,
+  firmFilter,
   pickList,
   requirementNotNeeded,
   requirementRestore,
@@ -946,8 +947,8 @@ async function route(
     return await workLists(client);
   }
   if (method === "GET" && path === "/api/work/queue") {
-    const who = new URL(req.url ?? "/", "http://localhost").searchParams.get("who");
-    return await workQueue(client, requireActor(actor), who);
+    const params = new URL(req.url ?? "/", "http://localhost").searchParams;
+    return await workQueue(client, requireActor(actor), params.get("who"), firmFilter(params));
   }
   if (method === "GET" && path === "/api/work/mobile") {
     const mobile = new URL(req.url ?? "/", "http://localhost").searchParams.get("mobile") ?? "";
@@ -957,8 +958,8 @@ async function route(
     return await logCase(client, requireActor(actor), body);
   }
   if (method === "GET" && path === "/api/work/cases") {
-    const q = new URL(req.url ?? "/", "http://localhost").searchParams.get("q");
-    return await pickList(client, requireActor(actor), q);
+    const params = new URL(req.url ?? "/", "http://localhost").searchParams;
+    return await pickList(client, requireActor(actor), params.get("q"), firmFilter(params));
   }
   const workCaseMatch = new RegExp(`^/api/work/cases/(${UUID})$`).exec(path);
   if (workCaseMatch && method === "GET") {

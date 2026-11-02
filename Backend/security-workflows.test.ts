@@ -270,6 +270,7 @@ describe("a telecaller sending their own case to a lender, as aos_app (ADR-042)"
         loanType: "Business Loan",
         variant: "Fresh",
         leadSource: "direct_referral",
+        firm: "premier",
         employmentType: "proprietorship",
         pickupDate: new Date(Date.now() + 5.5 * 3_600_000 + 86_400_000).toISOString().slice(0, 10),
       },

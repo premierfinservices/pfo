@@ -10,6 +10,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { CASE_STAGE_LABELS, LOST_REASONS, LOST_REASON_LABELS, type CaseStage } from "@domain/case/stages.js";
+import { FIRMS, FIRM_SHORT } from "@domain/work/intake.js";
 import { shortDate } from "@domain/work/rules.js";
 
 import { api, apiUpload } from "../api/client.js";
@@ -25,6 +26,7 @@ interface PickRow {
   readonly id: string;
   readonly caseNumber: string;
   readonly stage: CaseStage;
+  readonly firm: string;
   readonly customerName: string | null;
   readonly ownerName: string | null;
   readonly nextTitle: string | null;
@@ -61,6 +63,7 @@ interface Summary {
   readonly loanType: string | null;
   readonly loanVariant: string | null;
   readonly place: string | null;
+  readonly firm: string;
   readonly isPractice: boolean;
   readonly isOnHold: boolean;
   readonly documentStatus: string;
@@ -105,7 +108,12 @@ export function UpdateCase(): ReactNode {
   const [params, setParams] = useSearchParams();
   const caseId = params.get("case");
   const [search, setSearch] = useState("");
-  const list = useApiQuery<readonly PickRow[]>(`/work/cases${search ? `?q=${encodeURIComponent(search)}` : ""}`);
+  const [firm, setFirm] = useState("all");
+  const list = useApiQuery<readonly PickRow[]>(
+    `/work/cases?${[search ? `q=${encodeURIComponent(search)}` : "", firm !== "all" ? `firm=${firm}` : ""]
+      .filter(Boolean)
+      .join("&")}`,
+  );
 
   return (
     <div className="grid gap-6 lg:grid-cols-[20rem_1fr]">
@@ -117,6 +125,14 @@ export function UpdateCase(): ReactNode {
           onChange={(event) => setSearch(event.target.value)}
           autoFocus
         />
+        <Select value={firm} onChange={(event) => setFirm(event.target.value)} aria-label="Firm">
+          <option value="all">Both firms</option>
+          {FIRMS.map((item) => (
+            <option key={item.code} value={item.code}>
+              {item.label}
+            </option>
+          ))}
+        </Select>
         {list.loading ? (
           <Empty>Loading…</Empty>
         ) : list.error ? (
@@ -139,7 +155,7 @@ export function UpdateCase(): ReactNode {
                   >
                     <span className="block text-sm font-medium text-ink-900">{row.customerName ?? row.caseNumber}</span>
                     <span className="tnum block text-xs text-ink-500">
-                      {row.caseNumber} · {CASE_STAGE_LABELS[row.stage]}
+                      {row.caseNumber} · {FIRM_SHORT[row.firm] ?? row.firm} · {CASE_STAGE_LABELS[row.stage]}
                     </span>
                     {row.nextTitle && (
                       <span className={cx("block text-xs", overdue ? "text-red-700" : "text-ink-500")}>
@@ -203,6 +219,7 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-display text-xl font-semibold text-ink-900">{summary.customerName}</h2>
           <StageBadge stage={summary.stage} label={CASE_STAGE_LABELS[summary.stage]} />
+          <Badge>{FIRM_SHORT[summary.firm] ?? summary.firm}</Badge>
           {summary.isPractice && <Badge>Practice</Badge>}
           {summary.isOnHold && <Badge tone="warn">On hold</Badge>}
           <Link to={`/cases/${summary.id}`} className="ml-auto text-xs text-ink-500 hover:underline">

@@ -6,6 +6,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
+import { FIRMS } from "@domain/work/intake.js";
 import { shortDate } from "@domain/work/rules.js";
 
 import { useApiQuery } from "../api/hooks.js";
@@ -52,7 +53,10 @@ export function WorkQueue(): ReactNode {
   const session = useSession();
   const seesAll = session.can("task.read", "all");
   const [who, setWho] = useState(seesAll ? "everyone" : "");
-  const queue = useApiQuery<readonly QueueRow[]>(`/work/queue${who ? `?who=${who}` : ""}`);
+  const [firm, setFirm] = useState("all");
+  const queue = useApiQuery<readonly QueueRow[]>(
+    `/work/queue?${[who ? `who=${who}` : "", firm !== "all" ? `firm=${firm}` : ""].filter(Boolean).join("&")}`,
+  );
   const lists = useApiQuery<WorkLists>(seesAll ? "/work/lists" : null);
 
   const today = dateFromToday(0);
@@ -64,20 +68,28 @@ export function WorkQueue(): ReactNode {
   return (
     <Card
       title="Work queue"
-      {...(seesAll
-        ? {
-            actions: (
-              <Select className="max-w-48" value={who} onChange={(event) => setWho(event.target.value)}>
-                <option value="everyone">Everyone</option>
-                {(lists.data?.people ?? []).map((person) => (
-                  <option key={person.id} value={person.id}>
-                    {person.name}
-                  </option>
-                ))}
-              </Select>
-            ),
-          }
-        : {})}
+      actions={
+        <div className="flex gap-2">
+          <Select className="max-w-48" value={firm} onChange={(event) => setFirm(event.target.value)} aria-label="Firm">
+            <option value="all">Both firms</option>
+            {FIRMS.map((item) => (
+              <option key={item.code} value={item.code}>
+                {item.label}
+              </option>
+            ))}
+          </Select>
+          {seesAll && (
+            <Select className="max-w-48" value={who} onChange={(event) => setWho(event.target.value)}>
+              <option value="everyone">Everyone</option>
+              {(lists.data?.people ?? []).map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name}
+                </option>
+              ))}
+            </Select>
+          )}
+        </div>
+      }
     >
       {queue.loading ? (
         <Empty>Loading…</Empty>

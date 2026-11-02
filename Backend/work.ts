@@ -14,6 +14,7 @@ import { LOST_REASONS, type LostReason } from "@domain/case/stages.js";
 import { evaluateTransition } from "@domain/case/transitions.js";
 import {
   EMPLOYMENT_TYPES,
+  FIRMS,
   LEAD_SOURCES,
   LOAN_TYPES,
   LOAN_VARIANTS,
@@ -73,6 +74,7 @@ interface CaseRow {
   loan_type: string | null;
   loan_variant: string | null;
   place: string | null;
+  firm: string;
   is_practice: boolean;
   applicant_name: string | null;
   owner_name: string | null;
@@ -81,7 +83,7 @@ interface CaseRow {
 const CASE_SELECT = `
   select c.id, c.case_number, c.stage::text, c.owner_user_id, c.is_on_hold, c.is_invoice_raised,
          c.stage_before_lost::text, c.financial_summary, c.document_status, c.eligibility_status, c.lost_reason::text,
-         c.requested_amount::text, c.loan_type, c.loan_variant, c.place, c.is_practice,
+         c.requested_amount::text, c.loan_type, c.loan_variant, c.place, c.firm, c.is_practice,
          p.full_name as applicant_name, op.full_name as owner_name
     from loan_case c
     left join case_party cp on cp.case_id = c.id and cp.is_primary and cp.removed_at is null
@@ -291,6 +293,7 @@ export async function workLists(client: Queryable) {
     otherLoanType: OTHER_LOAN_TYPE,
     variants: LOAN_VARIANTS,
     leadSources: LEAD_SOURCES,
+    firms: FIRMS,
     employmentTypes: EMPLOYMENT_TYPES,
     places: places.map((row) => row.name),
     people,
@@ -378,6 +381,9 @@ export async function logCase(client: Queryable, actor: Actor, body: Record<stri
   const source = LEAD_SOURCES.find((item) => item.code === body.leadSource);
   if (!source) throw new ApiError(400, "Pick the lead source.");
 
+  const firm = FIRMS.find((item) => item.code === body.firm);
+  if (!firm) throw new ApiError(400, "Pick the firm: Mint Capital Management or Premier Finservices.");
+
   const pickup = requireFutureDate(body.pickupDate, "when the documents will be collected");
 
   const ownerUserId = typeof body.telecallerId === "string" && body.telecallerId ? body.telecallerId : actor.userId;
@@ -420,15 +426,16 @@ export async function logCase(client: Queryable, actor: Actor, body: Record<stri
   const note = taken ? `Shares mobile with ${describeMatches(existing)}, recorded as a different customer.` : null;
   await client.query(
     `update loan_case
-        set loan_type = $1, loan_variant = $2, place = $3, owner_user_id = $4, duplicate_override_note = $5
-      where id = $6`,
-    [loanType, variant || null, place, ownerUserId, note, created.id],
+        set loan_type = $1, loan_variant = $2, place = $3, owner_user_id = $4, duplicate_override_note = $5,
+            firm = $6
+      where id = $7`,
+    [loanType, variant || null, place, ownerUserId, note, firm.code, created.id],
   );
   await recordCaseEvent(client, {
     actorUserId: actor.userId,
     caseId: created.id,
     eventType: "case.logged",
-    payloadAfter: { loanType, ownerUserId, duplicateOverride: note !== null },
+    payloadAfter: { loanType, ownerUserId, firm: firm.code, duplicateOverride: note !== null },
   });
 
   await applyWork(client, actor, created.id, { type: "case_logged", due: pickup });
@@ -472,7 +479,15 @@ async function resolvePerson(
 // ---------------------------------------------------------------------------
 
 /** Own cases by default, managers see everyone's; due and overdue first. */
-export async function pickList(client: Queryable, actor: Actor, q: string | null) {
+/** `?firm=mcm` or `?firm=premier` narrows a list; absent or `all` means both. */
+export function firmFilter(params: URLSearchParams): string | null {
+  const wanted = params.get("firm");
+  if (wanted === null || wanted === "" || wanted === "all") return null;
+  if (!FIRMS.some((item) => item.code === wanted)) throw new ApiError(400, "Unknown firm.");
+  return wanted;
+}
+
+export async function pickList(client: Queryable, actor: Actor, q: string | null, firm: string | null = null) {
   const everyone = can(actor, "case.read", "all");
   if (!everyone && !can(actor, "case.read", "own")) {
     throw new ApiError(403, refusalMessage("case.read"));
@@ -483,12 +498,13 @@ export async function pickList(client: Queryable, actor: Actor, q: string | null
     id: string;
     case_number: string;
     stage: string;
+    firm: string;
     applicant_name: string | null;
     owner_name: string | null;
     next_title: string | null;
     next_due: string | null;
   }>(
-    `select c.id, c.case_number, c.stage::text, p.full_name as applicant_name, op.full_name as owner_name,
+    `select c.id, c.case_number, c.stage::text, c.firm, p.full_name as applicant_name, op.full_name as owner_name,
             n.title as next_title, (n.due_at at time zone 'Asia/Kolkata')::date::text as next_due
        from loan_case c
        left join case_party cp on cp.case_id = c.id and cp.is_primary and cp.removed_at is null
@@ -502,6 +518,7 @@ export async function pickList(client: Queryable, actor: Actor, q: string | null
        ) n on true
       where c.stage not in ('lost', 'closed')
         and ($1 or c.owner_user_id = $2)
+        and ($5::text is null or c.firm = $5)
         and ($3::text is null
              or p.full_name ilike $3
              or c.case_number ilike $3
@@ -511,12 +528,13 @@ export async function pickList(client: Queryable, actor: Actor, q: string | null
                       and i.value_normalised like '%' || $4 || '%')))
       order by n.due_at nulls last, c.created_at desc
       limit 100`,
-    [everyone, actor.userId, term, digits],
+    [everyone, actor.userId, term, digits, firm],
   );
   return rows.map((row) => ({
     id: row.id,
     caseNumber: row.case_number,
     stage: row.stage,
+    firm: row.firm,
     customerName: row.applicant_name,
     ownerName: row.owner_name,
     nextTitle: row.next_title,
@@ -627,6 +645,7 @@ export async function caseSummary(client: Queryable, actor: Actor, caseId: strin
     loanType: row.loan_type,
     loanVariant: row.loan_variant,
     place: row.place,
+    firm: row.firm,
     isPractice: row.is_practice,
     isOnHold: row.is_on_hold,
     documentStatus: row.document_status,
@@ -687,7 +706,7 @@ export async function caseSummary(client: Queryable, actor: Actor, caseId: strin
 }
 
 /** The work queue. Everyone sees their own; `can task.read all` can see others. */
-export async function workQueue(client: Queryable, actor: Actor, who: string | null) {
+export async function workQueue(client: Queryable, actor: Actor, who: string | null, firm: string | null = null) {
   const everyone = can(actor, "task.read", "all");
   if (!everyone && !can(actor, "task.read", "own")) throw new ApiError(403, refusalMessage("task.read"));
   const target = who === "everyone" ? (everyone ? null : actor.userId) : everyone && who ? who : actor.userId;
@@ -699,8 +718,9 @@ export async function workQueue(client: Queryable, actor: Actor, who: string | n
     due_on: string | null;
     assignee_name: string | null;
     customer_name: string | null;
+    firm: string;
   }>(
-    `select t.id, t.case_id, c.case_number, t.title,
+    `select t.id, t.case_id, c.case_number, c.firm, t.title,
             (t.due_at at time zone 'Asia/Kolkata')::date::text as due_on,
             ap.full_name as assignee_name, p.full_name as customer_name
        from task t
@@ -711,13 +731,15 @@ export async function workQueue(client: Queryable, actor: Actor, who: string | n
        left join person ap on ap.id = au.person_id
       where t.completed_at is null and not c.is_practice
         and ($1::uuid is null or t.assigned_to = $1)
+        and ($2::text is null or c.firm = $2)
       order by t.due_at nulls last`,
-    [target],
+    [target, firm],
   );
   return rows.map((row) => ({
     id: row.id,
     caseId: row.case_id,
     caseNumber: row.case_number,
+    firm: row.firm,
     title: row.title,
     dueOn: row.due_on,
     assigneeName: row.assignee_name,

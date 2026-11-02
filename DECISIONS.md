@@ -1874,3 +1874,13 @@ content type recorded at upload would be better and is a small future change.
 **The decision.** Ticking lenders now starts the real mail flow. For each lender the server makes the application (`Not Logged In`) and its recipient from the banker's email, typed on the spot if none is on file and then saved to the banker. The documents are chosen once, one email per lender is reviewed, and sending uses the existing `preparePackage` and `sendPackage` unchanged. **The follow-up task is raised only after a mail has gone** (`afterPackageSent`, called by the package send and retry routes), and not twice for a file already recorded as sent. A "Record only, no email" button keeps the old behaviour for a pre-check made before any documents exist.
 
 **The tradeoffs, stated.** An email needs at least one uploaded document, so with none the email button is disabled and recording is offered. If someone closes the panel before sending, the applications exist and the lender shows "already sent" on this tab, although no mail went; the Banks tab sends them. The same hook means a send from the Banks tab now also raises Confirm login, which it did not before.
+
+## ADR-045 — A case says which firm it is for (step 4 of ADR-040 begins)
+
+**Status:** Accepted. Tarun Ramesh, 2 November 2026.
+
+**The problem.** Mint Capital Management and Premier Finservices share one office and one process but are two proprietorships with different owners. PFO had no way to say which one a case belongs to, which the MCM import and the MIS reports both need.
+
+**The decision.** `loan_case.firm` (migration 0051), `mcm` or `premier`, not null, checked by a constraint rather than an enum so a third firm is a constraint swap. Existing rows default to `premier`: everything logged in PFO so far is Premier's. Log a Case asks for the firm and has no default, so a case cannot be filed under the wrong firm by skipping a field. The firm is on the `case.logged` event. It shows as a badge on the case list and Update Case, and filters the case list, the Update Case picker and the work queue (`?firm=mcm|premier`, absent means both). The MCM import sets `mcm`.
+
+**Not built.** Correcting a case's firm after it is logged (a manager edit), and firm-aware reports. Both come with the reports step.

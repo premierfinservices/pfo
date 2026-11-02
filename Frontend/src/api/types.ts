@@ -81,6 +81,8 @@ export interface ApiCase {
   readonly loanType: string | null;
   readonly loanVariant: string | null;
   readonly place: string | null;
+  /** `mcm` or `premier` (migration 0051). */
+  readonly firm: string;
   /**
    * Present on `/api/cases` (the All Cases list) only, from Stage 3C —
    * `Backend/requirements.ts`'s `caseListProgress`, computed from real

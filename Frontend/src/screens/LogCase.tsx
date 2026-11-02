@@ -21,6 +21,7 @@ export interface WorkLists {
   readonly otherLoanType: string;
   readonly variants: readonly string[];
   readonly leadSources: readonly { label: string; code: string }[];
+  readonly firms: readonly { label: string; code: string }[];
   readonly employmentTypes: readonly { label: string; code: string }[];
   readonly places: readonly string[];
   readonly people: readonly { id: string; name: string; roles: readonly string[] }[];
@@ -53,6 +54,7 @@ export function LogCase(): ReactNode {
   const [loanType, setLoanType] = useState("");
   const [variant, setVariant] = useState("");
   const [leadSource, setLeadSource] = useState("");
+  const [firm, setFirm] = useState("");
   const [employment, setEmployment] = useState("");
   const [telecaller, setTelecaller] = useState(session.user.id);
   const [pickup, setPickup] = useState(dateFromToday(1));
@@ -106,6 +108,7 @@ export function LogCase(): ReactNode {
           loanType,
           variant,
           leadSource,
+          firm,
           employmentType: employment,
           telecallerId: telecaller,
           pickupDate: pickup,
@@ -197,6 +200,17 @@ export function LogCase(): ReactNode {
             <Select value={leadSource} onChange={(event) => setLeadSource(event.target.value)}>
               <option value="">Pick…</option>
               {data.leadSources.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label="Firm">
+            <Select value={firm} onChange={(event) => setFirm(event.target.value)}>
+              <option value="">Pick…</option>
+              {data.firms.map((item) => (
                 <option key={item.code} value={item.code}>
                   {item.label}
                 </option>

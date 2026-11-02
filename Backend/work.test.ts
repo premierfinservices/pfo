@@ -117,6 +117,7 @@ function caseBody(over: Record<string, unknown> = {}) {
     loanType: "Business Loan",
     variant: "Fresh",
     leadSource: "direct_referral",
+    firm: "mcm",
     employmentType: "proprietorship",
     pickupDate: today(1),
     ...over,
@@ -222,6 +223,8 @@ describe("Log a Case", () => {
     [{ loanType: "Nonsense" }, "loan type"],
     [{ loanType: "Other Loan Types", variant: "" }, "Variant"],
     [{ leadSource: "" }, "lead source"],
+    [{ firm: "" }, "firm"],
+    [{ firm: "acme" }, "firm"],
     [{ employmentType: "" }, "employment"],
     [{ pickupDate: today(-1) }, "past"],
   ])("refuses a bad field %j", async (over, word) => {
@@ -267,6 +270,40 @@ describe("Log a Case", () => {
     expect(rows[0].duplicate_override_note).not.toContain(theirs.caseNumber);
   });
 
+  it("records the firm, shows it everywhere a case is listed, and filters by it", async () => {
+    const manager = await signInAs("manager");
+    const mcm = await logCase(manager, { firm: "mcm" });
+    const premier = await logCase(manager, { firm: "premier" });
+    expect(mcm.firm).toBe("mcm");
+    expect(premier.firm).toBe("premier");
+
+    const { rows } = await pool.query(`select firm from loan_case where id = $1`, [mcm.id]);
+    expect(rows[0].firm).toBe("mcm");
+    const event = await pool.query(
+      `select payload_after from event where case_id = $1 and event_type = 'case.logged'`,
+      [mcm.id],
+    );
+    expect(event.rows[0].payload_after.firm).toBe("mcm");
+
+    const all = await api("/api/work/cases", { token: manager.token });
+    const onlyMcm = await api("/api/work/cases?firm=mcm", { token: manager.token });
+    const ids = (r: any) => r.body.map((c: any) => c.id);
+    expect(ids(all)).toEqual(expect.arrayContaining([mcm.id, premier.id]));
+    expect(ids(onlyMcm)).toContain(mcm.id);
+    expect(ids(onlyMcm)).not.toContain(premier.id);
+    expect(onlyMcm.body.every((c: any) => c.firm === "mcm")).toBe(true);
+
+    const queueMcm = await api("/api/work/queue?firm=mcm", { token: manager.token });
+    expect(queueMcm.body.map((t: any) => t.caseId)).toContain(mcm.id);
+    expect(queueMcm.body.map((t: any) => t.caseId)).not.toContain(premier.id);
+
+    const list = await api("/api/cases", { token: manager.token });
+    expect(list.body.find((c: any) => c.id === premier.id).firm).toBe("premier");
+
+    const bad = await api("/api/work/cases?firm=acme", { token: manager.token });
+    expect(bad.status).toBe(400);
+  });
+
   it("assigns the telecaller chosen, not the person typing", async () => {
     const manager = await signInAs("manager");
     const telecaller = await signInAs("telecaller");
@@ -283,6 +320,7 @@ describe("Log a Case", () => {
     expect(lists.loanTypes).toHaveLength(17);
     expect(lists.employmentTypes).toHaveLength(8);
     expect(lists.leadSources).toHaveLength(2);
+    expect(lists.firms.map((f: any) => f.code)).toEqual(["mcm", "premier"]);
     expect(lists.places.length).toBeGreaterThanOrEqual(262);
     expect(lists.places).toContain("COIMBATORE");
   });

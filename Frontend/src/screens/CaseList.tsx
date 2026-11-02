@@ -23,6 +23,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { CASE_STAGES, CASE_STAGE_LABELS, type CaseStage } from "@domain/case/stages.js";
+import { FIRMS, FIRM_SHORT } from "@domain/work/intake.js";
 
 import { useReference, useUsers } from "../api/catalogue.js";
 import { useApiQuery } from "../api/hooks.js";
@@ -71,6 +72,7 @@ export function CaseList(): ReactNode {
   });
   const [owner, setOwner] = useState<string>(() => searchParams.get("owner") ?? "all");
   const [query, setQuery] = useState("");
+  const [firm, setFirm] = useState("all");
 
   // "New leads" on the Founders Dashboard means "created within N days" —
   // cross-stage, so it is not one of the CaseStage values above. Read once,
@@ -93,6 +95,7 @@ export function CaseList(): ReactNode {
         return c.stage === stage;
       })
       .filter((c) => owner === "all" || c.ownerUserId === owner)
+      .filter((c) => firm === "all" || c.firm === firm)
       .filter((c) => createdCutoff === null || new Date(c.createdAt).getTime() >= createdCutoff)
       .filter(
         (c) =>
@@ -101,7 +104,7 @@ export function CaseList(): ReactNode {
           (c.applicantName ?? "").toLowerCase().includes(needle) ||
           (c.applicantPhone ?? "").includes(needle),
       );
-  }, [cases.data, stage, owner, createdWithinDays, query]);
+  }, [cases.data, stage, owner, firm, createdWithinDays, query]);
 
   return (
     <div className="space-y-4">
@@ -138,6 +141,15 @@ export function CaseList(): ReactNode {
             {CASE_STAGES.map((value) => (
               <option key={value} value={value}>
                 {CASE_STAGE_LABELS[value]}
+              </option>
+            ))}
+          </Select>
+
+          <Select value={firm} onChange={(event) => setFirm(event.target.value)} className="w-52" aria-label="Firm">
+            <option value="all">Both firms</option>
+            {FIRMS.map((item) => (
+              <option key={item.code} value={item.code}>
+                {item.label}
               </option>
             ))}
           </Select>
@@ -198,6 +210,9 @@ export function CaseList(): ReactNode {
                     <Link to={`/cases/${loanCase.id}`} className="tnum font-medium text-ink-900 hover:underline">
                       {loanCase.caseNumber}
                     </Link>
+                    <span className="ml-2">
+                      <Badge tone="neutral">{FIRM_SHORT[loanCase.firm] ?? loanCase.firm}</Badge>
+                    </span>
                     {loanCase.isPractice && (
                       <span className="ml-2">
                         <Badge tone="neutral" title="For testing/training only — excluded from every report and dashboard tile">

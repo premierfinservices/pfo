@@ -43,6 +43,16 @@ export const LEAD_SOURCES = [
   { label: "Direct Referral", code: "direct_referral" },
 ] as const;
 
+/** The two proprietorships that share the office. Which one a case is for is
+ * chosen when it is logged (migration 0051). */
+export const FIRMS = [
+  { label: "Mint Capital Management", code: "mcm" },
+  { label: "Premier Finservices", code: "premier" },
+] as const;
+
+/** What a badge says. */
+export const FIRM_SHORT: Record<string, string> = { mcm: "MCM", premier: "Premier" };
+
 export const LOAN_VARIANTS = ["Fresh", "Takeover", "Top-up", "OD", "CC", "Term"] as const;
 
 export function productCodeFor(loanType: string, employmentCode: string): string | null {
