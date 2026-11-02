@@ -30,7 +30,7 @@ Three kinds of input arrive, and only one needs OCR.
 | **Scanned PDF** | Phone-scan apps, office scanners | No usable text layer, so render the first pages to images, then OCR |
 | **Photo** | WhatsApp JPEG of a PAN card or a cheque | OCR directly, after cleaning the image |
 
-The rule: **try the text layer first; OCR only when a PDF yields almost no text, and always for images.** "Almost no text" is a measured threshold (start at under 40 characters per page), to be tuned in the spike.
+The rule: **try the text layer first; OCR when a PDF yields almost no text, or when its text matches no document type at all, and always for images.** The second condition exists because some Tamil PDFs carry a text layer that is not readable Unicode (section 13). "Almost no text" is a measured threshold (start at under 40 characters per page).
 
 This matters twice. It makes the common case fast and exact. And it gives step 3 what it needs, because GSTR-3B figures must come from the text layer, never from OCR of a photo of a number.
 
@@ -73,7 +73,7 @@ Two safeguards carry over from ADR-041 unchanged: an answer is used only at conf
 | Language data | Not committed. A script (`npm run ocr:models`) fetches it once, checks a hash, and writes to `PFO_OCR_MODELS_DIR` (for example `C:\PFO\ocr-models`). After that the server never fetches anything |
 | PDF to image | `pdfjs-dist` for parsing. Rendering scanned pages needs a canvas, so add `@napi-rs/canvas` (a prebuilt native module delivered by npm, nothing installed system-wide). It also decodes WebP, which Tesseract does not read directly |
 | Image cleaning | Downscale to about 2,500 px on the long side, grey, normalise contrast. Rotated phone photos: try the orientation Tesseract detects, and 90-degree turns only when the first pass is poor |
-| Pages | First 2 pages of a PDF are enough to name a document. GSTR-3B and statements name themselves on page 1 |
+| Pages | First 2 pages name most documents: GSTR-3B and statements name themselves on page 1. **Not sale deeds**: their first pages are often stamp paper, so read further or accept Other Document (section 13) |
 | Concurrency | One worker, one file at a time, lower priority. The Unfold PC also runs Postgres, the API and mail for 9 people |
 | Budget | A time budget per file (start at 20 s) and per request (60 s). Over budget means Other Document and a line in the result, never a hang |
 | Failure | Any error returns null. Same as today: nothing is lost, nothing is guessed |
