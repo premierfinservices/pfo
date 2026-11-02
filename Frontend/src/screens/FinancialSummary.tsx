@@ -137,8 +137,9 @@ function Summary({ parsed, refreshed }: { parsed: ParsedSummary; refreshed: bool
   const { months } = parsed;
   const presets = useMemo(() => presetsFor(months), [months]);
 
-  const [presetId, setPresetId] = useState("all");
-  const [range, setRange] = useState({ from: 0, to: months.length - 1 });
+  const home = presets[0]!;
+  const [presetId, setPresetId] = useState(home.id);
+  const [range, setRange] = useState({ from: home.from, to: home.to });
   const [excluded, setExcluded] = useState<ReadonlySet<number>>(new Set());
   const [belowAverage, setBelowAverage] = useState(false);
   const [mode, setMode] = useState<Mode>("bars");
@@ -151,8 +152,9 @@ function Summary({ parsed, refreshed }: { parsed: ParsedSummary; refreshed: bool
     () => selectMonths(months, { ...range, excluded, belowAverage }),
     [months, range, excluded, belowAverage],
   );
-  const filtered = presetId !== "all" || excluded.size > 0 || belowAverage;
+  const filtered = presetId !== home.id || excluded.size > 0 || belowAverage;
   const count = selection.indexes.length;
+  const totalMonths = months.reduce((a, m) => a + m.span, 0);
 
   const chooseRange = (id: string, from: number, to: number): void => {
     setPresetId(id);
@@ -160,7 +162,7 @@ function Summary({ parsed, refreshed }: { parsed: ParsedSummary; refreshed: bool
     setExcluded(new Set());
   };
   const reset = (): void => {
-    chooseRange("all", 0, months.length - 1);
+    chooseRange(home.id, home.from, home.to);
     setBelowAverage(false);
   };
   const exclude = (index: number): void => setExcluded((s) => new Set(s).add(index));
@@ -171,16 +173,16 @@ function Summary({ parsed, refreshed }: { parsed: ParsedSummary; refreshed: bool
       return next;
     });
 
-  const first = months[0]!.label;
-  const last = months[months.length - 1]!.label;
   const periodLabel =
     count === 0
       ? "No months selected"
       : !filtered
-        ? `All ${months.length} months, ${first} to ${last}`
-        : `${count} of ${months.length} months${belowAverage ? ", only those below the average" : ""}`;
+        ? `${selection.monthsCounted} months, ${months[selection.indexes[0]!]!.label} to ${months[selection.indexes[count - 1]!]!.label}`
+        : `${selection.monthsCounted} of ${totalMonths} months${belowAverage ? ", only those below the average" : ""}`;
 
   const visibleYears = parsed.itr.map((_, i) => i).filter((i) => !hiddenYears.has(i));
+  const kinds = new Set(parsed.itr.map((y) => y.profitKind));
+  const profitLabel = kinds.size === 1 && kinds.has("presumptive") ? "Presumptive income" : kinds.has("presumptive") ? "Net profit / presumptive" : "Net profit";
   const toggleYear = (i: number): void =>
     setHiddenYears((s) => {
       const next = new Set(s);
@@ -214,6 +216,11 @@ function Summary({ parsed, refreshed }: { parsed: ParsedSummary; refreshed: bool
         {/* ------------------------------------------------------------ GST */}
         <hr className="my-4 border-ink-100" />
         <p className="text-xs font-bold tracking-wide text-ink-500 uppercase">GST sales</p>
+        {parsed.partial && (
+          <p className="mt-1 text-xs text-ink-600">
+            <span className="font-semibold">Partial:</span> {parsed.partial}
+          </p>
+        )}
 
         <div className="mt-2 flex flex-wrap gap-1.5">
           {presets.map((p) => (
@@ -339,20 +346,20 @@ function Summary({ parsed, refreshed }: { parsed: ParsedSummary; refreshed: bool
             <div className="grid grid-cols-[0.9fr_1fr_1fr] gap-2 pb-1 text-xs font-semibold text-ink-500">
               <span>Year</span>
               <span>Sales</span>
-              <span>Net profit</span>
+              <span>{profitLabel}</span>
             </div>
             {visibleYears.length === 0 ? (
               <p className="border-t border-ink-100 py-3 text-sm text-ink-500">No year selected.</p>
             ) : (
               visibleYears.map((i) => <ItrRow key={parsed.itr[i]!.assessmentYear} year={parsed.itr[i]!} flash={refreshed} />)
             )}
-            <ItrNotes years={visibleYears.map((i) => parsed.itr[i]!)} />
+            <ItrNotes years={parsed.itr} footnotes={parsed.itrFootnotes} />
           </div>
           <div>
             <div className="mb-2 flex flex-wrap gap-1.5">
               {METRICS.map((m) => (
                 <Chip key={m.id} on={metric === m.id} onClick={() => setMetric(m.id)}>
-                  {m.label}
+                  {m.id === "netProfit" ? profitLabel : m.label}
                 </Chip>
               ))}
             </div>
@@ -414,12 +421,12 @@ function ItrRow({ year, flash }: { year: SummaryItrYear; flash: boolean }): Reac
         <span className="block text-xs font-normal text-ink-500">AY {year.assessmentYear}</span>
       </span>
       <Figure value={year.turnover} flash={flash} />
-      <Figure value={year.netProfit} flash={flash} loss={loss} />
+      <Figure value={year.netProfit} flash={flash} loss={loss} caption={year.profitKind === "presumptive" ? "presumptive" : undefined} />
     </div>
   );
 }
 
-function Figure({ value, flash, loss }: { value: number | null; flash: boolean; loss?: boolean }): ReactNode {
+function Figure({ value, flash, loss, caption }: { value: number | null; flash: boolean; loss?: boolean; caption?: string | undefined }): ReactNode {
   if (value === null) return <span className="text-sm text-ink-500">Not available</span>;
   const abs = Math.abs(value);
   return (
@@ -434,15 +441,13 @@ function Figure({ value, flash, loss }: { value: number | null; flash: boolean; 
           {rupeeParts(abs).paise}
         </span>
       )}
+      {caption && <span className="block text-xs text-ink-500">{caption}</span>}
     </span>
   );
 }
 
-function ItrNotes({ years }: { years: readonly SummaryItrYear[] }): ReactNode {
-  const notes = years.flatMap((y) => [
-    ...(y.note ? [`${y.financialYear}: ${y.note}.`] : []),
-    ...(y.fromComparative ? [`${y.financialYear}: taken from the comparative column of a later year's accounts.`] : []),
-  ]);
+function ItrNotes({ years, footnotes }: { years: readonly SummaryItrYear[]; footnotes: readonly string[] }): ReactNode {
+  const notes = [...years.flatMap((y) => (y.note ? [`${y.financialYear}: ${y.note}.`] : [])), ...footnotes];
   if (notes.length === 0) return null;
   return (
     <ul className="mt-2 space-y-0.5 text-xs text-ink-500">
@@ -484,6 +489,8 @@ function GstChart({
   const bottom = 34;
   const max = Math.max(...shown.map((s) => s.amount), 1);
   const min = Math.min(...shown.map((s) => s.amount));
+  // Only the first of any tied lowest months is marked.
+  const weakAt = shown.length > 1 ? shown.findIndex((s) => s.amount === min) : -1;
   const slot = (W - 12) / shown.length;
   const cx0 = (n: number): number => 6 + slot * n + slot / 2;
   const y = (v: number): number => top + (1 - v / max) * (H - top - bottom);
@@ -519,7 +526,7 @@ function GstChart({
         )}
 
         {shown.map((s, n) => {
-          const weak = shown.length > 1 && s.amount === min;
+          const weak = n === weakAt;
           const fillClass = weak ? "fill-red-400" : "fill-brand-500";
           const common = {
             style: { ["--i" as string]: n } as CSSProperties,
@@ -557,7 +564,7 @@ function GstChart({
           const m = months[s.i]!;
           return (
             <text key={`l-${version}-${s.i}`} x={cx0(n)} y={H - 18} textAnchor="middle" className="fill-ink-500 text-[11px]">
-              {m.label.slice(0, 3)}
+              {m.short}
               {(n === 0 || m.month === 0) && (
                 <tspan x={cx0(n)} dy={12} className="fill-ink-400 text-[10px]">
                   {m.year}
@@ -703,8 +710,9 @@ function Details({
 
   const rows = [];
   for (let i = range.from; i <= range.to; i++) {
-    if (belowAverage && !excluded.has(i) && !(months[i]!.amount < selection.baseAverage)) continue;
-    rows.push({ i, amount: months[i]!.amount, against: selection.baseAverage ? months[i]!.amount / selection.baseAverage - 1 : 0 });
+    const rate = months[i]!.amount / months[i]!.span;
+    if (belowAverage && !excluded.has(i) && !(rate < selection.baseAverage)) continue;
+    rows.push({ i, amount: months[i]!.amount, against: selection.baseAverage ? rate / selection.baseAverage - 1 : 0 });
   }
   const key = { month: "i", amount: "amount", average: "against" } as const;
   rows.sort((a, b) => (a[key[sortKey]] - b[key[sortKey]]) * direction);
@@ -763,7 +771,7 @@ function Details({
               <tfoot className="font-semibold">
                 <tr className="border-t-2 border-ink-200 bg-ink-50">
                   <td />
-                  <td className="py-1.5">Total, {selection.indexes.length} months</td>
+                  <td className="py-1.5">Total, {selection.monthsCounted} months</td>
                   <td className="py-1.5 text-right">Rs. {rupeeParts(selection.total).whole}{rupeeParts(selection.total).paise}</td>
                   <td />
                 </tr>

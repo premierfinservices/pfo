@@ -123,7 +123,7 @@ function year(): ParsedSummary["months"] {
     const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(mon);
     const y = Number(yr);
     const fy = month >= 3 ? y : y - 1;
-    return { label, year: y, month, amount: amounts[i]!, financialYear: `${fy}-${String((fy + 1) % 100).padStart(2, "0")}` };
+    return { label, short: mon, year: y, month, amount: amounts[i]!, financialYear: `${fy}-${String((fy + 1) % 100).padStart(2, "0")}`, span: 1 };
   });
 }
 

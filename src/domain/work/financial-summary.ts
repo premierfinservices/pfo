@@ -7,21 +7,32 @@
  * (ADR-040). This turns it into figures a screen can chart and filter.
  *
  * THE FIGURES ARE NEVER GUESSED. Parsing is strict on purpose: if the layout is
- * not exactly the one the skill writes, or the months do not add up to the
- * file's own TOTAL line, `parseFinancialSummary` returns null and the screen
- * shows the original text instead. A summary that quietly shows a wrong number
- * to someone sizing a loan is worse than one that looks plain.
+ * not one this knows, or the periods do not add up to the file's own TOTAL
+ * line, `parseFinancialSummary` returns null and the screen shows the original
+ * text instead. A summary that quietly shows a wrong number to someone sizing
+ * a loan is worse than one that looks plain.
+ *
+ * Layouts it knows (all seen in real case folders): monthly or quarterly GST
+ * returns; ITR cells that are a figure, "LOSS <figure>", "Nil", or not
+ * applicable ("N/A", "NA (44AD)", "Not in P&L", "Not available"); a
+ * "Presumptive" column in place of "Net Profit"; a "PARTIAL:" line. Files with
+ * more than one GST block or ITR block (several filers) are refused, because
+ * showing one filer's block as the whole summary would mislead.
  */
 
 export interface SummaryMonth {
-  /** "Sep 2025", as written. */
+  /** "Sep 2025", or "Oct-Dec 2025" for a quarterly return, as written. */
   readonly label: string;
+  /** What a chart axis shows: "Sep", or "Oct–Dec". */
+  readonly short: string;
   readonly year: number;
-  /** 0 = January. */
+  /** 0 = January. For a quarter, the month it starts in. */
   readonly month: number;
   readonly amount: number;
   /** April to March, "2025-26". */
   readonly financialYear: string;
+  /** Months the return covers: 1, or 3 for a quarterly return. */
+  readonly span: number;
 }
 
 export interface SummaryItrYear {
@@ -30,8 +41,9 @@ export interface SummaryItrYear {
   /** The year the figures are for: assessment year 2026-27 is "2025-26". */
   readonly financialYear: string;
   readonly turnover: number | null;
-  /** Negative for a loss. */
+  /** Negative for a loss. For a presumptive filer, the presumptive income. */
   readonly netProfit: number | null;
+  readonly profitKind: "net_profit" | "presumptive";
   readonly depreciation: number | null;
   readonly financeCost: number | null;
   /** The bracketed note at the end of the row, if any. */
@@ -43,22 +55,31 @@ export interface SummaryItrYear {
 export interface ParsedSummary {
   readonly business: string | null;
   readonly prepared: string | null;
+  /** A "PARTIAL:" line, without the word, if the file has one. */
+  readonly partial: string | null;
   /** Oldest first. */
   readonly months: readonly SummaryMonth[];
   readonly total: number;
   readonly average: number;
   /** Newest first, as written. */
   readonly itr: readonly SummaryItrYear[];
+  /** Lines under the ITR table that start with *, without the asterisk. */
+  readonly itrFootnotes: readonly string[];
 }
 
 const MONTH_NAMES = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 const NUMBER = "[\\d,]+(?:\\.\\d+)?";
 
 const MONTH_ROW = new RegExp(`^\\s*([A-Za-z]{3})\\s+(\\d{4})\\s+Rs\\.\\s+(${NUMBER})\\s*$`);
+const QUARTER_ROW = new RegExp(`^\\s*([A-Za-z]{3})-([A-Za-z]{3})\\s+(\\d{4})\\s+Rs\\.\\s+(${NUMBER})\\s*$`);
 const TOTAL_ROW = new RegExp(`^\\s*TOTAL\\s+Rs\\.\\s+(${NUMBER})\\s*$`, "i");
 const AVERAGE_ROW = new RegExp(`^\\s*AVG\\/MONTH\\s+Rs\\.\\s+(${NUMBER})\\s*$`, "i");
 const ITR_ROW = /^\s*AY\s+(\d{4})-(\d{2})(\*?)\s+(.*)$/;
-const ITR_FIGURE = new RegExp(`(LOSS\\s+)?${NUMBER}|Not available`, "gi");
+/** One ITR cell, from the start of what is left of the row. */
+const ITR_CELL = new RegExp(
+  `^\\s*((?:LOSS\\s+)?${NUMBER}\\*?|Not available|Not in P&L|N\\/A|NA\\s*\\([^)]*\\)|Nil)(?=\\s|$)`,
+  "i",
+);
 
 function toNumber(text: string): number {
   return Number(text.replace(/,/g, ""));
@@ -69,46 +90,61 @@ function financialYearOf(year: number, month: number): string {
   return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
 }
 
-function readItrRow(match: RegExpExecArray): SummaryItrYear | null {
+const capitalised = (word: string): string => `${word.slice(0, 1).toUpperCase()}${word.slice(1).toLowerCase()}`;
+
+function readCell(token: string): number | null {
+  if (/^nil$/i.test(token)) return 0;
+  if (/^(not available|not in p&l|n\/a|na\b)/i.test(token)) return null;
+  const loss = /^LOSS\s+/i.test(token);
+  const value = toNumber(token.replace(/^LOSS\s+/i, "").replace(/\*$/, ""));
+  return Number.isNaN(value) ? null : loss ? -value : value;
+}
+
+function readItrRow(match: RegExpExecArray, profitKind: SummaryItrYear["profitKind"]): SummaryItrYear | null {
   const start = Number(match[1]);
   const end = Number(match[2]);
   if ((start + 1) % 100 !== end) return null;
 
-  const rest = match[4] ?? "";
-  const noteMatch = /\(([^)]*)\)\s*$/.exec(rest);
-  const figuresText = noteMatch ? rest.slice(0, noteMatch.index) : rest;
-  const figures = figuresText.match(ITR_FIGURE);
-  if (!figures || figures.length !== 4) return null;
-
-  const read = (token: string): number | null => {
-    if (/^not available$/i.test(token)) return null;
-    const loss = /^LOSS\s+/i.test(token);
-    const value = toNumber(token.replace(/^LOSS\s+/i, ""));
-    return Number.isNaN(value) ? null : loss ? -value : value;
-  };
+  let rest = match[4] ?? "";
+  const cells: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    const cell = ITR_CELL.exec(rest);
+    if (!cell) return null;
+    cells.push(cell[1]!);
+    rest = rest.slice(cell[0].length);
+  }
+  const noteMatch = /^\s*\((.*)\)\s*$/.exec(rest);
+  if (rest.trim() !== "" && !noteMatch) return null;
 
   return {
     assessmentYear: `${start}-${match[2]}`,
     financialYear: `${start - 1}-${String(start % 100).padStart(2, "0")}`,
-    turnover: read(figures[0]!),
-    netProfit: read(figures[1]!),
-    depreciation: read(figures[2]!),
-    financeCost: read(figures[3]!),
+    turnover: readCell(cells[0]!),
+    netProfit: readCell(cells[1]!),
+    profitKind,
+    depreciation: readCell(cells[2]!),
+    financeCost: readCell(cells[3]!),
     note: noteMatch?.[1]?.trim() || null,
     fromComparative: match[3] === "*",
   };
 }
 
 export function parseFinancialSummary(text: string): ParsedSummary | null {
-  const lines = text.split(/\r?\n/);
+  // Windows tools write a byte-order mark and sometimes doubled carriage
+  // returns. Neither is part of the layout, and a stray "\r" stops "." matching.
+  const lines = text.replace(/^﻿/, "").replace(/\r/g, "").split("\n");
 
   let business: string | null = null;
   let prepared: string | null = null;
+  let partial: string | null = null;
   const months: SummaryMonth[] = [];
   const itr: SummaryItrYear[] = [];
+  const footnotes: string[] = [];
   let total: number | null = null;
   let average: number | null = null;
-  let headerSeen = false;
+  let gstBlocks = 0;
+  let itrHeaders = 0;
+  let profitKind: SummaryItrYear["profitKind"] = "net_profit";
 
   for (const line of lines) {
     const titled = /^GST AND ITR SUMMARY\s*-\s*(.+?)\s*$/i.exec(line);
@@ -121,11 +157,41 @@ export function parseFinancialSummary(text: string): ParsedSummary | null {
       prepared = date[1] ?? null;
       continue;
     }
+    const partialLine = /^PARTIAL:\s*(.+?)\s*$/i.exec(line);
+    if (partialLine) {
+      partial = partialLine[1] ?? null;
+      continue;
+    }
+    if (/^GST TAXABLE VALUE/i.test(line)) {
+      gstBlocks++;
+      continue;
+    }
 
-    if (/Turnover/.test(line) && /Net Profit/.test(line)) {
-      const order = ["Turnover", "Net Profit", "Depreciation", "Finance Cost"].map((name) => line.indexOf(name));
+    if (/Turnover/.test(line) && /Depreciation/.test(line) && /Finance Cost/.test(line)) {
+      const order = ["Turnover", /Net Profit|Presumptive/, "Depreciation", "Finance Cost"].map((name) =>
+        typeof name === "string" ? line.indexOf(name) : line.search(name),
+      );
       if (order.some((at) => at < 0) || order.some((at, i) => i > 0 && at <= order[i - 1]!)) return null;
-      headerSeen = true;
+      profitKind = /Presumptive/.test(line) ? "presumptive" : "net_profit";
+      itrHeaders++;
+      continue;
+    }
+
+    const quarterRow = QUARTER_ROW.exec(line);
+    if (quarterRow) {
+      const from = MONTH_NAMES.indexOf((quarterRow[1] ?? "").toLowerCase());
+      const to = MONTH_NAMES.indexOf((quarterRow[2] ?? "").toLowerCase());
+      if (from < 0 || to < 0 || (to - from + 12) % 12 !== 2) return null;
+      const year = Number(quarterRow[3]);
+      months.push({
+        label: `${capitalised(quarterRow[1]!)}-${capitalised(quarterRow[2]!)} ${year}`,
+        short: `${capitalised(quarterRow[1]!)}–${capitalised(quarterRow[2]!)}`,
+        year,
+        month: from,
+        amount: toNumber(quarterRow[4] ?? ""),
+        financialYear: financialYearOf(year, from),
+        span: 3,
+      });
       continue;
     }
 
@@ -135,11 +201,13 @@ export function parseFinancialSummary(text: string): ParsedSummary | null {
       if (month < 0) return null;
       const year = Number(monthRow[2]);
       months.push({
-        label: `${(monthRow[1] ?? "").slice(0, 1).toUpperCase()}${(monthRow[1] ?? "").slice(1).toLowerCase()} ${year}`,
+        label: `${capitalised(monthRow[1]!)} ${year}`,
+        short: capitalised(monthRow[1]!),
         year,
         month,
         amount: toNumber(monthRow[3] ?? ""),
         financialYear: financialYearOf(year, month),
+        span: 1,
       });
       continue;
     }
@@ -157,28 +225,39 @@ export function parseFinancialSummary(text: string): ParsedSummary | null {
 
     const itrRow = ITR_ROW.exec(line);
     if (itrRow) {
-      const row = readItrRow(itrRow);
+      if (itrHeaders === 0) return null;
+      const row = readItrRow(itrRow, profitKind);
       if (!row) return null;
       itr.push(row);
+      continue;
     }
+
+    const footnote = /^\s*\*\s+(.+?)\s*$/.exec(line);
+    if (footnote && itr.length > 0) footnotes.push(footnote[1]!);
   }
 
-  if (months.length === 0 || total === null || itr.length === 0 || !headerSeen) return null;
+  // Several GST blocks or several ITR blocks mean several filers. One block
+  // shown as if it were the whole summary would mislead.
+  if (gstBlocks > 1 || itrHeaders > 1) return null;
+  if (months.length === 0 || total === null || itr.length === 0) return null;
 
-  // The months must add up to the file's own TOTAL, to the rupee. If they do
+  // The periods must add up to the file's own TOTAL, to the rupee. If they do
   // not, something in the file or the layout is not what this reads.
   const sum = months.reduce((a, m) => a + m.amount, 0);
   if (Math.abs(sum - total) > 1) return null;
 
   months.sort((a, b) => a.year * 12 + a.month - (b.year * 12 + b.month));
+  const monthsCovered = months.reduce((a, m) => a + m.span, 0);
 
   return {
     business,
     prepared,
+    partial,
     months,
     total,
-    average: average ?? total / months.length,
+    average: average ?? total / monthsCovered,
     itr,
+    itrFootnotes: footnotes,
   };
 }
 
@@ -186,35 +265,47 @@ export function parseFinancialSummary(text: string): ParsedSummary | null {
 // Filtering
 // ---------------------------------------------------------------------------
 
+interface Period {
+  readonly amount: number;
+  readonly span?: number;
+}
+
 export interface MonthFilter {
   /** Inclusive indexes into the months array. */
   readonly from: number;
   readonly to: number;
   /** Indexes the person has left out. */
   readonly excluded: ReadonlySet<number>;
-  /** Keep only months under the average of what is left after the rest. */
+  /** Keep only periods under the average of what is left after the rest. */
   readonly belowAverage: boolean;
 }
 
 export interface MonthSelection {
   readonly indexes: readonly number[];
   readonly total: number;
-  /** Over the selected months only. 0 when none are selected. */
+  /** Months those periods cover (a quarterly return is 3). */
+  readonly monthsCounted: number;
+  /** Per month, over the selected periods only. 0 when none are selected. */
   readonly average: number;
-  /** The average before "below average" was applied; the line that filter uses. */
+  /** The per-month average before "below average" was applied; the line that filter uses. */
   readonly baseAverage: number;
 }
 
-export function selectMonths(months: readonly { readonly amount: number }[], filter: MonthFilter): MonthSelection {
+const spanOf = (period: Period): number => period.span ?? 1;
+
+export function selectMonths(months: readonly Period[], filter: MonthFilter): MonthSelection {
   const base: number[] = [];
   for (let i = Math.max(0, filter.from); i <= Math.min(months.length - 1, filter.to); i++) {
     if (!filter.excluded.has(i)) base.push(i);
   }
   const baseTotal = base.reduce((a, i) => a + months[i]!.amount, 0);
-  const baseAverage = base.length ? baseTotal / base.length : 0;
-  const indexes = filter.belowAverage ? base.filter((i) => months[i]!.amount < baseAverage) : base;
+  const baseMonths = base.reduce((a, i) => a + spanOf(months[i]!), 0);
+  const baseAverage = baseMonths ? baseTotal / baseMonths : 0;
+  // A period is "below average" by its own per-month rate.
+  const indexes = filter.belowAverage ? base.filter((i) => months[i]!.amount / spanOf(months[i]!) < baseAverage) : base;
   const total = indexes.reduce((a, i) => a + months[i]!.amount, 0);
-  return { indexes, total, average: indexes.length ? total / indexes.length : 0, baseAverage };
+  const monthsCounted = indexes.reduce((a, i) => a + spanOf(months[i]!), 0);
+  return { indexes, total, monthsCounted, average: monthsCounted ? total / monthsCounted : 0, baseAverage };
 }
 
 export interface MonthPreset {
@@ -224,22 +315,38 @@ export interface MonthPreset {
   readonly to: number;
 }
 
+/** The last periods that add up to exactly `months` months, or null if they cannot. */
+function lastMonths(periods: readonly SummaryMonth[], months: number): { from: number; to: number } | null {
+  let covered = 0;
+  for (let i = periods.length - 1; i >= 0; i--) {
+    covered += periods[i]!.span;
+    if (covered === months) return { from: i, to: periods.length - 1 };
+    if (covered > months) return null;
+  }
+  return null;
+}
+
 /**
- * Presets built from the months actually in the file, so a 12-month window
- * that starts in September gets sensible choices, not a fixed list. A preset
- * that covers exactly the same months as an earlier one is dropped.
+ * Presets built from the periods actually in the file, so a window that
+ * starts in September, or is quarterly, or is 24 months long, gets sensible
+ * choices instead of a fixed list. When the file covers more than a year the
+ * latest 12 months come first, since that is the window a lender looks at.
+ * A preset that covers the same periods as an earlier one is dropped.
  */
 export function presetsFor(months: readonly SummaryMonth[]): readonly MonthPreset[] {
   const last = months.length - 1;
-  const candidates: MonthPreset[] = [
-    { id: "all", label: `All ${months.length} months`, from: 0, to: last },
-    { id: "last6", label: "Last 6", from: Math.max(0, last - 5), to: last },
-    { id: "last3", label: "Last 3", from: Math.max(0, last - 2), to: last },
-  ];
-  const years = [...new Set(months.map((m) => m.financialYear))];
-  for (const fy of years) {
+  const covered = months.reduce((a, m) => a + m.span, 0);
+  const candidates: MonthPreset[] = [];
+  const add = (id: string, label: string, range: { from: number; to: number } | null): void => {
+    if (range) candidates.push({ id, label, ...range });
+  };
+  if (covered > 12) add("last12", "Last 12 months", lastMonths(months, 12));
+  add("all", `All ${covered} months`, { from: 0, to: last });
+  add("last6", "Last 6", lastMonths(months, 6));
+  add("last3", "Last 3", lastMonths(months, 3));
+  for (const fy of new Set(months.map((m) => m.financialYear))) {
     const inYear = months.map((m, i) => (m.financialYear === fy ? i : -1)).filter((i) => i >= 0);
-    candidates.push({ id: `fy-${fy}`, label: `FY ${fy}`, from: inYear[0]!, to: inYear[inYear.length - 1]! });
+    add(`fy-${fy}`, `FY ${fy}`, { from: inYear[0]!, to: inYear[inYear.length - 1]! });
   }
   const seen = new Set<string>();
   return candidates.filter((p) => {
