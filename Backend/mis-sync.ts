@@ -51,6 +51,8 @@ export interface SyncReport {
   readonly caseIds: string[];
   readonly employees: Record<string, string>;
   readonly issues: string[];
+  /** The same customer on a case the MIS does not know. Told each run, never changed. */
+  readonly sameCustomer: string[];
 }
 
 function same(current: unknown, wanted: unknown): boolean {
@@ -595,6 +597,7 @@ export async function syncFromMis(client: Queryable, data: MisData): Promise<Syn
     caseIds: [],
     employees: {},
     issues: [],
+    sameCustomer: [],
   };
 
   const automationRow = await client.query<{ id: string }>(`select id from app_user where username = 'pfo.automation'`);
@@ -654,6 +657,17 @@ export async function syncFromMis(client: Queryable, data: MisData): Promise<Syn
     }
     await closeMissingTasks(ctx, caseId, seenFollowups);
   }
+
+  const { rows: alsoHere } = await client.query<{ mis_case_id: string; other: string }>(
+    `select a.mis_case_id, b.case_number as other
+       from loan_case a
+       join case_party pa on pa.case_id = a.id and pa.is_primary and pa.removed_at is null
+       join case_party pb on pb.person_id = pa.person_id and pb.is_primary and pb.removed_at is null
+       join loan_case b on b.id = pb.case_id and b.mis_case_id is null and not b.is_practice
+      where a.mis_case_id is not null
+      order by a.mis_case_id, b.case_number`,
+  );
+  for (const row of alsoHere) report.sameCustomer.push(`${row.mis_case_id} and ${row.other}`);
   return report;
 }
 

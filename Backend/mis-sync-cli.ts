@@ -114,6 +114,7 @@ async function main(): Promise<void> {
       .filter((key) => inPfo[key] !== fromMis[key])
       .map((key) => `${key}: MIS ${fromMis[key] ?? 0}, PFO ${inPfo[key] ?? 0}`);
 
+    console.log(`${new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 19).replace("T", " ")} IST`);
     console.log(apply ? "APPLY" : "DRY RUN (nothing kept)");
     console.log("Cases:", report.caseIds.join(", ") || "none");
     console.log("Case rows:", JSON.stringify(report.cases), "released:", report.released, "existing people reused:", report.reusedPeople);
@@ -122,6 +123,7 @@ async function main(): Promise<void> {
     console.log("Employees:", JSON.stringify(report.employees));
     console.log("Figures now in PFO:", JSON.stringify(inPfo));
     console.log(mismatches.length ? `MISMATCHES:\n  ${mismatches.join("\n  ")}` : "Figures match the MIS.");
+    if (report.sameCustomer.length) console.log(`Same customer, left as they are: ${report.sameCustomer.join("; ")}`);
     console.log(report.issues.length ? `Needs a look:\n  ${report.issues.join("\n  ")}` : "No issues.");
 
     if (mismatches.length > 0) throw new Error("Figures differ from the MIS; nothing was kept.");

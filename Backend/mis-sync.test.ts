@@ -133,6 +133,9 @@ const misData = (over: Partial<MisData>): MisData => ({
   ...over,
 });
 
+/** Other test files leave synced cases in this database; those are not this test's. */
+const ownIssues = (issues: readonly string[]): string[] => issues.filter((issue) => !issue.includes("no longer in the MIS. Left"));
+
 const ist = (column: string): string => `to_char(${column} at time zone 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS')`;
 
 describe("what the MIS's words mean", () => {
@@ -183,7 +186,7 @@ describe("syncing", () => {
     await inRollback(async (client) => {
       const c = customer();
       const report = await syncFromMis(client, misData({ customers: [c] }));
-      expect(report.issues).toEqual([]);
+      expect(ownIssues(report.issues)).toEqual([]);
       expect(report.cases.created).toBe(1);
 
       const { rows } = await client.query(
@@ -409,7 +412,7 @@ describe("syncing", () => {
         applications: [badLender],
       }));
       expect(report.caseIds).toEqual([c.caseId]);
-      expect(report.issues).toHaveLength(4);
+      expect(ownIssues(report.issues)).toHaveLength(4);
     });
   });
 
@@ -445,6 +448,32 @@ describe("syncing", () => {
       );
       const report = await syncFromMis(client, misData({ customers: [{ ...c, name: "new spelling" }] }));
       expect(report.issues.join()).toContain(c.caseId);
+    });
+  });
+
+  it("names a PFO-only case with the same customer, and changes neither", async () => {
+    await inRollback(async (client) => {
+      const c = customer();
+      await syncFromMis(client, misData({ customers: [c] }));
+      const { rows } = await client.query(
+        `select c.id, cp.person_id, c.loan_product_id, c.owner_user_id from loan_case c
+           join case_party cp on cp.case_id = c.id where c.mis_case_id = $1`,
+        [c.caseId],
+      );
+      const other = await client.query<{ id: string }>(
+        `insert into loan_case (case_number, loan_product_id, owner_user_id) values ('PF-2026-99999', $1, $2) returning id`,
+        [rows[0].loan_product_id, rows[0].owner_user_id],
+      );
+      await client.query(
+        `insert into case_party (case_id, person_id, role, is_primary, created_by) values ($1, $2, 'applicant', true, $3)`,
+        [other.rows[0]!.id, rows[0].person_id, rows[0].owner_user_id],
+      );
+      const report = await syncFromMis(client, misData({ customers: [c] }));
+      expect(report.sameCustomer).toContain(`${c.caseId} and PF-2026-99999`);
+      expect(report.cases.unchanged).toBe(1);
+      expect(ownIssues(report.issues)).toEqual([]);
+      const still = await client.query(`select firm, mis_managed from loan_case where id = $1`, [other.rows[0]!.id]);
+      expect(still.rows[0]).toEqual({ firm: "premier", mis_managed: false });
     });
   });
 
