@@ -1,6 +1,6 @@
 # Local OCR design: reading documents on the server, not at Anthropic
 
-**Status:** Accepted in outline by Tarun, 2 Nov 2026 (answers in section 12). Written on the Unfold Media Corp PC. Nothing is built; the engine is chosen by the spike (section 9, step 0).
+**Status:** Accepted in outline by Tarun, 2 Nov 2026 (answers in section 12). Written on the Unfold Media Corp PC. Nothing is built. The spike has run (section 13) and favours **Surya on the GPU** over Tesseract; the choice is provisional until the full accuracy run (section 9, step 6).
 **Decided (30 Oct and 2 Nov):** reading by content is done locally, instead of sending documents to Anthropic's API. Tarun will not pay for a separate API account, so **nothing in PFO calls Anthropic, now or as a fallback.** Property documents arrive mostly in Tamil, so Tamil is a first-class requirement, not a second pass.
 **This design replaces:** the reading part of ADR-041 (`Backend/file-reading.ts` calling `classifyAttachment`). When accepted it becomes ADR-045.
 **Repo is public:** this file contains no customer data and must not gain any. Accuracy figures from real folders go in as aggregate numbers only.
@@ -176,4 +176,56 @@ Proposed bar, to be confirmed:
 |---|---|---|
 | 5 | Precision bar of 98%, with "wrong is worse than unfiled"? | Yes |
 | 6 | Read inside each upload request, or build a background job? | Per request now; revisit after measuring |
-| 7 | Engine A or B? | Not a decision for now: the spike with Tamil documents decides |
+| 7 | Engine A (Tesseract) or B (Surya on the GPU)? | **B, provisionally**, from the spike (section 13). Confirm after the full accuracy run, and after checking Surya's model licence |
+
+## 13. Spike results (2 Nov 2026, Unfold PC, scratch folder outside the repo)
+
+**What was run.** 76 real files, read in place and never copied, chosen by a fixed random seed: 64 already named by `organize` (so the type is known) across nine types, and 12 unnamed. Each engine used the same flow: text layer first, OCR when needed, first 2 pages. A file counted as "right" when the text held evidence for its known type (crude keyword probes written for the spike, **not** the production rules in section 5). Only counts were looked at; no extracted text was read or stored. The spike code and result data stay in `C:\PFO\Spike\ocr` on the Unfold PC.
+
+**Results (files right, of those sampled)**
+
+| Type | n | Tesseract eng | Tesseract eng+tam (full run) | Tesseract best (see note) | Surya 0.17, GPU |
+|---|---|---|---|---|---|
+| GSTR-3B | 8 | 8 | 8 | 8 | 8 |
+| Aadhaar | 8 | 8 | 8 | 8 | 8 |
+| PAN card | 8 | 2 | 2 | 2 | **8** |
+| Bank statement | 8 | 7 | 7 | 7 | 7 |
+| ITR | 8 | 6 | 6 | 6 | 6 |
+| Sale deed (Tamil) | 8 | 0 | 4 | 4 | **5** |
+| Encumbrance cert. | 7 | 3 | 3 | 5 | **7** |
+| Patta (Tamil) | 8 | 1 | 4 | 6 | 6 |
+| Chitta (Tamil) | 1 | 1 | 1 | 1 | 1 |
+| **Total** | 64 | 36 | 43 | about 46 | **56** |
+| Unnamed files with any evidence | 12 | 4 | 5 | 6 | **8** |
+
+"Tesseract best" is assembled from separate runs: the text-layer fallback below was measured only on the property types and ITR, and image cleaning (upscale, grey, contrast) did not help PAN. It is an upper estimate for Tesseract, not one run.
+
+| | Tesseract (CPU) | Surya 0.17 (RTX 5060) |
+|---|---|---|
+| Speed per file | about 0.5 to 4 s average by type | about 1 to 7 s average by type |
+| Memory | about 0.7 GB RAM | peak 4.5 GB VRAM |
+| Network | **Zero blocked connections** under an offline guard on every thread | Needs a one-time model download, then local |
+| Install | npm only. The one blocked install script is a donation banner | Python 3.10 environment, pinned versions (below) |
+
+**What the spike found, and what changes in the design**
+
+1. **A text layer is not proof of readable text.** Several EC and patta PDFs had a text layer with no Tamil, or with odd symbols, consistent with older Tamil fonts that are not real Unicode (cause inferred, not proven). Reading the page by OCR when the text layer matches nothing lifted ECs from 3 to 5 of 7 and pattas from 4 to 6 of 8 with Tesseract. **Section 3 is amended: try the text layer; if it yields no evidence for any type, OCR the page.**
+2. **Scanned sale deeds have no text layer** (3 of the 4 PDFs checked), so Tamil OCR is unavoidable for them. Both engines found "sale deed" evidence in only 4 to 5 of 8 on pages 1 and 2: those pages are often stamp-paper pages that never say it. **Section 6's "first 2 pages" rule needs a second look for deeds** (read more pages, or accept Other Document).
+3. **Tesseract is poor on PAN card photos** (2 of 8). Surya read all 8. PAN is a key document, so this matters more than the Tamil gap.
+4. **Surya's newest release (0.23) runs its model inside Docker**, which this PC does not have; every file errored. The working setup is **Surya 0.17.0 on Python 3.10, PyTorch 2.11.0 built for CUDA 12.8, transformers below version 5** (version 5 breaks it), plus `requests`. This is pinned and fragile, and must be recorded exactly in the ADR and kept out of the main `npm` tree.
+5. **The RTX 5060 works with that PyTorch** (`sm_120` is in the build). The earlier worry about Blackwell support is cleared for PyTorch.
+6. **PaddleOCR (Tamil model) was not completed.** It failed on CPU until the MKLDNN path was disabled, then ran at about 45 s per file with the machine busy. Its GPU build for this card was not tried. It is not a candidate for per-upload reading as it stands.
+
+**Limits of this evidence (read these before trusting the table)**
+
+- **Small and uneven.** 76 files, and only 7 to 8 each of the Tamil property types, 1 chitta. Three or four files change a row.
+- **Crude probes.** "Evidence for the expected type found" is not the same as "correctly classified with no false match". Both engines showed a few cross-matches (for example an ITR also matching a bank keyword), which belong to the probes, not the engines. **Precision, the real bar (section 9), has not been measured.**
+- **Not one clean experiment.** Prep, fallback and language settings were tried in turns, so the Tesseract column is a best case.
+- **VRAM is shared.** The desktop used between 2.5 and 3.9 GB of the 8 GB during the spike. Surya's 4.5 GB peak fits, but only just, and video editing at the same time could make a read fail. Mitigation to test: a smaller recognition batch size, and any GPU failure files the document as Other Document.
+- **One file errored** ("document closed or encrypted"), a password-protected PDF. It is filed as Other Document by design.
+
+**Licence, to check before relying on Surya.** The Surya code is Apache-2.0. The **model weights carry a separate licence**: free for research and personal use, and for organisations under a funding and revenue limit (most sources say $5M; one says $2M; older releases were GPL). It may also restrict use in products that compete with its maker. Premier Finservices is very likely under the limit, but read the `MODEL_LICENSE` file in the Surya repository before deciding, and record the answer in ADR-045. Sources: [Surya model-licence summary, 2 Nov 2026 search](https://huggingface.co/pitapo/surya/blob/main/README.md), [Surya OCR 2.5 release note](https://aiweekly.co/node/21328).
+
+**Recommendation.** Take engine B (Surya on the GPU, run as a loopback-only Python service the API calls), provisionally. It reads PAN cards, ECs and unnamed photos clearly better, and is as fast. Keep Tesseract as the **named fallback if the GPU is unavailable or the licence does not suit**, since it needs no Python, no GPU and no licence question, and still reads English documents well. Do not build either until the full accuracy run (section 9, step 6) confirms the 98% precision bar on the real named files; that run needs the section 5 rules, so it comes after steps 1 to 3.
+
+**Not tried:** a vision-language model that fits in 8 GB, fine-tuned Tamil models, and a Surya GPU batch-size sweep.
