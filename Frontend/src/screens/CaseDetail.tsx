@@ -75,6 +75,7 @@ import type {
 import { bytes, exactly, lakhs, money, when } from "../lib.js";
 import { useSession } from "../session.js";
 import { BanksTab } from "./BanksTab.js";
+import { CaseFinancials } from "./FinancialSummary.js";
 import { documentPreviewMode, previewFallbackMessage } from "./document-preview.js";
 import {
   CASE_TABS,
@@ -188,6 +189,7 @@ export function CaseDetail(): ReactNode {
       {tab === "documents" && <DocumentsTab loanCase={loanCase} onCaseChanged={query.refetch} />}
       {tab === "banks" && <BanksTab loanCase={loanCase} onCaseChanged={query.refetch} />}
       {tab === "timeline" && <TimelineTab loanCase={loanCase} />}
+      {tab === "financials" && <CaseFinancials caseId={loanCase.id} />}
     </div>
   );
 }

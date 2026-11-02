@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CASE_TABS,
+  CASE_WORKFLOW_TABS,
   CASE_TAB_LABELS,
   CASE_TAB_PURPOSE,
   nextCaseTab,
@@ -20,7 +21,14 @@ import {
  */
 describe("the case workflow's order", () => {
   it("is Overview → Documents → Banks → Timeline", () => {
-    expect(CASE_TABS).toEqual(["overview", "documents", "banks", "timeline"]);
+    expect(CASE_WORKFLOW_TABS).toEqual(["overview", "documents", "banks", "timeline"]);
+  });
+
+  it("also offers GST & ITR as a section, but it is reference and not a step in the walk", () => {
+    expect(CASE_TABS).toEqual(["overview", "documents", "banks", "timeline", "financials"]);
+    expect(nextCaseTab("financials")).toBeUndefined();
+    expect(previousCaseTab("financials")).toBeUndefined();
+    expect(resolveCaseTab("financials")).toBe("financials");
   });
 
   it("walks forward through exactly that order and then stops", () => {

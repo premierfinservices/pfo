@@ -26,7 +26,8 @@ import {
   type SummaryItrYear,
 } from "@domain/work/financial-summary.js";
 
-import { cx } from "../ui/index.js";
+import { useApiQuery } from "../api/hooks.js";
+import { Empty, cx } from "../ui/index.js";
 import { useCountUp, useFlashOnChange, useStaged } from "./summary-motion.js";
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,26 @@ export function FinancialSummary({ text }: { text: string }): ReactNode {
   // Keyed by the window of months: a different set of months starts the
   // filters afresh, the same months with new figures keeps them.
   return <Summary key={parsed.months.map((m) => m.label).join("|")} parsed={parsed} refreshed={refreshed} />;
+}
+
+/** The summary, or a plain sentence saying there is not one yet. */
+export function FinancialsOrEmpty({ text }: { text: string | null }): ReactNode {
+  if (!text) {
+    return (
+      <Empty>
+        No GST and ITR summary on this case yet. It appears when the case folder is dropped with its "GST and ITR Summary.txt".
+      </Empty>
+    );
+  }
+  return <FinancialSummary text={text} />;
+}
+
+/** The same, for a screen that does not already hold the case (the full case view). */
+export function CaseFinancials({ caseId }: { caseId: string }): ReactNode {
+  const query = useApiQuery<{ financialSummary: string | null }>(`/work/cases/${caseId}`);
+  if (query.loading) return <SummarySkeleton />;
+  if (query.error) return <Empty>{query.error.message}</Empty>;
+  return <FinancialsOrEmpty text={query.data?.financialSummary ?? null} />;
 }
 
 /** Grey shimmering placeholders for the case panel while it loads. */

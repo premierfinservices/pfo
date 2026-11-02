@@ -18,7 +18,8 @@ import type { ApiPreparedPackage, ApiSendResult, ApiSendableDocument } from "../
 import { useSession } from "../session.js";
 import { Badge, Button, Card, Empty, Field, Input, Select, StageBadge, cx } from "../ui/index.js";
 import { dateFromToday, type WorkLists } from "./LogCase.js";
-import { FinancialSummary, SummarySkeleton } from "./FinancialSummary.js";
+import { FinancialSummary, FinancialsOrEmpty, SummarySkeleton } from "./FinancialSummary.js";
+import { SentDocuments } from "./SentDocuments.js";
 
 interface PickRow {
   readonly id: string;
@@ -163,7 +164,7 @@ export function UpdateCase(): ReactNode {
   );
 }
 
-type Tab = "case" | "send" | "applications";
+type Tab = "case" | "send" | "applications" | "financials";
 
 function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => void }): ReactNode {
   const loaded = useApiQuery<Summary>(`/work/cases/${caseId}`);
@@ -228,6 +229,7 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
             ["case", "Case"],
             ["send", "Send to lenders"],
             ["applications", `Applications (${summary.applications.length})`],
+            ["financials", "GST & ITR"],
           ] as const
         ).map(([value, label]) => (
           <button
@@ -249,6 +251,7 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
       {tab === "applications" && (
         <ApplicationsTab summary={summary} lists={lists.data} act={act} pending={mutation.pending} />
       )}
+      {tab === "financials" && <FinancialsOrEmpty text={summary.financialSummary} />}
     </div>
   );
 }
@@ -954,19 +957,29 @@ function EmailPanel({
 
       {step === "sent" && (
         <>
-          <ul className="space-y-2">
+          <ul className="space-y-4">
             {created.map((item) => {
               const outcome = outcomes[item.submissionId];
               return (
-                <li key={item.submissionId} className="flex flex-wrap items-center gap-2 text-sm">
-                  <Badge tone={outcome?.ok ? "good" : "warn"}>{outcome?.ok ? "Sent" : "Not sent"}</Badge>
-                  <span className="font-medium text-ink-900">{item.lender}</span>
-                  <span className="text-ink-600">{outcome?.message}</span>
-                  {outcome && !outcome.ok && outcome.packageId && (
-                    <Button variant="ghost" disabled={busy} onClick={() => void retry(item)}>
-                      Try again
-                    </Button>
-                  )}
+                <li key={item.submissionId} className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <Badge tone={outcome?.ok ? "good" : "warn"}>{outcome?.ok ? "Sent" : "Not sent"}</Badge>
+                    <span className="font-medium text-ink-900">{item.lender}</span>
+                    <span className="text-ink-600">{outcome?.message}</span>
+                    {outcome && !outcome.ok && outcome.packageId && (
+                      <Button variant="ghost" disabled={busy} onClick={() => void retry(item)}>
+                        Try again
+                      </Button>
+                    )}
+                  </div>
+                  {/* Document by document: what went, and what did not and why. Keyed on the
+                      outcome so it checks again after "Try again". */}
+                  <SentDocuments
+                    key={`${item.submissionId}-${outcome?.ok}-${outcome?.message}`}
+                    caseId={caseId}
+                    submissionId={item.submissionId}
+                    bank={item.lender}
+                  />
                 </li>
               );
             })}
@@ -1099,6 +1112,12 @@ function ApplicationsTab({
           </li>
         ))}
       </ul>
+
+      {app && (
+        <Card title={`Documents sent to ${app.bank ?? "this lender"}`}>
+          <SentDocuments key={app.id} caseId={summary.id} submissionId={app.id} bank={app.bank ?? "this lender"} />
+        </Card>
+      )}
 
       {app && (
         <Card title={`${app.bank}: new status`}>

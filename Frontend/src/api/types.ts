@@ -608,6 +608,8 @@ export interface ApiPackageEmail {
   readonly sentAt: string | null;
   readonly providerMessageId: string | null;
   readonly failureMessage: string | null;
+  /** The documents this email carried, by the name they had when sent. */
+  readonly documents: readonly { readonly documentId: string; readonly fileName: string; readonly financialYearLabel: string | null }[];
 }
 
 export interface ApiPackage {

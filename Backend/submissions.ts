@@ -1469,6 +1469,14 @@ export interface PackageEmailView {
   readonly sentAt: string | null;
   readonly providerMessageId: string | null;
   readonly failureMessage: string | null;
+  /** The documents this email carried, by the name they had when sent. */
+  readonly documents: readonly PackageEmailDocumentView[];
+}
+
+export interface PackageEmailDocumentView {
+  readonly documentId: string;
+  readonly fileName: string;
+  readonly financialYearLabel: string | null;
 }
 
 export interface PackageView {
@@ -1527,6 +1535,27 @@ export async function listPackages(
       )
     : { rows: [] };
 
+  const documents = packageIds.length
+    ? await client.query<{
+        submission_package_email_id: string;
+        document_id: string;
+        file_name: string;
+        financial_year_label: string | null;
+      }>(
+        `select submission_package_email_id, document_id, file_name, financial_year_label
+           from submission_package_document
+          where submission_package_id = any($1::uuid[])
+          order by display_order, file_name`,
+        [packageIds],
+      )
+    : { rows: [] };
+  const documentsByEmail = new Map<string, PackageEmailDocumentView[]>();
+  for (const row of documents.rows) {
+    const list = documentsByEmail.get(row.submission_package_email_id) ?? [];
+    list.push({ documentId: row.document_id, fileName: row.file_name, financialYearLabel: row.financial_year_label });
+    documentsByEmail.set(row.submission_package_email_id, list);
+  }
+
   const emailsByPackage = new Map<string, typeof emails.rows>();
   for (const email of emails.rows) {
     const list = emailsByPackage.get(email.submission_package_id) ?? [];
@@ -1551,6 +1580,7 @@ export async function listPackages(
       sentAt: email.sent_at,
       providerMessageId: email.provider_message_id,
       failureMessage: email.failure_message,
+      documents: documentsByEmail.get(email.id) ?? [],
     })),
   }));
 }

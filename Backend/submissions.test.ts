@@ -28,7 +28,7 @@ import type { EmailProvider, EmailSendResult, OutgoingEmail } from "@domain/comm
 import { createApiServer } from "./api-server.js";
 import { pool, withActor } from "./db.js";
 import type { Actor } from "./authorize.js";
-import { createSubmission, preparePackage, retryPackage, sendableDocuments, sendPackage } from "./submissions.js";
+import { createSubmission, listPackages, preparePackage, retryPackage, sendableDocuments, sendPackage } from "./submissions.js";
 
 let baseUrl: string;
 let server: ReturnType<typeof createApiServer>;
@@ -816,5 +816,52 @@ describe("one file backing two requirement rows (found on a real case)", () => {
     await expect(
       withActor(null, (client) => preparePackage(client, actor, caseId, submissionId, { documentIds: ids })),
     ).rejects.toThrow(/can no longer be sent from this case: .*pan-card\.pdf/);
+  });
+});
+
+describe("what was sent, document by document", () => {
+  // `submission_package_document` has always recorded which file went in which
+  // email, but the package list returned only counts, so a screen could say
+  // "2 emails, 38 documents" and not "these five did not go".
+  it("lists, for every email, the documents it carried", async () => {
+    const { actor, caseId, submissionId, documentIds } = await setUpReadyCaseWithSubmission();
+    const fingerprint = await withActor(null, async (client) =>
+      (await preparePackage(client, actor, caseId, submissionId, { documentIds })).fingerprint,
+    );
+    const succeeds = fakeProvider((email) => ({
+      ok: true,
+      submissionPackageEmailId: email.submissionPackageEmailId,
+      providerMessageId: "message-id",
+      sentAt: new Date().toISOString(),
+    }));
+    await withActor(null, (client) =>
+      sendPackage(client, actor, caseId, submissionId, { documentIds, fingerprint }, succeeds),
+    );
+
+    const packages = await withActor(null, (client) => listPackages(client, actor, caseId, submissionId));
+    const carried = packages[0]!.emails.flatMap((email) => email.documents.map((d) => d.documentId));
+    expect([...carried].sort()).toEqual([...documentIds].sort());
+    expect(packages[0]!.emails.every((email) => email.documents.length === email.attachmentCount)).toBe(true);
+    expect(packages[0]!.emails.every((email) => email.documents.every((d) => d.fileName.length > 0))).toBe(true);
+  });
+
+  it("still lists the documents of an email that failed, so the unsent ones can be named", async () => {
+    const { actor, caseId, submissionId, documentIds } = await setUpReadyCaseWithSubmission();
+    const fingerprint = await withActor(null, async (client) =>
+      (await preparePackage(client, actor, caseId, submissionId, { documentIds })).fingerprint,
+    );
+    const refuses = fakeProvider((email) => ({
+      ok: false,
+      submissionPackageEmailId: email.submissionPackageEmailId,
+      failure: { kind: "unknown", message: "simulated provider failure" },
+    }));
+    await withActor(null, (client) =>
+      sendPackage(client, actor, caseId, submissionId, { documentIds, fingerprint }, refuses),
+    );
+
+    const packages = await withActor(null, (client) => listPackages(client, actor, caseId, submissionId));
+    const failed = packages[0]!.emails.filter((email) => email.status === "failed");
+    expect(failed.length).toBeGreaterThan(0);
+    expect(failed.every((email) => email.documents.length > 0)).toBe(true);
   });
 });

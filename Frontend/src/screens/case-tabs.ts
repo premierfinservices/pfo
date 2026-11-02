@@ -21,7 +21,16 @@
  * tab change, which is why moving between sections cannot load another case.
  */
 
-export const CASE_TABS = ["overview", "documents", "banks", "timeline"] as const;
+/** The order a case is worked in. "Save & continue" walks this and stops at the end. */
+export const CASE_WORKFLOW_TABS = ["overview", "documents", "banks", "timeline"] as const;
+
+/**
+ * Every section a case screen shows. GST & ITR is reference, not a step: it is
+ * one click away at any time (eligibility is decided from it, and so are
+ * lenders), but it is not part of the walk, so it is never where Save &
+ * continue goes next or comes from.
+ */
+export const CASE_TABS = [...CASE_WORKFLOW_TABS, "financials"] as const;
 
 export type CaseTab = (typeof CASE_TABS)[number];
 
@@ -30,6 +39,7 @@ export const CASE_TAB_LABELS: Record<CaseTab, string> = {
   documents: "Documents",
   banks: "Banks",
   timeline: "Timeline",
+  financials: "GST & ITR",
 };
 
 /**
@@ -42,6 +52,7 @@ export const CASE_TAB_PURPOSE: Record<CaseTab, string> = {
   documents: "Collect and verify what those facts require.",
   banks: "Send the file to the lenders it suits.",
   timeline: "Everything that happened, in order.",
+  financials: "GST sales and Income Tax figures, with graphs and filters.",
 };
 
 /**
@@ -59,11 +70,12 @@ export function resolveCaseTab(requested: string | null | undefined): CaseTab {
 
 /** The section after this one, or undefined at the end of the workflow. */
 export function nextCaseTab(tab: CaseTab): CaseTab | undefined {
-  return CASE_TABS[CASE_TABS.indexOf(tab) + 1];
+  const index = (CASE_WORKFLOW_TABS as readonly CaseTab[]).indexOf(tab);
+  return index === -1 ? undefined : CASE_WORKFLOW_TABS[index + 1];
 }
 
 /** The section before this one, or undefined at the start. */
 export function previousCaseTab(tab: CaseTab): CaseTab | undefined {
-  const index = CASE_TABS.indexOf(tab);
-  return index <= 0 ? undefined : CASE_TABS[index - 1];
+  const index = (CASE_WORKFLOW_TABS as readonly CaseTab[]).indexOf(tab);
+  return index <= 0 ? undefined : CASE_WORKFLOW_TABS[index - 1];
 }
