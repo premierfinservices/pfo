@@ -15,6 +15,7 @@ import type { ApiSearchHit } from "./api/types.js";
 import { Bankers } from "./screens/Bankers.js";
 import { CaseDetail } from "./screens/CaseDetail.js";
 import { CaseList } from "./screens/CaseList.js";
+import { ChangePassword } from "./screens/ChangePassword.js";
 import { LenderCatalogue } from "./screens/LenderCatalogue.js";
 import { LendingProducts } from "./screens/LendingProducts.js";
 import { MasterData } from "./screens/MasterData.js";
@@ -49,6 +50,7 @@ export function App(): ReactNode {
           <Route path="/admin/bankers" element={<Bankers />} />
           <Route path="/admin/master-data" element={<MasterData />} />
           <Route path="/admin/users" element={<UserManagement />} />
+          <Route path="/account/password" element={<ChangePassword />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -411,6 +413,13 @@ function IdentityMenu(): ReactNode {
             </>
           )}
           <hr className="my-2 border-ink-100" />
+          <NavLink
+            to="/account/password"
+            onClick={() => setOpen(false)}
+            className="block rounded px-2 py-1.5 text-sm text-ink-700 hover:bg-ink-50"
+          >
+            Change my password
+          </NavLink>
           <button
             onClick={() => {
               setOpen(false);
