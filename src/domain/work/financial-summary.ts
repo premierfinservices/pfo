@@ -262,6 +262,49 @@ export function parseFinancialSummary(text: string): ParsedSummary | null {
 }
 
 // ---------------------------------------------------------------------------
+// Whose summary is it
+// ---------------------------------------------------------------------------
+
+/** The name on the file's title line, or null. Works on files the full parser refuses. */
+export function summaryBusinessName(text: string): string | null {
+  const cleaned = text.replace(/^﻿/, "").replace(/\r/g, "");
+  for (const line of cleaned.split("\n")) {
+    const titled = /^GST AND ITR SUMMARY\s*-\s*(.+?)\s*$/i.exec(line);
+    if (titled) return titled[1] ?? null;
+  }
+  return null;
+}
+
+/** Words that say what kind of firm it is, not which one. */
+const NAME_NOISE = new Set(["M", "S", "MS", "PVT", "PRIVATE", "LTD", "LIMITED", "LLP", "AND", "CO", "COMPANY", "THE", "PROP", "PROPRIETOR"]);
+
+const nameWords = (name: string): Set<string> =>
+  new Set(
+    name
+      .toUpperCase()
+      .replace(/&/g, " AND ")
+      .split(/[^A-Z0-9]+/)
+      .filter((word) => word !== "" && !NAME_NOISE.has(word)),
+  );
+
+/**
+ * Whether the business named on a summary is one the case holds. A name matches
+ * when all the words of one are among the words of the other, so "M/s. RVB Metal
+ * Works" and "RVB METAL WORKS COIMBATORE" both match "RVB METAL WORKS" while
+ * "ACE ASSOCIATES" does not. null means it cannot be told: a name is missing.
+ * Used only to warn; one customer can trade under several names.
+ */
+export function summaryBelongsTo(business: string | null, caseNames: readonly string[]): boolean | null {
+  if (!business) return null;
+  const summaryWords = nameWords(business);
+  if (summaryWords.size === 0) return null;
+  const candidates = caseNames.map(nameWords).filter((words) => words.size > 0);
+  if (candidates.length === 0) return null;
+  const within = (small: Set<string>, large: Set<string>): boolean => [...small].every((word) => large.has(word));
+  return candidates.some((words) => within(summaryWords, words) || within(words, summaryWords));
+}
+
+// ---------------------------------------------------------------------------
 // Filtering
 // ---------------------------------------------------------------------------
 

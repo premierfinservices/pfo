@@ -630,6 +630,70 @@ describe("uploading a case folder", () => {
     expect((await summaryOf(session, logged.id)).financialSummary).toContain("1,00,000");
   });
 
+  const summaryFor = (business: string) =>
+    `GST AND ITR SUMMARY - ${business}\nPrepared: 24 Oct 2026\nTOTAL  Rs. 1,00,000`;
+
+  it("warns when the summary is for another business, and still keeps it", async () => {
+    const session = await signInAs("telecaller");
+    const logged = await logCase(session, { customerName: "rvb metal works" });
+    const answer = await upload(session, logged.id, "GST and ITR Summary.txt", summaryFor("ACE ASSOCIATES"));
+    expect(answer.result).toBe("summary");
+    expect(answer.warning).toContain("ACE ASSOCIATES");
+    const shown = await summaryOf(session, logged.id);
+    expect(shown.financialSummary).toContain("1,00,000");
+    expect(shown.financialSummaryWarning).toContain("ACE ASSOCIATES");
+  });
+
+  it("does not warn when the summary names the case's own business", async () => {
+    const session = await signInAs("telecaller");
+    const logged = await logCase(session, { customerName: "rvb metal works" });
+    const answer = await upload(session, logged.id, "GST and ITR Summary.txt", summaryFor("M/s. RVB Metal Works"));
+    expect(answer.warning).toBeUndefined();
+    expect((await summaryOf(session, logged.id)).financialSummaryWarning).toBeNull();
+  });
+
+  it("lets a manager remove the wrong summary, and a telecaller not", async () => {
+    const telecaller = await signInAs("telecaller");
+    const logged = await logCase(telecaller, { customerName: "rvb metal works" });
+    await upload(telecaller, logged.id, "GST and ITR Summary.txt", summaryFor("ACE ASSOCIATES"));
+    expect((await act(telecaller, logged.id, "clear-summary")).status).toBe(403);
+    const manager = await signInAs("manager");
+    const cleared = await ok(manager, logged.id, "clear-summary");
+    expect(cleared.financialSummary).toBeNull();
+    expect(cleared.financialSummaryWarning).toBeNull();
+  });
+
+  it("retires a wrongly uploaded document with a reason, keeps the file on record, and asks for it again", async () => {
+    const telecaller = await signInAs("telecaller");
+    const logged = await logCase(telecaller);
+    await upload(telecaller, logged.id, "PAN - Demo.pdf");
+    const before = await summaryOf(telecaller, logged.id);
+    expect(before.uploaded).toHaveLength(1);
+    const requirementId = before.uploaded[0].requirementId;
+    const path = `requirements/${requirementId}/retire`;
+
+    expect((await act(telecaller, logged.id, path, { reason: "wrong customer" })).status).toBe(403);
+    const manager = await signInAs("manager");
+    expect((await act(manager, logged.id, path, {})).status).toBe(400);
+
+    const after = await ok(manager, logged.id, path, { reason: "wrong customer" });
+    expect(after.uploaded).toHaveLength(0);
+    expect(after.pending.map((p: any) => p.label)).toContain("PAN Card");
+    expect((await act(manager, logged.id, path, { reason: "again" })).status).toBe(404);
+
+    const { rows } = await pool.query(`select 1 from document where file_name like 'PAN%' and uploaded_by = $1`, [telecaller.userId]);
+    expect(rows.length).toBeGreaterThan(0);
+    // The same file can be uploaded again afterwards.
+    expect((await upload(telecaller, logged.id, "PAN - Demo.pdf")).result).toBe("filed");
+  });
+
+  it("answers each upload with the document type it was filed as", async () => {
+    const session = await signInAs("telecaller");
+    const logged = await logCase(session);
+    const answer = await upload(session, logged.id, "PAN - Demo.pdf");
+    expect(answer.typeName).toBe("PAN Card");
+  });
+
   it("refuses another telecaller's case", async () => {
     const owner = await signInAs("telecaller");
     const stranger = await signInAs("telecaller");

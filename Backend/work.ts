@@ -28,6 +28,7 @@ import {
 import { nextStepLine, workFor, type WorkEvent } from "@domain/work/rules.js";
 import { belongsToApplicant, classifyCaseFile, monthlyReturnName, type FileMatch } from "@domain/work/file-names.js";
 import { standardFileName } from "@domain/work/standard-names.js";
+import { summaryBelongsTo, summaryBusinessName } from "@domain/work/financial-summary.js";
 import { documentRowLabel, financialYearOf, type PeriodKind } from "@domain/requirements/index.js";
 import {
   NEXT_SUBMISSION_STATUSES,
@@ -545,6 +546,27 @@ export async function pickList(client: Queryable, actor: Actor, q: string | null
   }));
 }
 
+/** Every name the case holds: its people and its firms. What a summary's business is compared with. */
+async function caseNames(client: Queryable, caseId: string): Promise<string[]> {
+  const { rows } = await client.query<{ name: string | null }>(
+    `select coalesce(p.full_name, o.canonical_name) as name
+       from case_party cp
+       left join person p on p.id = cp.person_id
+       left join organisation o on o.id = cp.organisation_id
+      where cp.case_id = $1 and cp.removed_at is null`,
+    [caseId],
+  );
+  return rows.map((r) => r.name).filter((n): n is string => !!n);
+}
+
+/** "This summary is for X", or null when it is the case's own or cannot be told. */
+async function summaryWarning(client: Queryable, caseId: string, text: string | null): Promise<string | null> {
+  if (!text) return null;
+  const business = summaryBusinessName(text);
+  const same = summaryBelongsTo(business, await caseNames(client, caseId));
+  return same === false ? `This summary is for ${business}, which is not a name on this case.` : null;
+}
+
 /** Everything Update Case shows, plus the guidance line. */
 export async function caseSummary(client: Queryable, actor: Actor, caseId: string, done?: string) {
   const row = await loadCase(client, caseId);
@@ -620,8 +642,8 @@ export async function caseSummary(client: Queryable, actor: Actor, caseId: strin
     [caseId],
   );
 
-  const { rows: uploadedRows } = await client.query<{ name: string; file_name: string }>(
-    `select coalesce(r.custom_name, dt.name) as name, d.file_name
+  const { rows: uploadedRows } = await client.query<{ id: string; name: string; file_name: string; status: string }>(
+    `select r.id, r.status::text, coalesce(r.custom_name, dt.name) as name, d.file_name
        from document_requirement r
        join document_type dt on dt.id = r.document_type_id
        join document d on d.id = r.uploaded_document_id
@@ -659,7 +681,13 @@ export async function caseSummary(client: Queryable, actor: Actor, caseId: strin
     done: done ?? null,
     next: uploadFirst ? `Next: Upload the documents received, below. Then: ${next.replace(/^Next: /, "")}` : next,
     financialSummary: row.financial_summary,
-    uploaded: uploadedRows.map((item) => ({ name: item.name, fileName: item.file_name })),
+    financialSummaryWarning: await summaryWarning(client, caseId, row.financial_summary),
+    uploaded: uploadedRows.map((item) => ({
+      requirementId: item.id,
+      name: item.name,
+      fileName: item.file_name,
+      status: item.status,
+    })),
     pending: pending.map((item) => {
       const year = item.period_start ? financialYearOf(new Date(item.period_start)).label : undefined;
       // The 3B set is the last 12 months, not one financial year.
@@ -924,6 +952,70 @@ export async function requirementNotNeeded(client: Queryable, actor: Actor, case
   return await caseSummary(client, actor, caseId, "Removed from this case's pending list.");
 }
 
+/**
+ * Take a wrongly uploaded document off the case. The file is never deleted (BR-031):
+ * it stays on record, unlinked from this case, and no longer in its document list.
+ * The row it answered goes back to pending, or, if the upload made the row, becomes
+ * not-needed. The reason is kept on that row, not in the event. Anyone who may
+ * verify documents may retire one: it is the same judgement.
+ */
+export async function retireDocument(
+  client: Queryable,
+  actor: Actor,
+  caseId: string,
+  requirementId: string,
+  body: Record<string, unknown>,
+) {
+  const row = await loadCase(client, caseId);
+  requireCase(actor, row, "document.verify");
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+  if (!reason) throw new ApiError(400, "Say why this document is being removed.");
+
+  const { rows } = await client.query<{ is_custom: boolean; code: string; document_id: string }>(
+    `select r.is_custom, dt.code, r.uploaded_document_id as document_id
+       from document_requirement r
+       join document_type dt on dt.id = r.document_type_id
+      where r.id = $1 and r.case_id = $2 and r.status in ('received', 'verified') and r.uploaded_document_id is not null`,
+    [requirementId, caseId],
+  );
+  const found = rows[0];
+  if (!found) throw new ApiError(404, "No such uploaded document on this case.");
+
+  await client.query(
+    `update document_requirement
+        set status = $2, uploaded_document_id = null, satisfied_by_document_id = null, reason = $3
+      where id = $1`,
+    [requirementId, found.is_custom ? "not_applicable" : "pending", reason],
+  );
+  // The 3B set had been marked complete at twelve months; one fewer reopens it.
+  if (found.code === "gst_returns" && (await gstMonthsIn(client, caseId)) < 12) {
+    await client.query(
+      `update document_requirement r set status = 'pending'
+         from document_type dt
+        where dt.id = r.document_type_id and r.case_id = $1 and dt.code = 'gst_returns'
+          and not r.is_custom and r.status = 'received' and r.uploaded_document_id is null`,
+      [caseId],
+    );
+  }
+  await recordCaseEvent(client, {
+    actorUserId: actor.userId,
+    caseId,
+    eventType: "case.document_retired",
+    payloadAfter: { requirementId, documentId: found.document_id },
+  });
+  return await caseSummary(client, actor, caseId, "Document removed from this case. The file is kept on record.");
+}
+
+/** Remove the GST and ITR summary from the case, e.g. when it was uploaded to the wrong one. */
+export async function clearFinancialSummary(client: Queryable, actor: Actor, caseId: string) {
+  const row = await loadCase(client, caseId);
+  requireCase(actor, row, "document.verify");
+  if (!row.financial_summary) throw new ApiError(404, "This case has no GST and ITR summary.");
+  await client.query(`update loan_case set financial_summary = null, financial_summary_at = null where id = $1`, [caseId]);
+  await recordCaseEvent(client, { actorUserId: actor.userId, caseId, eventType: "case.financial_summary_cleared" });
+  return await caseSummary(client, actor, caseId, "GST and ITR summary removed from this case.");
+}
+
 // ---------------------------------------------------------------------------
 // Update Case: uploading a case folder
 // ---------------------------------------------------------------------------
@@ -998,6 +1090,10 @@ export interface UploadAnswer {
   /** The type came from reading the file, not its name. */
   readonly readByAi?: boolean;
   readonly reason?: string;
+  /** The name of the document type it was filed as. */
+  readonly typeName?: string;
+  /** Something to look at twice, such as a summary for another business. */
+  readonly warning?: string;
   /** For an archive: what became of each file inside. */
   readonly files?: readonly UploadAnswer[];
 }
@@ -1053,7 +1149,8 @@ export async function uploadCaseFile(
       [new TextDecoder().decode(file.bytes).replace(/^﻿/, ""), caseId],
     );
     await recordCaseEvent(client, { actorUserId: actor.userId, caseId, eventType: "case.financial_summary_added" });
-    return { fileName: file.fileName, result: "summary" };
+    const warning = await summaryWarning(client, caseId, new TextDecoder().decode(file.bytes));
+    return { fileName: file.fileName, result: "summary", ...(warning ? { warning } : {}) };
   }
 
   // A repeat is the same bytes, whatever the file is called. Documents from before
@@ -1142,6 +1239,7 @@ export async function uploadCaseFile(
     fileName: file.fileName,
     result: match.recognised ? "filed" : "other",
     documentTypeCode: match.documentTypeCode,
+    typeName,
     ...(storedName !== file.fileName ? { storedAs: storedName } : {}),
     ...(readByAi ? { readByAi: true } : {}),
   };

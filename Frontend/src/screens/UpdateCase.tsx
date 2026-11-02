@@ -74,8 +74,10 @@ interface Summary {
   readonly next: string;
   readonly pending: readonly { id: string; label: string; rejected: boolean }[];
   readonly notNeeded: readonly { id: string; label: string }[];
-  readonly uploaded: readonly { name: string; fileName: string }[];
+  readonly uploaded: readonly { requirementId: string; name: string; fileName: string; status: string }[];
   readonly financialSummary: string | null;
+  /** Set when the summary names a business that is not on this case. */
+  readonly financialSummaryWarning: string | null;
   readonly applications: readonly Application[];
   /** Only on the answer to a send: the applications it just made. */
   readonly created?: readonly CreatedApplication[];
@@ -278,12 +280,30 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
       {tab === "applications" && (
         <ApplicationsTab summary={summary} lists={lists.data} act={act} pending={mutation.pending} />
       )}
-      {tab === "financials" && <FinancialsOrEmpty text={summary.financialSummary} />}
+      {tab === "financials" && (
+        <>
+          <SummaryWarning summary={summary} act={act} pending={mutation.pending} />
+          <FinancialsOrEmpty text={summary.financialSummary} />
+        </>
+      )}
     </div>
   );
 }
 
 type Act = (path: string, body: Record<string, unknown>) => Promise<Summary | null>;
+
+/** Red note when the GST and ITR summary is for another business, with the way to take it off. */
+function SummaryWarning({ summary, act, pending }: { summary: Summary; act: Act; pending: boolean }): ReactNode {
+  if (!summary.financialSummary || !summary.financialSummaryWarning) return null;
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-200" role="alert">
+      <span>{summary.financialSummaryWarning} Check it before using these figures.</span>
+      <Button variant="ghost" disabled={pending} onClick={() => void act("clear-summary", {})}>
+        Remove this summary
+      </Button>
+    </div>
+  );
+}
 
 function CaseTab({
   summary,
@@ -320,6 +340,7 @@ function CaseTab({
     <div className="space-y-4">
       {asking && (
         <Card title="Is this case eligible?" subtitle="Your decision. Check what has come in, then answer.">
+          <SummaryWarning summary={summary} act={act} pending={pending} />
           {summary.financialSummary && <FinancialSummary text={summary.financialSummary} />}
           {summary.documentStatus !== "complete" && (
             <Field label="If eligible, collect the rest on">
@@ -365,7 +386,7 @@ function CaseTab({
         </div>
       </Card>
 
-      <UploadCard summary={summary} refresh={refresh} />
+      <UploadCard summary={summary} refresh={refresh} act={act} pending={pending} />
 
       <Card title="Pending documents" subtitle="For information only. Nothing here stops the file going to a lender.">
         <PendingList summary={summary} act={act} pending={pending} />
@@ -415,11 +436,23 @@ interface UploadAnswer {
   readonly storedAs?: string;
   readonly readByAi?: boolean;
   readonly reason?: string;
+  readonly typeName?: string;
+  readonly warning?: string;
   readonly files?: readonly UploadAnswer[];
 }
 
 /** One action: pick the case folder or drop the files. PFO files each one. */
-function UploadCard({ summary, refresh }: { summary: Summary; refresh: () => Promise<void> }): ReactNode {
+function UploadCard({
+  summary,
+  refresh,
+  act,
+  pending,
+}: {
+  summary: Summary;
+  refresh: () => Promise<void>;
+  act: Act;
+  pending: boolean;
+}): ReactNode {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [outcome, setOutcome] = useState<{
     filed: number;
@@ -427,11 +460,23 @@ function UploadCard({ summary, refresh }: { summary: Summary; refresh: () => Pro
     others: string[];
     read: string[];
     failed: string[];
+    /** One line per file that changed the case: what it is now filed as. */
+    updated: string[];
+    warnings: string[];
   } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [removing, setRemoving] = useState<{ id: string; reason: string } | null>(null);
 
   const send = async (files: readonly File[]): Promise<void> => {
-    const result = { filed: 0, repeats: 0, others: [] as string[], read: [] as string[], failed: [] as string[] };
+    const result = {
+      filed: 0,
+      repeats: 0,
+      others: [] as string[],
+      read: [] as string[],
+      failed: [] as string[],
+      updated: [] as string[],
+      warnings: [] as string[],
+    };
     setOutcome(null);
     setProgress({ done: 0, total: files.length });
     for (const [index, file] of files.entries()) {
@@ -441,6 +486,11 @@ function UploadCard({ summary, refresh }: { summary: Summary; refresh: () => Pro
         const answer = await apiUpload<UploadAnswer>(`/work/cases/${summary.id}/upload`, file, folder);
         const tally = (item: UploadAnswer): void => {
           if (item.result === "filed" || item.result === "summary") result.filed += 1;
+          if (item.result === "summary") result.updated.push(`${item.fileName} → GST and ITR summary`);
+          if (item.result === "filed" || item.result === "other") {
+            result.updated.push(`${item.storedAs ?? item.fileName} → ${item.typeName ?? "Other Document"}`);
+          }
+          if (item.warning) result.warnings.push(`${item.fileName}: ${item.warning}`);
           if (item.result === "duplicate") result.repeats += 1;
           if (item.result === "other") result.others.push(item.fileName);
           if (item.readByAi) result.read.push(`${item.fileName} → ${item.storedAs ?? "filed"}`);
@@ -544,6 +594,24 @@ function UploadCard({ summary, refresh }: { summary: Summary; refresh: () => Pro
           <p className="text-ink-800">
             {outcome.filed} filed{outcome.repeats > 0 ? `, ${outcome.repeats} already here` : ""}.
           </p>
+          {outcome.warnings.map((line) => (
+            <p key={line} className="rounded bg-red-50 px-2 py-1 text-red-800 ring-1 ring-red-200" role="alert">
+              {line}
+            </p>
+          ))}
+          {outcome.updated.length > 0 && (
+            <div>
+              <p className="font-medium text-ink-800">Updated on this case</p>
+              <ul className="list-disc pl-5 text-ink-700">
+                {outcome.updated.map((line, index) => (
+                  <li key={`${line}-${index}`}>{line}</li>
+                ))}
+              </ul>
+              <Link to={`/cases/${summary.id}?tab=documents`} className="mt-1 inline-block underline">
+                Open the documents to verify or reject them
+              </Link>
+            </div>
+          )}
           {outcome.others.length > 0 && (
             <p className="text-amber-800">Kept as Other Document, name not recognised: {outcome.others.join(", ")}</p>
           )}
@@ -559,13 +627,56 @@ function UploadCard({ summary, refresh }: { summary: Summary; refresh: () => Pro
       )}
 
       {summary.uploaded.length > 0 && (
-        <details className="mt-3 text-sm text-ink-600">
+        <details className="mt-3 text-sm text-ink-600" open={outcome !== null}>
           <summary className="cursor-pointer">{summary.uploaded.length} documents on this case</summary>
-          <ul className="mt-1 space-y-0.5">
-            {summary.uploaded.map((item, index) => (
-              <li key={`${item.fileName}-${index}`}>{item.fileName}</li>
+          <ul className="mt-1 space-y-1">
+            {summary.uploaded.map((item) => (
+              <li key={item.requirementId}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    {item.fileName}
+                    <span className="text-ink-400">
+                      {" "}
+                      · {item.name} · {item.status === "verified" ? "verified" : "not yet verified"}
+                    </span>
+                  </span>
+                  <Button
+                    variant="ghost"
+                    disabled={pending}
+                    onClick={() => setRemoving({ id: item.requirementId, reason: "" })}
+                  >
+                    Remove
+                  </Button>
+                </div>
+                {removing?.id === item.requirementId && (
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <Input
+                      className="max-w-xs"
+                      placeholder="Why is it being removed?"
+                      value={removing.reason}
+                      onChange={(event) => setRemoving({ id: item.requirementId, reason: event.target.value })}
+                    />
+                    <Button
+                      disabled={pending || removing.reason.trim() === ""}
+                      onClick={() =>
+                        void act(`requirements/${item.requirementId}/retire`, { reason: removing.reason }).then(
+                          (done) => done && setRemoving(null),
+                        )
+                      }
+                    >
+                      Remove it
+                    </Button>
+                    <Button variant="ghost" onClick={() => setRemoving(null)}>
+                      Keep it
+                    </Button>
+                  </div>
+                )}
+              </li>
             ))}
           </ul>
+          <Link to={`/cases/${summary.id}?tab=documents`} className="mt-1 inline-block underline">
+            Verify or reject documents
+          </Link>
         </details>
       )}
     </Card>

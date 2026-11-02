@@ -187,6 +187,8 @@ export type CaseEventType =
   | "case.requirement_not_needed"
   | "case.requirement_restored"
   | "case.financial_summary_added"
+  | "case.financial_summary_cleared"
+  | "case.document_retired"
   | "case.party_added"
   | "case.party_profile_updated"
   | "case.party_removed"

@@ -44,6 +44,8 @@ import {
   firmFilter,
   pickList,
   requirementNotNeeded,
+  retireDocument,
+  clearFinancialSummary,
   requirementRestore,
   reschedule,
   sendToLenders,
@@ -947,7 +949,9 @@ async function route(
   if (method !== "GET") {
     const misCase = new RegExp(`^/api(?:/work)?/cases/(${UUID})(/.*)?$`).exec(path);
     const isUpload =
-      misCase?.[2] === "/upload" || new RegExp(`^/requirements/${UUID}/documents$`).test(misCase?.[2] ?? "");
+      misCase?.[2] === "/upload" ||
+      misCase?.[2] === "/clear-summary" ||
+      new RegExp(`^/requirements/${UUID}/(documents|retire)$`).test(misCase?.[2] ?? "");
     if (misCase && !isUpload) {
       const { rows } = await client.query(`select 1 from loan_case where id = $1 and mis_managed`, [misCase[1]]);
       if (rows[0]) {
@@ -1023,6 +1027,14 @@ async function route(
   if (workNotNeededMatch && method === "POST") {
     const change = workNotNeededMatch[3] === "restore" ? requirementRestore : requirementNotNeeded;
     return await change(client, requireActor(actor), workNotNeededMatch[1]!, workNotNeededMatch[2]!);
+  }
+  const workRetireMatch = new RegExp(`^/api/work/cases/(${UUID})/requirements/(${UUID})/retire$`).exec(path);
+  if (workRetireMatch && method === "POST") {
+    return await retireDocument(client, requireActor(actor), workRetireMatch[1]!, workRetireMatch[2]!, body);
+  }
+  const workClearSummaryMatch = new RegExp(`^/api/work/cases/(${UUID})/clear-summary$`).exec(path);
+  if (workClearSummaryMatch && method === "POST") {
+    return await clearFinancialSummary(client, requireActor(actor), workClearSummaryMatch[1]!);
   }
   const workApplicationMatch = new RegExp(
     `^/api/work/cases/(${UUID})/applications/(${UUID})$`,
