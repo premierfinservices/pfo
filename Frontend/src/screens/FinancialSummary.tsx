@@ -17,7 +17,7 @@
 import { useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 
 import {
-  parseFinancialSummary,
+  parseFilerSummaries,
   presetsFor,
   rupeeParts,
   rupeesShort,
@@ -35,10 +35,11 @@ import { useCountUp, useFlashOnChange, useStaged } from "./summary-motion.js";
 // ---------------------------------------------------------------------------
 
 export function FinancialSummary({ text }: { text: string }): ReactNode {
-  const parsed = useMemo(() => parseFinancialSummary(text), [text]);
+  const filers = useMemo(() => parseFilerSummaries(text), [text]);
   const refreshed = useFlashOnChange(text);
+  const [chosen, setChosen] = useState(0);
 
-  if (!parsed) {
+  if (!filers) {
     // Not the layout this reads. Show the file as it is rather than guess.
     return (
       <pre className="mb-4 overflow-x-auto rounded-md bg-ink-50 p-3 font-mono text-xs leading-5 text-ink-800 ring-1 ring-ink-150">
@@ -46,9 +47,34 @@ export function FinancialSummary({ text }: { text: string }): ReactNode {
       </pre>
     );
   }
-  // Keyed by the window of months: a different set of months starts the
-  // filters afresh, the same months with new figures keeps them.
-  return <Summary key={parsed.months.map((m) => m.label).join("|")} parsed={parsed} refreshed={refreshed} />;
+  const at = Math.min(chosen, filers.length - 1);
+  const parsed = filers[at]!;
+  // Keyed by the filer and the window of months: a different set of months
+  // starts the filters afresh, the same months with new figures keeps them.
+  return (
+    <>
+      {filers.length > 1 && (
+        <div role="tablist" aria-label="Whose summary" className="mb-3 flex flex-wrap gap-2">
+          {filers.map((filer, i) => (
+            <button
+              key={`${filer.business ?? "filer"}-${i}`}
+              type="button"
+              role="tab"
+              aria-selected={i === at}
+              onClick={() => setChosen(i)}
+              className={cx(
+                "rounded-full px-3 py-1 text-sm ring-1",
+                i === at ? "bg-ink-900 text-white ring-ink-900" : "bg-white text-ink-700 ring-ink-200 hover:bg-ink-50",
+              )}
+            >
+              {filer.business ?? `Filer ${i + 1}`}
+            </button>
+          ))}
+        </div>
+      )}
+      <Summary key={`${at}|${parsed.months.map((m) => m.label).join("|")}`} parsed={parsed} refreshed={refreshed} />
+    </>
+  );
 }
 
 /** The summary, or a plain sentence saying there is not one yet. */

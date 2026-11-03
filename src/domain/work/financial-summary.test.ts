@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  parseFilerSummaries,
   parseFinancialSummary,
+  summaryBusinessNames,
   presetsFor,
   rupeeParts,
   rupeesShort,
@@ -191,5 +193,43 @@ describe("rupee formatting", () => {
     expect(rupeesShort(46040998.57)).toBe("4.60 crore");
     expect(rupeesShort(3837000)).toBe("38.37 lakh");
     expect(rupeesShort(99999)).toBe("");
+  });
+});
+
+describe("a file with a summary for each of several filers", () => {
+  const OTHER = SAMPLE.replace("DEMO TRADERS", "DEMO ENERGY (PARTNERSHIP FIRM)")
+    .replace("1,00,000.50", "10.00")
+    .replace("2,00,000.25", "20.00")
+    .replace("3,00,000.00", "30.00")
+    .replace(/6,00,000\.75/, "60.00")
+    .replace("2,00,000.25", "20.00");
+  const TWO = `${SAMPLE}
+
+${OTHER}`;
+
+  it("keeps a single summary exactly as before", () => {
+    expect(parseFilerSummaries(SAMPLE)?.map((s) => s.business)).toEqual(["DEMO TRADERS"]);
+  });
+
+  it("reads each filer's summary on its own, in the order written", () => {
+    const filers = parseFilerSummaries(TWO);
+    expect(filers?.map((s) => s.business)).toEqual(["DEMO TRADERS", "DEMO ENERGY (PARTNERSHIP FIRM)"]);
+    expect(filers?.map((s) => s.total)).toEqual([600000.75, 60]);
+  });
+
+  it("refuses the whole file when any filer's part does not read", () => {
+    expect(parseFilerSummaries(`${SAMPLE}
+GST AND ITR SUMMARY - BROKEN
+nothing here`)).toBeNull();
+    expect(parseFilerSummaries("not a summary")).toBeNull();
+  });
+
+  it("names every filer", () => {
+    expect(summaryBusinessNames(TWO)).toEqual(["DEMO TRADERS", "DEMO ENERGY (PARTNERSHIP FIRM)"]);
+  });
+
+  it("still refuses one section holding two blocks, which cannot be told apart", () => {
+    const unlabelled = SAMPLE.split("\n").slice(1).join("\n");
+    expect(parseFinancialSummary(`${SAMPLE}\n${unlabelled}`)).toBeNull();
   });
 });

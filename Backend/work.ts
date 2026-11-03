@@ -29,7 +29,7 @@ import { nextStepLine, workFor, type WorkEvent } from "@domain/work/rules.js";
 import { belongsToApplicant, classifyCaseFile, monthlyReturnName, type FileMatch } from "@domain/work/file-names.js";
 import { standardFileName } from "@domain/work/standard-names.js";
 import { deriveStatusLine } from "@domain/work/status-line.js";
-import { summaryBelongsTo, summaryBusinessName } from "@domain/work/financial-summary.js";
+import { summaryBelongsTo, summaryBusinessNames } from "@domain/work/financial-summary.js";
 import { documentRowLabel, financialYearOf, type PeriodKind } from "@domain/requirements/index.js";
 import {
   NEXT_SUBMISSION_STATUSES,
@@ -563,9 +563,14 @@ async function caseNames(client: Queryable, caseId: string): Promise<string[]> {
 /** "This summary is for X", or null when it is the case's own or cannot be told. */
 async function summaryWarning(client: Queryable, caseId: string, text: string | null): Promise<string | null> {
   if (!text) return null;
-  const business = summaryBusinessName(text);
-  const same = summaryBelongsTo(business, await caseNames(client, caseId));
-  return same === false ? `This summary is for ${business}, which is not a name on this case.` : null;
+  // A file can hold one summary per filer. It is the case's own if any of them is.
+  const businesses = summaryBusinessNames(text);
+  const names = await caseNames(client, caseId);
+  const verdicts = businesses.map((business) => summaryBelongsTo(business, names));
+  if (businesses.length === 0 || verdicts.some((same) => same !== false)) return null;
+  return businesses.length === 1
+    ? `This summary is for ${businesses[0]}, which is not a name on this case.`
+    : `This summary is for ${businesses.join(" and ")}, none of which is a name on this case.`;
 }
 
 /** Everything Update Case shows, plus the guidance line. */

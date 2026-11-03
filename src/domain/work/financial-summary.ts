@@ -262,17 +262,49 @@ export function parseFinancialSummary(text: string): ParsedSummary | null {
 }
 
 // ---------------------------------------------------------------------------
+// Several filers in one file
+// ---------------------------------------------------------------------------
+
+const TITLE_LINE = /^GST AND ITR SUMMARY\s*-\s*(.+?)\s*$/i;
+
+/**
+ * The file as one text per filer. `calculate-values` writes a whole summary,
+ * title line and all, for each filer, one after another. A file with one title
+ * (or none) comes back as it is.
+ */
+function filerSections(text: string): string[] {
+  const lines = text.replace(/^﻿/, "").replace(/\r/g, "").split("\n");
+  const starts = lines.flatMap((line, i) => (TITLE_LINE.test(line) ? [i] : []));
+  if (starts.length <= 1) return [text];
+  return starts.map((from, n) => lines.slice(from, starts[n + 1] ?? lines.length).join("\n"));
+}
+
+/**
+ * Each filer's summary, in the order written. All or nothing: if any filer's
+ * part does not read, none is shown, because the screen would otherwise present
+ * part of a file as the whole of it.
+ */
+export function parseFilerSummaries(text: string): ParsedSummary[] | null {
+  const parsed = filerSections(text).map(parseFinancialSummary);
+  return parsed.every((p): p is ParsedSummary => p !== null) ? parsed : null;
+}
+
+// ---------------------------------------------------------------------------
 // Whose summary is it
 // ---------------------------------------------------------------------------
 
-/** The name on the file's title line, or null. Works on files the full parser refuses. */
-export function summaryBusinessName(text: string): string | null {
+/** Every name on the file's title lines, in order. Works on files the full parser refuses. */
+export function summaryBusinessNames(text: string): string[] {
   const cleaned = text.replace(/^﻿/, "").replace(/\r/g, "");
-  for (const line of cleaned.split("\n")) {
-    const titled = /^GST AND ITR SUMMARY\s*-\s*(.+?)\s*$/i.exec(line);
-    if (titled) return titled[1] ?? null;
-  }
-  return null;
+  return cleaned.split("\n").flatMap((line) => {
+    const name = TITLE_LINE.exec(line)?.[1];
+    return name ? [name] : [];
+  });
+}
+
+/** The name on the file's first title line, or null. */
+export function summaryBusinessName(text: string): string | null {
+  return summaryBusinessNames(text)[0] ?? null;
 }
 
 /** Words that say what kind of firm it is, not which one. */
