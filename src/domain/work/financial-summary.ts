@@ -301,7 +301,11 @@ export function summaryBelongsTo(business: string | null, caseNames: readonly st
   const candidates = caseNames.map(nameWords).filter((words) => words.size > 0);
   if (candidates.length === 0) return null;
   const within = (small: Set<string>, large: Set<string>): boolean => [...small].every((word) => large.has(word));
-  return candidates.some((words) => within(summaryWords, words) || within(words, summaryWords));
+  if (candidates.some((words) => within(summaryWords, words) || within(words, summaryWords))) return true;
+  // Same name spaced differently ("RAVIMURUGAA" / "RAVI MURUGAA"): compare with the spaces taken out.
+  const squashed = (words: Set<string>): string => [...words].join("");
+  const target = squashed(summaryWords);
+  return candidates.some((words) => squashed(words) === target);
 }
 
 // ---------------------------------------------------------------------------

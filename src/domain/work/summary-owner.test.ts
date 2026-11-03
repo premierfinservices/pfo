@@ -22,6 +22,10 @@ describe("summaryBelongsTo", () => {
     expect(summaryBelongsTo("M/s. RVB Metal Works", ["RVB METAL WORKS"])).toBe(true);
     expect(summaryBelongsTo("STAR FANCY AND JEWELLERS", ["Star Fancy & Jewellers"])).toBe(true);
   });
+  it("is true when the same name is spaced differently", () => {
+    expect(summaryBelongsTo("RAVIMURUGAA CONSTRUCTIONS PRIVATE LIMITED", ["RAVI MURUGAA CONSTRUCTIONS"])).toBe(true);
+    expect(summaryBelongsTo("RAVI MURUGAA CONSTRUCTIONS", ["RAVIMURUGAA CONSTRUCTIONS"])).toBe(true);
+  });
   it("ignores company suffixes", () => {
     expect(summaryBelongsTo("ASIA TECH PVT LTD", ["ASIA TECH"])).toBe(true);
   });
