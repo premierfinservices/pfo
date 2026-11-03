@@ -46,6 +46,17 @@ Written 30 October 2026 for a Claude session (or a person) that has **no memory 
 
 **Pushing from this PC.** Git cannot show a sign-in prompt from Claude's shell. `git -c credential.helper= -c "credential.helper=!gh auth git-credential" push origin main` uses the GitHub CLI login for that one command.
 
+## Added 3 Nov 2026 (read with the checkpoint above)
+
+- **MCM-0027** stays in the MIS and never comes to PFO (`MIS_SYNC_EXCLUDED`), by Tarun's decision.
+- **A summary for another business** now shows a warning on the case, and a wrongly filed document or summary can be retired. A name spaced differently counts as the same business. A file with a summary per filer passes if any filer is a name on the case.
+- **GSTR-1, 2A and 9 files in the GST folder** are no longer taken for a month of GSTR-3B. This was the cause of two GST rows for one month. Cases uploaded before the fix still hold the old rows; on one live case the GSTR-1 files sit under "GSTR-3B <month>" names. They need retiring and re-uploading by a person, not a script.
+- **Status line** beside the stage badge on Update Case (`src/domain/work/status-line.ts`): where the lenders have the file, derived, never moves the stage. **"Mark documents Complete?"** is a suggestion only.
+- **Per-filer switch** on the GST & ITR summary when a file holds one summary per filer. An ITR-only file with per-person blocks and no GST still shows the original text.
+- **MCM go-live** is designed, not run: `Docs/MCM Go-Live Design.md`. Waiting on Tarun (the 8 older cases, the freeze time).
+- **Local OCR** stays parked (`Docs/Local OCR Design.md`).
+- Next migration number is still 0053. The two `AL-` tests in `Backend/api.test.ts` now expect `PF-`.
+
 ## Where things stood on 30 Oct 2026 (history)
 
 | Step | What | State |

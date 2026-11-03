@@ -245,7 +245,7 @@ describe("cases", () => {
     });
 
     expect(created.status).toBe(200);
-    expect(created.body.caseNumber).toMatch(/^AL-\d{4}-\d{5}$/);
+    expect(created.body.caseNumber).toMatch(/^PF-\d{4}-\d{5}$/);
     expect(created.body.stage).toBe("documents_pending");
     expect(created.body.ownerUserId).toBe(session.userId);
     expect(created.body.applicantName).toBe(customer.body.fullName);
@@ -348,7 +348,7 @@ describe("cases", () => {
     expect(created.body.isPractice).toBe(true);
   });
 
-  it("still numbers a normal case AL-YYYY-##### when isPractice is omitted", async () => {
+  it("still numbers a normal case PF-YYYY-##### when isPractice is omitted", async () => {
     const session = await signIn(await createEmployee("manager"));
     const customer = await api("/api/customers", {
       method: "POST",
@@ -363,7 +363,7 @@ describe("cases", () => {
     });
 
     expect(created.status, JSON.stringify(created.body)).toBe(200);
-    expect(created.body.caseNumber).toMatch(/^AL-\d{4}-\d{5}$/);
+    expect(created.body.caseNumber).toMatch(/^PF-\d{4}-\d{5}$/);
     expect(created.body.isPractice).toBe(false);
   });
 
