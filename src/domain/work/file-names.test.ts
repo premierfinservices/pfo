@@ -42,6 +42,15 @@ describe("reading organize's file names", () => {
       expect(classifyCaseFile(name, folder)).toMatchObject({ match: { isMonthlyReturn: true, periodStart: "2025-04-01" } });
     }
     expect(typeOf(classifyCaseFile("GST Certificate Apr 2025.pdf", "GST"))).toBe("gst_certificate");
+  });
+
+  it("does not take a GSTR-1 or other non-3B return in the GST folder for a month of 3B", () => {
+    for (const name of ["GSTR-1 Jan 2026.pdf", "GSTR1 Jan 2026.pdf", "GSTR-9 Mar 2026.pdf", "GSTR 2A Feb 2026.pdf"]) {
+      const kind = classifyCaseFile(name, "GST");
+      expect(kind).toMatchObject({ kind: "document", match: { documentTypeCode: "gst_returns" } });
+      expect((kind as { match: { isMonthlyReturn?: boolean } }).match.isMonthlyReturn).toBeUndefined();
+    }
+    expect(classifyCaseFile("GSTR-3B Jan 2026.pdf", "GST")).toMatchObject({ match: { isMonthlyReturn: true } });
     expect(typeOf(classifyCaseFile("portal download.pdf", "GST"))).toBe("gst_returns");
   });
 

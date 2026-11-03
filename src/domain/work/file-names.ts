@@ -124,7 +124,9 @@ export function classifyCaseFile(fileName: string, folder = ""): FileKind {
     };
   }
   // "Apr 2025.pdf", "GST3B June 25.pdf": a month in the GST folder, or on a 3B.
-  if (/^gst$/i.test(folder.trim()) || /^gst-?\s*3b/i.test(name)) {
+  // A GSTR-1, 2A or 9 in the GST folder is not a month of 3B, whatever month it names.
+  const otherGstr = /^gstr(?!-?\s*3b)/i.test(name);
+  if (!otherGstr && (/^gst$/i.test(folder.trim()) || /^gst-?\s*3b/i.test(name))) {
     const month = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s_-]*(\d{4}|\d{2})\b/i.exec(name);
     if (month && !/certificate|registration/i.test(name)) {
       const year = month[2]!.length === 2 ? 2000 + Number(month[2]) : Number(month[2]);
