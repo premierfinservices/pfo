@@ -28,6 +28,7 @@ import {
 import { nextStepLine, workFor, type WorkEvent } from "@domain/work/rules.js";
 import { belongsToApplicant, classifyCaseFile, monthlyReturnName, type FileMatch } from "@domain/work/file-names.js";
 import { standardFileName } from "@domain/work/standard-names.js";
+import { deriveStatusLine } from "@domain/work/status-line.js";
 import { summaryBelongsTo, summaryBusinessName } from "@domain/work/financial-summary.js";
 import { documentRowLabel, financialYearOf, type PeriodKind } from "@domain/requirements/index.js";
 import {
@@ -680,6 +681,19 @@ export async function caseSummary(client: Queryable, actor: Actor, caseId: strin
     lostReason: row.lost_reason,
     done: done ?? null,
     next: uploadFirst ? `Next: Upload the documents received, below. Then: ${next.replace(/^Next: /, "")}` : next,
+    statusLine: deriveStatusLine({
+      stage: row.stage,
+      isOnHold: row.is_on_hold,
+      applications: applications.map((app) => ({
+        bank: app.bank,
+        status: app.status,
+        sentAt: app.submitted_at,
+        loginDate: app.login_date,
+      })),
+    }),
+    // A suggestion only: document status stays a person's call (ADR-040).
+    suggestDocumentsComplete:
+      open && pending.length === 0 && uploadedRows.length > 0 && row.document_status !== "complete",
     financialSummary: row.financial_summary,
     financialSummaryWarning: await summaryWarning(client, caseId, row.financial_summary),
     uploaded: uploadedRows.map((item) => ({

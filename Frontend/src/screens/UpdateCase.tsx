@@ -72,6 +72,10 @@ interface Summary {
   readonly eligibilityStatus: string;
   readonly done: string | null;
   readonly next: string;
+  /** Where the lenders have the file, worked out from the applications. Null when none holds it. */
+  readonly statusLine: string | null;
+  /** Nothing is pending but documents are not marked Complete. */
+  readonly suggestDocumentsComplete: boolean;
   readonly pending: readonly { id: string; label: string; rejected: boolean }[];
   readonly notNeeded: readonly { id: string; label: string }[];
   readonly uploaded: readonly { requirementId: string; name: string; fileName: string; status: string }[];
@@ -223,6 +227,7 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-display text-xl font-semibold text-ink-900">{summary.customerName}</h2>
           <StageBadge stage={summary.stage} label={CASE_STAGE_LABELS[summary.stage]} />
+          {summary.statusLine && <span className="text-sm text-ink-600">{summary.statusLine}</span>}
           <Badge>{FIRM_SHORT[summary.firm] ?? summary.firm}</Badge>
           {summary.isPractice && <Badge>Practice</Badge>}
           {summary.isOnHold && <Badge tone="warn">On hold</Badge>}
@@ -370,6 +375,19 @@ function CaseTab({
           summary.eligibilityStatus === "eligible" ? " · Eligible" : ""
         }`}
       >
+        {summary.suggestDocumentsComplete && (
+          <p className="mb-2 text-sm text-ink-700">
+            The checklist shows nothing pending. Mark the documents Complete?{" "}
+            <button
+              type="button"
+              className="underline"
+              disabled={pending}
+              onClick={() => void act("documents", { which: "all" })}
+            >
+              Yes, fully received
+            </button>
+          </p>
+        )}
         <div className="flex flex-wrap items-end gap-2">
           <Button disabled={pending} onClick={() => void act("documents", { which: "all" })}>
             Fully received
