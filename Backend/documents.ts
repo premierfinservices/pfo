@@ -817,6 +817,17 @@ export async function downloadDocument(
   }
 
   const object = await getObjectWithContentType(row.file_path);
+
+  if (row.resolved_case_id) {
+    await recordDocumentEvent(client, {
+      actorUserId: actor.userId,
+      documentId,
+      caseId: row.resolved_case_id,
+      eventType: "document.downloaded",
+      payloadAfter: { fileName: row.file_name ?? "document" },
+    });
+  }
+
   return { bytes: object.bytes, contentType: object.contentType, fileName: row.file_name ?? "document" };
 }
 

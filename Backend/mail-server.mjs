@@ -333,11 +333,34 @@ async function readCaptured() {
 // HTTP.
 // ---------------------------------------------------------------------------
 
+function allowedOrigins() {
+  const configured = process.env.PFO_ALLOWED_ORIGINS?.trim();
+  if (configured) {
+    return configured
+      .split(",")
+      .map((origin) => origin.trim().replace(/\/$/, ""))
+      .filter((origin) => origin.length > 0);
+  }
+
+  const webPort = Number(process.env.PFO_WEB_PORT ?? 4300);
+  return [
+    `http://localhost:${webPort}`,
+    `http://127.0.0.1:${webPort}`,
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+  ];
+}
+
+const ALLOWED_ORIGINS = allowedOrigins();
+
+export function isOriginAllowed(origin) {
+  if (origin === undefined) return false;
+  return ALLOWED_ORIGINS.includes(origin.replace(/\/$/, ""));
+}
+
 function json(res, statusCode, body) {
-  res.writeHead(statusCode, {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  });
+  res.setHeader("Content-Type", "application/json");
+  res.writeHead(statusCode);
   res.end(JSON.stringify(body));
 }
 
@@ -453,11 +476,22 @@ async function handleSend(req, res) {
 }
 
 const server = createServer((req, res) => {
+  const origin = req.headers.origin;
+  res.setHeader("Vary", "Origin");
+  if (isOriginAllowed(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
   if (req.method === "OPTIONS") {
+    if (!isOriginAllowed(origin)) {
+      res.writeHead(403);
+      res.end();
+      return;
+    }
     res.writeHead(204, {
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": origin,
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     });

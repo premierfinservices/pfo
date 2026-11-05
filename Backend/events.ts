@@ -341,7 +341,11 @@ export async function recordCasePropertyEvent(client: Queryable, event: CaseProp
 // Documents
 // ---------------------------------------------------------------------------
 
-export type DocumentEventType = "document.uploaded" | "document.verified" | "document.rejected";
+export type DocumentEventType =
+  | "document.uploaded"
+  | "document.verified"
+  | "document.rejected"
+  | "document.downloaded";
 
 export interface DocumentEvent {
   readonly actorUserId: string;
