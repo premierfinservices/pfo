@@ -19,17 +19,16 @@ Decisions: ADR-047 to ADR-050. Migrations run through 0054; the next number is 0
 | What | State |
 |---|---|
 | **MIS sync fixed** (ADR-047). From 3 Nov 14:30 to 6 Nov every run failed, because MCM-0036 has three real disbursements and BR-022 allowed one | **Live** since 6 Nov 15:05. Migration 0053 applied. Every MIS case is in scope now, Active and Archived, any date (40 cases; MCM-0027 still excluded). Each case is its own savepoint. Every run is recorded in `mis_sync_run`. Exit codes: 0 clean, 2 kept with issues, 1 nothing kept |
-| Sync-failure banner, Update Case as the only case screen (ADR-048), documents the MIS way with the co-applicant question (ADR-049), prototype store removed and one home screen (ADR-050) | **On branch `mis-simplify`, not yet on `main` or live.** Merge, migrate, build and restart together (below). The API runs from the main folder's source, so merging early could put new API code in front of the old screens if anything restarts it |
+| Sync-failure banner, Update Case as the only case screen (ADR-048), documents the MIS way with the co-applicant question (ADR-049), prototype store removed and one home screen (ADR-050) | **Live** since 6 Nov 17:25. Migration 0054 applied, branch `mis-simplify` merged into `main`, built, and server restarted. All 4 services healthy |
 
-**To make the rest live** (Unfold PC, elevated PowerShell):
-1. `npm run backup` and confirm "dump checksum matches".
-2. Stop the `PFO Server` task.
-3. `git fetch origin` then `git merge --ff-only origin/mis-simplify`.
-4. `npm run migrate`. This applies 0054 (one added column, rehearsed on 6 Nov).
-5. `npm run build`.
-6. Start the `PFO Server` task.
-
-Then sign in and open a case. Do not run the build before the restart: the new screens call API routes the running server does not have yet.
+**Deployed 6 November 2026 at 17:25** (Unfold PC, elevated):
+1. `npm run backup`: verified backup `2026-11-06_11-53-00` (dump checksum matches, offsite copy done).
+2. Stopped `PFO Server` task and terminated supervisor.
+3. Fast-forward merged `origin/mis-simplify` into `main`.
+4. `npm run migrate`: applied `0054_case_co_applicant_answer.sql`.
+5. `npm run build`: fresh production bundle in `Frontend/dist`.
+6. Started `PFO Server` task.
+7. Verified `/api/health` (ok), `https://127.0.0.1:4300/health` (200), and `npm run mis:sync` dry-run ("Figures match the MIS.").
 
 **Open, for Tarun**
 - MCM-0023 is skipped on every run because telecaller EMP-004 has no PFO login. Either create the login or exclude the case.
