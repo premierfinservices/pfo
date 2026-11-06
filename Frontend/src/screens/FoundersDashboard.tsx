@@ -59,7 +59,7 @@ import type {
 import { when } from "../lib.js";
 import { useSession } from "../session.js";
 import { Badge, Button, Card, Empty, StageBadge, TABLE_ROW, Table, Td, Th, cx } from "../ui/index.js";
-import { SUBMISSION_STATUS_LABELS, statusTone } from "./BanksTab.js";
+import { SUBMISSION_STATUS_LABELS, statusTone } from "./submission-status.js";
 
 // ---------------------------------------------------------------------------
 // Sections
@@ -537,7 +537,7 @@ function CaseMiniRow({
 }): ReactNode {
   return (
     <li className="py-2.5 first:pt-0 last:pb-0">
-      <Link to={`/cases/${loanCase.id}`} className="flex flex-wrap items-center gap-2">
+      <Link to={`/update-case?case=${loanCase.id}`} className="flex flex-wrap items-center gap-2">
         <span className="tnum text-sm font-medium text-ink-900 hover:underline">{loanCase.caseNumber}</span>
         <span className="text-sm text-ink-700">{loanCase.applicantName ?? "No applicant"}</span>
         <span className="ml-auto flex items-center gap-2">
@@ -840,7 +840,7 @@ function OverviewSection({
               {events.slice(0, 6).map((event) => (
                 <li key={event.id} className="py-2 first:pt-0 last:pb-0">
                   <Link
-                    to={`/cases/${event.caseId}`}
+                    to={`/update-case?case=${event.caseId}`}
                     className="-mx-2 block rounded-md px-2 py-0.5 transition-colors hover:bg-ink-50"
                   >
                     <p className="text-sm text-ink-700">
@@ -1230,7 +1230,7 @@ function BanksSection({
                   <div className="flex flex-wrap items-center gap-2">
                     {loanCase ? (
                       <Link
-                        to={`/cases/${loanCase.id}`}
+                        to={`/update-case?case=${loanCase.id}`}
                         className="tnum text-sm font-medium text-ink-900 hover:underline"
                       >
                         {loanCase.caseNumber}
@@ -1293,7 +1293,7 @@ function ActivitySection({
             <li key={event.id} className="py-2.5 first:pt-0 last:pb-0">
               <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  to={`/cases/${event.caseId}`}
+                  to={`/update-case?case=${event.caseId}`}
                   className="tnum text-sm font-medium text-ink-900 hover:underline"
                 >
                   {event.caseNumber}

@@ -146,7 +146,8 @@ test.describe("customers and cases are read and written through the API", () => 
     await expect(page.getByRole("link", { name: number })).toBeVisible();
   });
 
-  test("edits a case and the change persists across a reload", async ({ page }) => {
+  // Suspended 6 Nov 2026 (ADR-048): drives the retired Case Detail screen. Rewrite for Update Case.
+  test.skip("edits a case and the change persists across a reload", async ({ page }) => {
     await signIn(page, TELECALLER);
     await openCase(page, unique("Editable"));
 
@@ -158,7 +159,8 @@ test.describe("customers and cases are read and written through the API", () => 
     await expect(page.locator('input[name="requestedAmount"]')).toHaveValue("7250000");
   });
 
-  test("moves a case through the stages the domain allows, and is refused one it does not", async ({
+  // Suspended 6 Nov 2026 (ADR-048): drives the retired Case Detail screen. Rewrite for Update Case.
+  test.skip("moves a case through the stages the domain allows, and is refused one it does not", async ({
     page,
   }) => {
     await signIn(page, TELECALLER);
@@ -232,7 +234,8 @@ test.describe("customers and cases are read and written through the API", () => 
 // ---------------------------------------------------------------------------
 
 test.describe("one authoritative database", () => {
-  test("two independent sessions see the same case", async ({ browser }) => {
+  // Suspended 6 Nov 2026 (ADR-048): drives the retired Case Detail screen. Rewrite for Update Case.
+  test.skip("two independent sessions see the same case", async ({ browser }) => {
     const first = await browser.newContext();
     const second = await browser.newContext();
     const telecallerPage = await first.newPage();
@@ -265,7 +268,8 @@ test.describe("one authoritative database", () => {
     }
   });
 
-  test("a Telecaller cannot reach a colleague's case by typing its URL", async ({ browser }) => {
+  // Suspended 6 Nov 2026 (ADR-048): drives the retired Case Detail screen. Rewrite for Update Case.
+  test.skip("a Telecaller cannot reach a colleague's case by typing its URL", async ({ browser }) => {
     const owning = await browser.newContext();
     const nosy = await browser.newContext();
     const ownerPage = await owning.newPage();
@@ -325,7 +329,8 @@ test.describe("one authoritative database", () => {
  * the real server; none should ever show the placeholder again.
  */
 test.describe("all four case tabs are live on PostgreSQL", () => {
-  test("Overview, Documents, Banks and Timeline all render real content, and none says not yet migrated", async ({
+  // Suspended 6 Nov 2026 (ADR-048): drives the retired Case Detail screen. Rewrite for Update Case.
+  test.skip("Overview, Documents, Banks and Timeline all render real content, and none says not yet migrated", async ({
     page,
   }) => {
     await signIn(page, TELECALLER);

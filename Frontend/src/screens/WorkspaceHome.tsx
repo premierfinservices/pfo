@@ -111,7 +111,7 @@ function CaseRow({ loanCase }: { loanCase: ApiCase }): ReactNode {
 
   return (
     <li className="py-2.5 first:pt-0 last:pb-0">
-      <Link to={`/cases/${loanCase.id}`} className="flex flex-wrap items-center gap-2">
+      <Link to={`/update-case?case=${loanCase.id}`} className="flex flex-wrap items-center gap-2">
         <span className="tnum shrink-0 text-sm font-medium hover:underline">{loanCase.caseNumber}</span>
         <StageBadge stage={loanCase.stage} label={CASE_STAGE_LABELS[loanCase.stage]} />
         <span className="min-w-0 truncate text-sm text-ink-700">

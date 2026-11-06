@@ -1,9 +1,11 @@
 /**
  * Update Case: the main working screen, from the MIS (ADR-040).
  *
- * Pick the customer, then three tabs: Case, Send to lenders, Applications. The
- * line under the header always says what comes next, in plain text and never as
- * a popup. It comes from the same tasks as the work queue, so the two agree.
+ * Pick the customer, then the tabs: Case, Send to lenders, Applications, GST &
+ * ITR, Timeline. The line under the header always says what comes next, in plain
+ * text and never as a popup. It comes from the same tasks as the work queue, so
+ * the two agree. This is the one screen a case is worked on (ADR-048): every list,
+ * search result and report opens it.
  */
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -14,10 +16,13 @@ import { FIRMS, FIRM_SHORT } from "@domain/work/intake.js";
 import { shortDate } from "@domain/work/rules.js";
 
 import { api, apiUpload } from "../api/client.js";
+import { useUsers } from "../api/catalogue.js";
 import { useApiQuery, useMutation } from "../api/hooks.js";
-import type { ApiPreparedPackage, ApiSendResult, ApiSendableDocument } from "../api/types.js";
+import type { ApiPreparedPackage, ApiSendResult, ApiSendableDocument, ApiTimelineEntry } from "../api/types.js";
+import { exactly } from "../lib.js";
 import { useSession } from "../session.js";
-import { Badge, Button, Card, Empty, Field, Input, Select, StageBadge, cx } from "../ui/index.js";
+import { ViewDocumentDialog } from "../ui/document-preview.js";
+import { Badge, Button, Card, Empty, Field, Input, Modal, Select, StageBadge, cx } from "../ui/index.js";
 import { dateFromToday, type WorkLists } from "./LogCase.js";
 import { FinancialSummary, FinancialsOrEmpty, SummarySkeleton } from "./FinancialSummary.js";
 import { SentDocuments } from "./SentDocuments.js";
@@ -57,7 +62,11 @@ interface Summary {
   readonly caseNumber: string;
   readonly stage: CaseStage;
   readonly customerName: string | null;
+  readonly applicantPersonId: string | null;
+  /** The lead date, else the day the case was logged. */
+  readonly openedOn: string;
   readonly ownerName: string | null;
+  readonly ownerUserId: string;
   readonly amount: number | null;
   readonly amountInWords: string;
   readonly loanType: string | null;
@@ -78,13 +87,21 @@ interface Summary {
   readonly suggestDocumentsComplete: boolean;
   readonly pending: readonly { id: string; label: string; rejected: boolean }[];
   readonly notNeeded: readonly { id: string; label: string }[];
-  readonly uploaded: readonly { requirementId: string; name: string; fileName: string; status: string }[];
+  readonly uploaded: readonly Uploaded[];
   readonly financialSummary: string | null;
   /** Set when the summary names a business that is not on this case. */
   readonly financialSummaryWarning: string | null;
   readonly applications: readonly Application[];
   /** Only on the answer to a send: the applications it just made. */
   readonly created?: readonly CreatedApplication[];
+}
+
+interface Uploaded {
+  readonly requirementId: string;
+  readonly documentId: string;
+  readonly name: string;
+  readonly fileName: string;
+  readonly status: string;
 }
 
 interface CreatedApplication {
@@ -119,8 +136,13 @@ export function UpdateCase(): ReactNode {
   const caseId = params.get("case");
   const [search, setSearch] = useState("");
   const [firm, setFirm] = useState("all");
+  const [ended, setEnded] = useState(false);
   const list = useApiQuery<readonly PickRow[]>(
-    `/work/cases?${[search ? `q=${encodeURIComponent(search)}` : "", firm !== "all" ? `firm=${firm}` : ""]
+    `/work/cases?${[
+      search ? `q=${encodeURIComponent(search)}` : "",
+      firm !== "all" ? `firm=${firm}` : "",
+      ended ? "ended=1" : "",
+    ]
       .filter(Boolean)
       .join("&")}`,
   );
@@ -143,12 +165,16 @@ export function UpdateCase(): ReactNode {
             </option>
           ))}
         </Select>
+        <label className="flex items-center gap-2 text-sm text-ink-700">
+          <input type="checkbox" checked={ended} onChange={(event) => setEnded(event.target.checked)} />
+          Include closed and lost cases
+        </label>
         {list.loading ? (
           <Empty>Loading…</Empty>
         ) : list.error ? (
           <Empty>{list.error.message}</Empty>
         ) : (list.data ?? []).length === 0 ? (
-          <Empty>No open cases found.</Empty>
+          <Empty>{ended ? "No cases found." : "No open cases found."}</Empty>
         ) : (
           <ul className="max-h-[75vh] divide-y divide-ink-100 overflow-y-auto rounded-lg bg-white ring-1 ring-ink-150">
             {(list.data ?? []).map((row) => {
@@ -190,14 +216,16 @@ export function UpdateCase(): ReactNode {
   );
 }
 
-type Tab = "case" | "send" | "applications" | "financials";
+type Tab = "case" | "send" | "applications" | "financials" | "timeline";
 
 function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => void }): ReactNode {
   const loaded = useApiQuery<Summary>(`/work/cases/${caseId}`);
   const lists = useApiQuery<WorkLists>("/work/lists");
   const [latest, setLatest] = useState<Summary | null>(null);
   const [tab, setTab] = useState<Tab>("case");
+  const [reassigning, setReassigning] = useState(false);
   const mutation = useMutation();
+  const session = useSession();
 
   if (loaded.loading || lists.loading) return <SummarySkeleton />;
   const summary = latest ?? loaded.data;
@@ -233,16 +261,30 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
           <Badge>{FIRM_SHORT[summary.firm] ?? summary.firm}</Badge>
           {summary.isPractice && <Badge>Practice</Badge>}
           {summary.isOnHold && <Badge tone="warn">On hold</Badge>}
-          <Link to={`/cases/${summary.id}`} className="ml-auto text-xs text-ink-500 hover:underline">
-            Full history and documents
-          </Link>
+          <span className="ml-auto flex items-center gap-3 text-xs text-ink-500">
+            {summary.applicantPersonId && (
+              <Link to={`/people/${summary.applicantPersonId}`} className="hover:underline">
+                Customer profile
+              </Link>
+            )}
+            {!summary.misManaged && session.canActOnCase(summary.ownerUserId, "case.assign") && (
+              <button type="button" className="hover:underline" onClick={() => setReassigning(true)}>
+                Reassign
+              </button>
+            )}
+          </span>
         </div>
         <p className="tnum mt-1 text-sm text-ink-500">
           {summary.caseNumber} · {summary.loanType}
           {summary.loanVariant ? ` (${summary.loanVariant})` : ""} · {summary.place}
-          {summary.amountInWords ? ` · ${summary.amountInWords}` : ""} · {summary.ownerName}
+          {summary.amountInWords ? ` · ${summary.amountInWords}` : ""} · {summary.ownerName} · opened{" "}
+          {shortDate(summary.openedOn)}
         </p>
       </div>
+
+      {reassigning && (
+        <ReassignModal summary={summary} onClose={() => setReassigning(false)} onDone={() => void refresh()} />
+      )}
 
       <div className="rounded-md bg-brand-50 px-3 py-2 text-sm text-ink-900 ring-1 ring-brand-200" role="status">
         {summary.done && <span className="text-ink-600">{summary.done} </span>}
@@ -266,6 +308,7 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
             ["send", "Send to lenders"],
             ["applications", `Applications (${summary.applications.length})`],
             ["financials", "GST & ITR"],
+            ["timeline", "Timeline"],
           ] as const
         ).map(([value, label]) => (
           <button
@@ -293,7 +336,77 @@ function CasePanel({ caseId, onChanged }: { caseId: string; onChanged: () => voi
           <FinancialsOrEmpty text={summary.financialSummary} />
         </>
       )}
+      {tab === "timeline" && <Timeline caseId={summary.id} />}
     </div>
+  );
+}
+
+/** Managers hand a case to someone else (`case.assign`), as on the MIS's Edit a Case. */
+function ReassignModal({ summary, onClose, onDone }: { summary: Summary; onClose: () => void; onDone: () => void }): ReactNode {
+  const mutation = useMutation();
+  const users = useUsers();
+  const [ownerUserId, setOwnerUserId] = useState(summary.ownerUserId);
+  return (
+    <Modal open title="Reassign this case" onClose={onClose}>
+      <div className="space-y-3">
+        <Field label="Hand it to" hint="Only active employees.">
+          <Select value={ownerUserId} onChange={(event) => setOwnerUserId(event.target.value)}>
+            {users.activeUsers.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.fullName}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        {mutation.error && <p className="text-sm text-red-700">{mutation.error}</p>}
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            disabled={mutation.pending || ownerUserId === summary.ownerUserId}
+            onClick={async () => {
+              const result = await mutation.run(() =>
+                api(`/cases/${summary.id}/owner`, { method: "PUT", body: { ownerUserId } }),
+              );
+              if (result) {
+                onDone();
+                onClose();
+              }
+            }}
+          >
+            Reassign
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/** Everything that happened on the case, in order, from the event log. */
+function Timeline({ caseId }: { caseId: string }): ReactNode {
+  const query = useApiQuery<readonly ApiTimelineEntry[]>(`/cases/${caseId}/events`);
+  if (query.loading) return <Empty>Loading timeline…</Empty>;
+  if (query.error || !query.data) return <Empty>{query.error?.message ?? "Could not load this case's timeline."}</Empty>;
+  if (query.data.length === 0) return <Empty>Nothing recorded yet.</Empty>;
+  return (
+    <Card title="Timeline" subtitle="Everything that happened, in order.">
+      <ol className="space-y-4">
+        {query.data.map((entry) => (
+          <li key={entry.id} className="border-l-2 border-ink-100 py-0.5 pl-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-sm font-medium text-ink-900">{entry.label}</p>
+              <span className="shrink-0 text-xs text-ink-500">{exactly(entry.occurredAt)}</span>
+            </div>
+            {entry.detail && <p className="text-sm text-ink-700">{entry.detail}</p>}
+            <p className="mt-0.5 text-xs text-ink-500">
+              {entry.actorKind === "system" ? "System" : (entry.actorName ?? "Unknown")}
+            </p>
+          </li>
+        ))}
+      </ol>
+    </Card>
   );
 }
 
@@ -329,15 +442,7 @@ function CaseTab({
   const [reason, setReason] = useState<string>(LOST_REASONS[0]);
   const [note, setNote] = useState("");
 
-  if (closed) {
-    return (
-      <Card>
-        <Link to={`/cases/${summary.id}`} className="text-sm underline">
-          Open the case to reopen it
-        </Link>
-      </Card>
-    );
-  }
+  if (closed) return <ClosedCase summary={summary} refresh={refresh} />;
 
   const asking =
     summary.eligibilityStatus === "unanswered" &&
@@ -449,6 +554,35 @@ function CaseTab({
   );
 }
 
+/** A closed case is finished. A lost one can be reopened by whoever may (`case.reopen`). */
+function ClosedCase({ summary, refresh }: { summary: Summary; refresh: () => Promise<void> }): ReactNode {
+  const session = useSession();
+  const mutation = useMutation();
+  const mayReopen =
+    summary.stage === "lost" && !summary.misManaged && session.canActOnCase(summary.ownerUserId, "case.reopen");
+  return (
+    <Card>
+      <p className="text-sm text-ink-700">
+        {summary.stage === "lost" ? "This case was closed without a loan." : "This case is complete."} Its documents and
+        history stay on the other tabs.
+      </p>
+      {mayReopen && (
+        <Button
+          className="mt-3"
+          disabled={mutation.pending}
+          onClick={async () => {
+            const result = await mutation.run(() => api(`/cases/${summary.id}/reopen`, { method: "POST" }));
+            if (result) await refresh();
+          }}
+        >
+          Reopen the case
+        </Button>
+      )}
+      {mutation.error && <p className="mt-2 text-sm text-red-700">{mutation.error}</p>}
+    </Card>
+  );
+}
+
 /** What the server says became of one file; an archive carries the answers for the files inside it. */
 interface UploadAnswer {
   readonly fileName: string;
@@ -486,6 +620,7 @@ function UploadCard({
   } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [removing, setRemoving] = useState<{ id: string; reason: string } | null>(null);
+  const [viewing, setViewing] = useState<Uploaded | null>(null);
 
   const send = async (files: readonly File[]): Promise<void> => {
     const result = {
@@ -627,9 +762,6 @@ function UploadCard({
                   <li key={`${line}-${index}`}>{line}</li>
                 ))}
               </ul>
-              <Link to={`/cases/${summary.id}?tab=documents`} className="mt-1 inline-block underline">
-                Open the documents
-              </Link>
             </div>
           )}
           {outcome.others.length > 0 && (
@@ -655,19 +787,20 @@ function UploadCard({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>
                     {item.fileName}
-                    <span className="text-ink-400">
-                      {" "}
-                      · {item.name}
-                      {item.status === "verified" ? " · verified" : ""}
-                    </span>
+                    <span className="text-ink-400"> · {item.name}</span>
                   </span>
-                  <Button
-                    variant="ghost"
-                    disabled={pending}
-                    onClick={() => setRemoving({ id: item.requirementId, reason: "" })}
-                  >
-                    Remove
-                  </Button>
+                  <span className="flex gap-1">
+                    <Button variant="ghost" onClick={() => setViewing(item)}>
+                      View
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      disabled={pending}
+                      onClick={() => setRemoving({ id: item.requirementId, reason: "" })}
+                    >
+                      Remove
+                    </Button>
+                  </span>
                 </div>
                 {removing?.id === item.requirementId && (
                   <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -695,10 +828,15 @@ function UploadCard({
               </li>
             ))}
           </ul>
-          <Link to={`/cases/${summary.id}?tab=documents`} className="mt-1 inline-block underline">
-            Open the documents
-          </Link>
         </details>
+      )}
+      {viewing && (
+        <ViewDocumentDialog
+          title={viewing.name}
+          documentId={viewing.documentId}
+          fileName={viewing.fileName}
+          onClose={() => setViewing(null)}
+        />
       )}
     </Card>
   );

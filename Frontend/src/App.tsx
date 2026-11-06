@@ -6,6 +6,7 @@ import {
   Route,
   Routes,
   useNavigate,
+  useParams,
 } from "react-router-dom";
 
 import { ROLE_LABELS, type Role } from "@domain/permissions/index.js";
@@ -13,7 +14,6 @@ import { ROLE_LABELS, type Role } from "@domain/permissions/index.js";
 import { api } from "./api/client.js";
 import type { ApiSearchHit } from "./api/types.js";
 import { Bankers } from "./screens/Bankers.js";
-import { CaseDetail } from "./screens/CaseDetail.js";
 import { CaseList } from "./screens/CaseList.js";
 import { ChangePassword } from "./screens/ChangePassword.js";
 import { LenderCatalogue } from "./screens/LenderCatalogue.js";
@@ -47,7 +47,7 @@ export function App(): ReactNode {
           <Route path="/cases/new" element={<LogCase />} />
           <Route path="/update-case" element={<UpdateCase />} />
           <Route path="/reports" element={<Reports />} />
-          <Route path="/cases/:caseId" element={<CaseDetail />} />
+          <Route path="/cases/:caseId" element={<OldCaseLink />} />
           <Route path="/people/:personId" element={<PersonProfile />} />
           <Route path="/admin/lending-products" element={<LendingProducts />} />
           <Route path="/admin/lenders" element={<LenderCatalogue />} />
@@ -60,6 +60,12 @@ export function App(): ReactNode {
       </main>
     </div>
   );
+}
+
+/** Old bookmarks to the retired Case Detail screen open the case on Update Case (ADR-048). */
+function OldCaseLink(): ReactNode {
+  const { caseId = "" } = useParams();
+  return <Navigate to={`/update-case?case=${encodeURIComponent(caseId)}`} replace />;
 }
 
 // ---------------------------------------------------------------------------
@@ -243,7 +249,7 @@ function GlobalSearch(): ReactNode {
   const go = (hit: ApiSearchHit): void => {
     setOpen(false);
     setQuery("");
-    if (hit.kind === "case") navigate(`/cases/${hit.id}`);
+    if (hit.kind === "case") navigate(`/update-case?case=${hit.id}`);
     else navigate(`/people/${hit.id}`);
   };
 

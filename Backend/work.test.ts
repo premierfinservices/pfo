@@ -304,6 +304,15 @@ describe("Log a Case", () => {
     expect(bad.status).toBe(400);
   });
 
+  it("lists closed and lost cases only when asked, as the MIS's Edit a Case does (ADR-048)", async () => {
+    const telecaller = await signInAs("telecaller");
+    const logged = await logCase(telecaller);
+    await ok(telecaller, logged.id, "drop", { reason: "not_interested" });
+    const ids = (r: any) => r.body.map((c: any) => c.id);
+    expect(ids(await api("/api/work/cases", { token: telecaller.token }))).not.toContain(logged.id);
+    expect(ids(await api("/api/work/cases?ended=1", { token: telecaller.token }))).toContain(logged.id);
+  });
+
   it("assigns the telecaller chosen, not the person typing", async () => {
     const manager = await signInAs("manager");
     const telecaller = await signInAs("telecaller");
@@ -670,6 +679,11 @@ describe("uploading a case folder", () => {
     const before = await summaryOf(telecaller, logged.id);
     expect(before.uploaded).toHaveLength(1);
     const requirementId = before.uploaded[0].requirementId;
+    // Update Case opens the file from here (ADR-048).
+    const download = await fetch(`${baseUrl}/api/documents/${before.uploaded[0].documentId}/download`, {
+      headers: { authorization: `Bearer ${telecaller.token}` },
+    });
+    expect(download.status).toBe(200);
     const path = `requirements/${requirementId}/retire`;
 
     expect((await act(telecaller, logged.id, path, { reason: "wrong customer" })).status).toBe(403);

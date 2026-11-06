@@ -81,14 +81,17 @@ interface CaseRow {
   mis_case_notes: string | null;
   is_practice: boolean;
   applicant_name: string | null;
+  applicant_person_id: string | null;
   owner_name: string | null;
+  opened_on: string;
 }
 
 const CASE_SELECT = `
   select c.id, c.case_number, c.stage::text, c.owner_user_id, c.is_on_hold, c.is_invoice_raised,
          c.stage_before_lost::text, c.financial_summary, c.document_status, c.eligibility_status, c.lost_reason::text,
          c.requested_amount::text, c.loan_type, c.loan_variant, c.place, c.firm, c.mis_managed, c.mis_case_notes, c.is_practice,
-         p.full_name as applicant_name, op.full_name as owner_name
+         p.full_name as applicant_name, p.id as applicant_person_id, op.full_name as owner_name,
+         coalesce(c.lead_received_on, (c.created_at at time zone 'Asia/Kolkata')::date)::text as opened_on
     from loan_case c
     left join case_party cp on cp.case_id = c.id and cp.is_primary and cp.removed_at is null
     left join person p on p.id = cp.person_id
@@ -492,7 +495,14 @@ export function firmFilter(params: URLSearchParams): string | null {
   return wanted;
 }
 
-export async function pickList(client: Queryable, actor: Actor, q: string | null, firm: string | null = null) {
+/** `ended` adds lost and closed cases, as the MIS's Edit a Case does with its tick box. */
+export async function pickList(
+  client: Queryable,
+  actor: Actor,
+  q: string | null,
+  firm: string | null = null,
+  ended = false,
+) {
   const everyone = can(actor, "case.read", "all");
   if (!everyone && !can(actor, "case.read", "own")) {
     throw new ApiError(403, refusalMessage("case.read"));
@@ -521,7 +531,7 @@ export async function pickList(client: Queryable, actor: Actor, q: string | null
           where t.case_id = c.id and t.completed_at is null
           order by t.due_at nulls last limit 1
        ) n on true
-      where c.stage not in ('lost', 'closed')
+      where ($6 or c.stage not in ('lost', 'closed'))
         and ($1 or c.owner_user_id = $2)
         and ($5::text is null or c.firm = $5)
         and ($3::text is null
@@ -533,7 +543,7 @@ export async function pickList(client: Queryable, actor: Actor, q: string | null
                       and i.value_normalised like '%' || $4 || '%')))
       order by n.due_at nulls last, c.created_at desc
       limit 100`,
-    [everyone, actor.userId, term, digits, firm],
+    [everyone, actor.userId, term, digits, firm, ended],
   );
   return rows.map((row) => ({
     id: row.id,
@@ -648,8 +658,14 @@ export async function caseSummary(client: Queryable, actor: Actor, caseId: strin
     [caseId],
   );
 
-  const { rows: uploadedRows } = await client.query<{ id: string; name: string; file_name: string; status: string }>(
-    `select r.id, r.status::text, coalesce(r.custom_name, dt.name) as name, d.file_name
+  const { rows: uploadedRows } = await client.query<{
+    id: string;
+    name: string;
+    file_name: string;
+    status: string;
+    document_id: string;
+  }>(
+    `select r.id, r.status::text, coalesce(r.custom_name, dt.name) as name, d.file_name, d.id as document_id
        from document_requirement r
        join document_type dt on dt.id = r.document_type_id
        join document d on d.id = r.uploaded_document_id
@@ -669,6 +685,8 @@ export async function caseSummary(client: Queryable, actor: Actor, caseId: strin
     caseNumber: row.case_number,
     stage: row.stage,
     customerName: row.applicant_name,
+    applicantPersonId: row.applicant_person_id,
+    openedOn: row.opened_on,
     ownerName: row.owner_name,
     ownerUserId: row.owner_user_id,
     amount: row.requested_amount === null ? null : Number(row.requested_amount),
@@ -703,6 +721,7 @@ export async function caseSummary(client: Queryable, actor: Actor, caseId: strin
     financialSummaryWarning: await summaryWarning(client, caseId, row.financial_summary),
     uploaded: uploadedRows.map((item) => ({
       requirementId: item.id,
+      documentId: item.document_id,
       name: item.name,
       fileName: item.file_name,
       status: item.status,

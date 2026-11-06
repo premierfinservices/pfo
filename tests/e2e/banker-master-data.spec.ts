@@ -78,7 +78,8 @@ test.describe("the standalone Bankers screen — case-independent master data", 
     await expect(page.getByRole("button", { name: "Add banker" })).toBeVisible();
   });
 
-  test(
+  // Suspended 6 Nov 2026 (ADR-048): drives the retired Case Detail screen. Rewrite for Update Case.
+  test.skip(
     "a banker created here shows up in a case's Add bank picker, and the same banker is " +
       "reusable on a second case without recreating it",
     async ({ page }) => {
@@ -138,7 +139,8 @@ test.describe("the standalone Bankers screen — case-independent master data", 
     },
   );
 
-  test("changing the bank resets the branch and banker, and an empty branch says so plainly", async ({ page }) => {
+  // Suspended 6 Nov 2026 (ADR-048): drives the retired Case Detail screen. Rewrite for Update Case.
+  test.skip("changing the bank resets the branch and banker, and an empty branch says so plainly", async ({ page }) => {
     await signIn(page, MANAGER);
 
     await openCase(page, unique("E2E Applicant"));

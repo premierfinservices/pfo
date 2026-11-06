@@ -207,7 +207,7 @@ export function CaseList(): ReactNode {
               {filtered.map((loanCase) => (
                 <tr key={loanCase.id} className={cx(TABLE_ROW, loanCase.isOnHold && "opacity-70")}>
                   <Td>
-                    <Link to={`/cases/${loanCase.id}`} className="tnum font-medium text-ink-900 hover:underline">
+                    <Link to={`/update-case?case=${loanCase.id}`} className="tnum font-medium text-ink-900 hover:underline">
                       {loanCase.caseNumber}
                     </Link>
                     <span className="ml-2">

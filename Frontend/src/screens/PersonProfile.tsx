@@ -142,7 +142,7 @@ export function PersonProfile(): ReactNode {
                 {theirCases.map((loanCase) => (
                   <li key={loanCase.id} className="py-2.5 first:pt-0 last:pb-0">
                     <Link
-                      to={`/cases/${loanCase.id}`}
+                      to={`/update-case?case=${loanCase.id}`}
                       className="flex flex-wrap items-center gap-2 hover:underline"
                     >
                       <span className="tnum text-sm font-medium">{loanCase.caseNumber}</span>

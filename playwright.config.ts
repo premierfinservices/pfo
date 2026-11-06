@@ -75,6 +75,12 @@ export default defineConfig({
       PFO_MAIL_CAPTURE_DIR: MAIL_CAPTURE_DIR,
       PFO_VITE_PORT: String(E2E_VITE_PORT),
       PFO_API_PORT: String(E2E_API_PORT),
+      // dev:e2e starts no storage or mail server. Without these the API falls back
+      // to the office's own 4319/4320 and would write uploads into C:\PFO\Data and
+      // send real email (found 6 Nov 2026). Nothing listens on these ports, so an
+      // upload or send in a test fails instead of touching the office.
+      PFO_STORAGE_SERVER_URL: "http://127.0.0.1:4339",
+      PFO_MAIL_SERVER_URL: "http://127.0.0.1:4340",
       PFO_DB_NAME: E2E_DB,
       // The belt to the above braces: the API process aborts at startup if
       // this and PFO_DB_NAME ever disagree.

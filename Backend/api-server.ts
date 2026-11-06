@@ -984,7 +984,7 @@ async function route(
   }
   if (method === "GET" && path === "/api/work/cases") {
     const params = new URL(req.url ?? "/", "http://localhost").searchParams;
-    return await pickList(client, requireActor(actor), params.get("q"), firmFilter(params));
+    return await pickList(client, requireActor(actor), params.get("q"), firmFilter(params), params.get("ended") === "1");
   }
   const workCaseMatch = new RegExp(`^/api/work/cases/(${UUID})$`).exec(path);
   if (workCaseMatch && method === "GET") {

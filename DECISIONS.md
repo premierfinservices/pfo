@@ -1919,3 +1919,28 @@ content type recorded at upload would be better and is a small future change.
 7. **Exit codes.** 0 means clean. 2 means kept, with cases needing a look. 1 means nothing was kept.
 
 **Not done here.** The BR-025 cascade (accepting one offer withdraws every other live application) stays in the Banks-tab code for now. The sync never applied it, and the Banks tab is retired by the single case screen work that follows.
+
+## ADR-048 — One case screen: Update Case
+
+**Status:** Accepted. Tarun Ramesh, 6 November 2026.
+
+**Why.** PFO had two complete screens for one case, built on two models. Update Case follows the MIS (ADR-040). Case Detail, with its Overview / Documents / Banks / Timeline tabs, came from the first lifecycle. Every list, search result and dashboard opened Case Detail, and the nav opened Update Case. So staff moved between the two on every case, and uploading, marking a document not needed, sending, changing a lender's status and moving the stage could each be done two ways. The MIS has one form for this, and Tarun wants PFO to match.
+
+**Decision.** Update Case is the only screen a case is worked on.
+- It gains what only Case Detail had:
+  - viewing or downloading each document (`Frontend/src/ui/document-preview.tsx`, moved as it was);
+  - a Timeline tab;
+  - the customer-profile link and the opened date in the header;
+  - Reassign (`case.assign`) and Reopen a lost case (`case.reopen`), as on the MIS's Edit a Case.
+- The case picker has an "Include closed and lost cases" tick box, so ended cases stay reachable.
+- Every link that opened `/cases/:id` now opens `/update-case?case=`. The old address redirects, so bookmarks still work.
+- Deleted: `CaseDetail.tsx`, `BanksTab.tsx` (its two status helpers moved to `screens/submission-status.ts`), `NewCase.tsx` (already unreachable) and `case-tabs.ts`.
+- Gone with Case Detail:
+  - the manual Move stage, Hold and Waive controls;
+  - per-row document verification;
+  - guarantor and property panels;
+  - the Banks tab's queries, offers and offer-accept, and with it the BR-025 "accepting one offer withdraws the rest" cascade, which contradicts ADR-047.
+
+**Not removed, on purpose.** The backend routes only Case Detail called stay in the API for now: `PATCH /cases/:id`, `stage`, `hold`, `parties`, `properties`, per-requirement upload, `decision`, `waive`, submission `status`/`queries`/`offers`. No screen calls them, and every one still checks permissions. They are the fixtures that most of the integration suite builds on, so removing them means rewriting most of that suite. That is a separate job, and it changes nothing anyone sees.
+
+**End-to-end tests.** Removed the specs that only covered deleted features. Suspended, with a reason, the live tests that click Case Detail controls. `playwright.config.ts` now points the e2e API at unused storage and mail ports. Before this it fell back to the office's own 4319/4320, so an e2e run on the Unfold PC would have written into `C:\PFO\Data` and sent real email.
