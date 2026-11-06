@@ -1,5 +1,7 @@
 # Requirements and Progress
 
+> **Superseded (6 Nov 2026).** This describes PFO's first lifecycle. The working model is the MIS's: `PRD/Intake and Work Engine.md`, ADR-040, and ADR-047 to ADR-050 in `DECISIONS.md`. Where this file disagrees with them, they win.
+
 **Status:** Rewritten 1 November 2026 to match ADR-040 and `PRD/Intake and Work Engine.md`. For Tarun's review. The earlier model, where generated requirements drove a progress percentage and the case stage (ADR-010, ADR-035), is superseded.
 
 What PFO asks a case to collect, and how it avoids asking for things that do not apply.

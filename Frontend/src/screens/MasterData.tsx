@@ -52,9 +52,6 @@ import { api } from "../api/client.js";
 import { useMutation } from "../api/hooks.js";
 import { useDocumentTypes, useRejectionReasons, useThresholds } from "../api/master-data.js";
 import type { ApiDocumentType, ApiRejectionReason, ApiThreshold } from "../api/types.js";
-import { MASTER_DATA_LABELS, type MasterDataKind } from "../fake/store.js";
-import { useDatabase } from "../fake/useDatabase.js";
-import type { MasterDataRecord } from "../fake/types.js";
 import { useSession } from "../session.js";
 import {
   Badge,
@@ -64,7 +61,6 @@ import {
   Field,
   Input,
   Modal,
-  NotConnectedBanner,
   Select,
   Textarea,
   cx,
@@ -87,14 +83,6 @@ const CATEGORY_HINTS: Record<MasterDataCategory, string> = {
   operational: "Frequently changing — the people and firms Premier Finserv works with day to day.",
 };
 
-interface SimpleSection {
-  kind: "simple";
-  key: MasterDataKind;
-  label: string;
-  hint: string;
-  category: MasterDataCategory;
-}
-
 interface DocumentTypeSection {
   kind: "documentType";
   label: string;
@@ -116,31 +104,15 @@ interface ThresholdSection {
   category: MasterDataCategory;
 }
 
-type Section = SimpleSection | DocumentTypeSection | RejectionReasonSection | ThresholdSection;
+type Section = DocumentTypeSection | RejectionReasonSection | ThresholdSection;
 
 const SECTIONS: Section[] = [
   // System — rarely changes, administrator-level reference data.
   { kind: "documentType", label: "Document Types", hint: "The kinds of document Premier Finserv One recognises. Requirement templates key off these.", category: "system" },
-  { kind: "simple", key: "employmentTypes", label: "Employment Types", hint: "A person's income-source classification. Drives which income documents a case asks for.", category: "system" },
-  { kind: "simple", key: "businessConstitutions", label: "Business Constitutions", hint: "How a borrowing firm is legally constituted — proprietorship, partnership, private limited.", category: "system" },
-  { kind: "simple", key: "propertyTypes", label: "Property Types", hint: "Apartment, independent house, plot, villa, commercial, agricultural.", category: "system" },
-  { kind: "simple", key: "propertyOwnershipTypes", label: "Property Ownership Types", hint: "How title is held — freehold, leasehold, ancestral, power of attorney.", category: "system" },
   { kind: "rejectionReason", label: "Rejection Reasons", hint: "Premier Finserv's standardised categories for why a bank declined a case (ADR-028).", category: "system" },
   { kind: "threshold", label: "Thresholds", hint: "How many days a case may sit before it needs attention (ADR-025). The set of thresholds is fixed in code; only the values are editable here.", category: "system" },
-  { kind: "simple", key: "districts", label: "Districts", hint: "Districts Premier Finserv operates in or lends against.", category: "system" },
-  { kind: "simple", key: "cities", label: "Cities", hint: "Cities Premier Finserv operates in or lends against, each within a district.", category: "system" },
-  { kind: "simple", key: "requirementApplicabilities", label: "Requirement Applicability", hint: "Mandatory, optional, not applicable. Used wherever a product says how strongly it needs something.", category: "system" },
 
   // Business — business-controlled, defines Premier Finserv's lending ecosystem.
-  { kind: "simple", key: "customerProducts", label: "Customer Products", hint: "What a telecaller thinks of first — Home Loan, Business Loan, LAP — grouping the lending products underneath it.", category: "business" },
-  { kind: "simple", key: "borrowerTypes", label: "Borrower Types", hint: "Who can borrow — resident individual, NRI, or a firm in its own name.", category: "business" },
-  { kind: "simple", key: "securityTypes", label: "Security Types", hint: "What secures a lending product — a mortgage, pledged gold, hypothecated stock, a guarantee.", category: "business" },
-  { kind: "simple", key: "referralSources", label: "Referral Sources", hint: "How a lead reached Premier Finserv. Populates the Source field on case creation.", category: "business" },
-  // Bank & NBFC Catalogue (Milestone 8) — Database/migrations/0019.
-  { kind: "simple", key: "lenderTypes", label: "Lender Types", hint: "Public Sector Bank, NBFC, Housing Finance Company and the rest. Add a kind here and it appears on the Lenders screen without a deploy.", category: "business" },
-  { kind: "simple", key: "lenderRelationshipRoles", label: "Relationship Roles", hint: "What a person at a lender does for us — Relationship Manager, Credit Manager, Branch Manager.", category: "operational" },
-  { kind: "simple", key: "submissionModes", label: "Submission Modes", hint: "How a file reaches a lender — at the branch, by email, through their portal. Reference only; nothing acts on it.", category: "operational" },
-  { kind: "simple", key: "lenderInsightCategories", label: "Lender Note Categories", hint: "How a note about a lender is filed — a strength, a limitation, a documentation habit. Guidance, never a rule.", category: "operational" },
 ];
 
 interface PlannedEntity {
@@ -177,7 +149,6 @@ const PLANNED_BY_CATEGORY: Record<MasterDataCategory, PlannedEntity[]> = {
 };
 
 export function MasterData(): ReactNode {
-  const db = useDatabase();
   const session = useSession();
   const [categoryKey, setCategoryKey] = useState<MasterDataCategory>("system");
   const [activeLabel, setActiveLabel] = useState<string>(SECTIONS[0]?.label ?? "");
@@ -204,11 +175,8 @@ export function MasterData(): ReactNode {
         <h1 className="text-xl font-semibold tracking-tight">Master Data</h1>
         <p className="mt-1 text-sm text-ink-500">
           Premier Finserv One's operational vocabulary.
-          {section?.kind === "simple"
-            ? " Read-only reference — see the note below."
-            : !canManage && " This user can view but not edit — hold master_data.manage to change values."}
+          {!canManage && " This user can view but not edit — hold master_data.manage to change values."}
         </p>
-        {section?.kind === "simple" && <NotConnectedBanner />}
       </div>
 
       <div className="flex gap-1 border-b border-ink-200">
@@ -270,7 +238,6 @@ export function MasterData(): ReactNode {
           )}
         </nav>
 
-        {section?.kind === "simple" && <SimpleMasterDataSection section={section} db={db} />}
         {section?.kind === "documentType" && (
           <DocumentTypeSectionView section={section} canManage={canManage} />
         )}
@@ -312,73 +279,6 @@ function useSearch<T extends { code: string; name: string; description?: string 
     );
   }, [records, query]);
   return [query, setQuery, filtered];
-}
-
-// ---------------------------------------------------------------------------
-// The generic section — everything sharing MasterDataRecord's shape
-// ---------------------------------------------------------------------------
-
-/**
- * Read-only reference browsing (Production Readiness Phase 2, "Admin-screen
- * honesty"). This section still reads `Frontend/src/fake/store.ts` — a
- * per-browser prototype dataset, not the office database — so it no longer
- * offers Add/Edit/Deactivate: those wrote to localStorage only, invisible to
- * every other PC and to real cases. See the banner above.
- */
-function SimpleMasterDataSection({
-  section,
-  db,
-}: {
-  section: SimpleSection;
-  db: ReturnType<typeof useDatabase>;
-}): ReactNode {
-  const records = (db[section.key] as readonly MasterDataRecord[])
-    .slice()
-    .sort((a, b) => a.displayOrder - b.displayOrder);
-  const [query, setQuery, filtered] = useSearch(records);
-
-  const showState = section.key === "districts";
-
-  return (
-    <Card title={MASTER_DATA_LABELS[section.key] + "s"} subtitle={section.hint}>
-      <div className="space-y-3">
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={`Search ${section.label.toLowerCase()}…`}
-        />
-
-        {filtered.length === 0 ? (
-          <Empty>Nothing matches.</Empty>
-        ) : (
-          <ul className="divide-y divide-ink-100">
-            {filtered.map((record) => (
-              <li key={record.id} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 text-sm font-medium">
-                    {record.name}
-                    {!record.isActive && <Badge tone="neutral">Inactive</Badge>}
-                    {section.key === "cities" && record.districtId && (
-                      <span className="text-xs font-normal text-ink-500">
-                        {db.districts.find((d) => d.id === record.districtId)?.name}
-                      </span>
-                    )}
-                    {showState && record.state && (
-                      <span className="text-xs font-normal text-ink-500">{record.state}</span>
-                    )}
-                  </p>
-                  <p className="tnum text-xs text-ink-500">
-                    {record.code}
-                    {record.description && ` · ${record.description}`}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </Card>
-  );
 }
 
 // ---------------------------------------------------------------------------

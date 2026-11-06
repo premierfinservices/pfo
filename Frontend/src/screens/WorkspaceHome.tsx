@@ -1,333 +1,66 @@
 /**
- * The landing screen, per workspace.
+ * The home screen: one for everybody (ADR-050).
  *
- * Every screen answers one question (Principle #2). These are five different
- * screens rather than one dashboard with five panels, because a screen that
- * answers five questions answers none of them well.
+ * The work queue first: Overdue, Today, Upcoming, from real tasks, own cases by
+ * default and everyone's for a manager, as the MIS's "View as" does. Whoever may
+ * see office-wide figures gets the MIS reports underneath, the same figures the
+ * sync checks against the MIS, and a line on the system's health.
  *
- * STAGE 3B: the case queues come from `GET /api/cases`, so what a Telecaller
- * sees on their own home screen is scoped by the server rather than filtered
- * in the browser. The panels that counted documents, requirements, tasks,
- * offers and submissions are marked not-yet-migrated instead of being computed
- * from the prototype store — a "3 awaiting verification" tile derived from
- * data that no longer describes these cases is worse than an empty one,
- * because a number looks authoritative in a way an empty state does not.
+ * Until 6 Nov 2026 there were five per-role homes and a separate Founders
+ * Dashboard whose numbers were worked out in the browser and could disagree
+ * with the Reports screen.
  */
 
-import { Link } from "react-router-dom";
-import { useMemo, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
-import { CASE_STAGE_LABELS } from "@domain/case/stages.js";
-
-import { useReference, useUsers } from "../api/catalogue.js";
 import { useApiQuery } from "../api/hooks.js";
-import type { ApiCase } from "../api/types.js";
-import { lakhs, when } from "../lib.js";
-import { WORKSPACE_QUESTIONS, useSession } from "../session.js";
-import { Badge, Card, Empty, StageBadge, TABLE_ROW, Table, Td, Th } from "../ui/index.js";
-import { FoundersDashboard } from "./FoundersDashboard.js";
+import type { ApiHealthDetail } from "../api/types.js";
+import { useSession } from "../session.js";
+import { Badge } from "../ui/index.js";
+import { Reports } from "./Reports.js";
 import { WorkQueue } from "./WorkQueue.js";
+
+function greeting(): string {
+  const hour = Number(new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(11, 13));
+  return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+}
 
 export function WorkspaceHome(): ReactNode {
   const session = useSession();
-  const cases = useApiQuery<readonly ApiCase[]>("/cases");
-
-  // Practice cases stay visible in All Cases/search (CaseList.tsx renders
-  // `cases.data` directly, unfiltered, with a badge) but must never reach a
-  // dashboard tile, so the filter lives here, at the one place this
-  // screen's tiles and FoundersDashboard's tiles both derive `all`/`active`
-  // from.
-  const all = (cases.data ?? []).filter((c) => !c.isPractice);
-  const active = useMemo(
-    () => all.filter((c) => c.stage !== "closed" && c.stage !== "lost"),
-    [all],
-  );
-
-  // Manager and Managing Partner land here too (session.tsx's own
-  // DEFAULT_WORKSPACE/WORKSPACE_ROLES) — the Founders Dashboard replaces the
-  // old, thinner management panel rather than adding a second route, so the
-  // "founders land on their dashboard" requirement rides the same
-  // server-derived role/workspace mechanism every other workspace already
-  // uses. It owns its own heading (a time-of-day greeting, not the generic
-  // "Which cases need attention today?" question below), so it renders in
-  // place of the shared header rather than under it.
-  if (session.workspace === "management") {
-    return cases.error ? (
-      <Empty>{cases.error.message}</Empty>
-    ) : (
-      <div className="space-y-6">
-        <WorkQueue />
-        <FoundersDashboard all={all} active={active} loading={cases.loading} />
-      </div>
-    );
-  }
+  const seesOffice = session.can("report.view", "all");
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex flex-wrap items-baseline gap-3">
         <h1 className="font-display text-2xl font-semibold tracking-tight text-ink-900">
-          {WORKSPACE_QUESTIONS[session.workspace]}
+          {greeting()}, {session.displayName}
         </h1>
-        <p className="mt-1 text-sm text-ink-500">
-          {session.displayName} · viewing the {session.workspace.replace(/_/g, " ")} workspace
-        </p>
+        {seesOffice && <SystemHealth />}
       </div>
-
       <WorkQueue />
-
-      {cases.loading ? (
-        <Empty>Loading your work…</Empty>
-      ) : cases.error ? (
-        <Empty>{cases.error.message}</Empty>
-      ) : session.workspace === "calling" ? (
-        <CallingWorkspace active={active} />
-      ) : session.workspace === "login_desk" ? (
-        <LoginDeskWorkspace active={active} />
-      ) : session.workspace === "finance" ? (
-        <FinanceWorkspace all={all} />
-      ) : (
-        <AdminWorkspace all={all} />
-      )}
+      {seesOffice && <Reports />}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Shared pieces
-// ---------------------------------------------------------------------------
+const HEALTH_LABELS: Record<string, string> = { database: "Database", storage: "Documents", mail: "Mail" };
 
-/** A case nobody has moved recently, or one deliberately parked. `isOnHold` is
- * excluded rather than flagged: a hold is a decision, not a lapse. */
-function needsAttention(loanCase: ApiCase): boolean {
-  if (loanCase.isOnHold) return false;
-  const idleDays = (Date.now() - new Date(loanCase.updatedAt).getTime()) / 86400000;
-  return idleDays >= 3;
-}
-
-function CaseRow({ loanCase }: { loanCase: ApiCase }): ReactNode {
-  const reference = useReference();
-  const users = useUsers();
-  const idleDays = (Date.now() - new Date(loanCase.updatedAt).getTime()) / 86400000;
-
+/** Database, document storage and mail, one badge each. */
+function SystemHealth(): ReactNode {
+  const health = useApiQuery<ApiHealthDetail>("/health/detail");
+  if (!health.data) return null;
+  const parts = [
+    ["database", health.data.database],
+    ["storage", health.data.storage],
+    ["mail", health.data.mail],
+  ] as const;
   return (
-    <li className="py-2.5 first:pt-0 last:pb-0">
-      <Link to={`/update-case?case=${loanCase.id}`} className="flex flex-wrap items-center gap-2">
-        <span className="tnum shrink-0 text-sm font-medium hover:underline">{loanCase.caseNumber}</span>
-        <StageBadge stage={loanCase.stage} label={CASE_STAGE_LABELS[loanCase.stage]} />
-        <span className="min-w-0 truncate text-sm text-ink-700">
-          {loanCase.applicantName ?? "No applicant"}
-        </span>
-        <span className="tnum ml-auto shrink-0 text-xs text-ink-500">
-          {lakhs(loanCase.requestedAmount ?? undefined)}
-        </span>
-      </Link>
-      <p className="mt-0.5 text-xs text-ink-500">
-        {reference.productLabel(loanCase.loanProductId)} · {users.ownerName(loanCase.ownerUserId)} ·{" "}
-        <span className={idleDays >= 3 ? "font-medium text-amber-700" : undefined}>
-          last touched {when(loanCase.updatedAt)}
-        </span>
-        {loanCase.applicantPhone && <> · {loanCase.applicantPhone}</>}
-        {loanCase.isOnHold && (
-          <>
-            {" · "}
-            <Badge tone="warn">Hold</Badge>
-          </>
-        )}
-      </p>
-    </li>
-  );
-}
-
-function CaseRows({ cases, empty }: { cases: readonly ApiCase[]; empty: string }): ReactNode {
-  if (cases.length === 0) return <Empty>{empty}</Empty>;
-  return (
-    <ul className="divide-y divide-ink-100">
-      {cases.map((loanCase) => (
-        <CaseRow key={loanCase.id} loanCase={loanCase} />
+    <span className="ml-auto flex gap-1.5">
+      {parts.map(([key, state]) => (
+        <Badge key={key} tone={state === "up" ? "good" : state === "unconfigured" ? "neutral" : "bad"}>
+          {HEALTH_LABELS[key]}: {state === "up" ? "OK" : state === "unconfigured" ? "not set up" : "down"}
+        </Badge>
       ))}
-    </ul>
-  );
-}
-
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }): ReactNode {
-  return (
-    <div className="rounded-lg bg-white p-4 ring-1 ring-ink-150">
-      <p className="text-xs font-medium text-ink-500">{label}</p>
-      <p className="font-display tnum mt-1.5 text-3xl font-semibold tracking-tight text-ink-900">
-        {value}
-      </p>
-      {hint && <p className="mt-1 text-xs text-ink-400">{hint}</p>}
-    </div>
-  );
-}
-
-/** One consistent way of saying "this panel is waiting on a later stage", so
- * an empty queue and an unmigrated queue never look alike. Collapsed by
- * default — an honest disclosure that isn't real content shouldn't carry the
- * same visual weight as a Card of actual cases on a screen staff open daily. */
-function Pending({ title, what }: { title: string; what: string }): ReactNode {
-  return (
-    <details className="rounded-lg bg-ink-50 px-4 py-2 text-sm ring-1 ring-ink-150">
-      <summary className="cursor-pointer font-medium text-ink-600">{title} — not yet migrated</summary>
-      <p className="mt-2 text-ink-500">{what}</p>
-    </details>
-  );
-}
-
-// ---------------------------------------------------------------------------
-
-function CallingWorkspace({ active }: { active: readonly ApiCase[] }): ReactNode {
-  // Early stages first: a lead nobody has called is the most perishable thing
-  // on the list.
-  const order = ["documents_pending", "eligibility_check"];
-  const callList = active
-    .filter((c) => order.includes(c.stage))
-    .sort((a, b) => order.indexOf(a.stage) - order.indexOf(b.stage));
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="space-y-6 lg:col-span-2">
-        <Card
-          title="Call list"
-          subtitle="Earliest stages first — an uncalled lead is the most perishable thing here"
-        >
-          <CaseRows cases={callList} empty="Nothing waiting on a call. That is a good state." />
-        </Card>
-
-        <Card title="Everything else you own" subtitle="Past the calling stages">
-          <CaseRows
-            cases={active.filter((c) => !order.includes(c.stage))}
-            empty="No cases past documents yet."
-          />
-        </Card>
-      </div>
-
-      <div className="space-y-6">
-        <Card title="Needs attention" subtitle="Untouched for three days or more">
-          <CaseRows
-            cases={active.filter(needsAttention)}
-            empty="Everything has been touched recently."
-          />
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-function LoginDeskWorkspace({ active }: { active: readonly ApiCase[] }): ReactNode {
-  // Sending does not move the stage (ADR-040) — a lender's login does — so a
-  // file that has gone out is pulled out of Collecting and Ready by whether it
-  // has a live application, not by its stage.
-  const early = ["documents_pending", "documents_collected", "eligibility_check"];
-  const sent = active.filter((c) => early.includes(c.stage) && (c.sentToLenders ?? 0) > 0);
-  const notSent = active.filter((c) => !sent.includes(c));
-  const collecting = notSent.filter((c) => c.stage === "documents_pending");
-  const ready = notSent.filter((c) => c.stage === "documents_collected");
-  const atBank = active.filter((c) => ["login_completed", "query_raised", "approved", "sanction_accepted"].includes(c.stage));
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="space-y-6 lg:col-span-2">
-        <Card title="Collecting" subtitle="Files still gathering documents">
-          <CaseRows cases={collecting} empty="Nothing in collection." />
-        </Card>
-        <Card title="Ready to go to a bank">
-          <CaseRows cases={ready} empty="Nothing ready." />
-        </Card>
-        <Card title="Sent, waiting for login" subtitle="Gone to a lender; update it when the bank confirms login">
-          <CaseRows cases={sent} empty="Nothing waiting on a bank's login." />
-        </Card>
-        <Card title="With a bank" subtitle="Submitted or sanctioned">
-          <CaseRows cases={atBank} empty="Nothing with a bank." />
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-function FinanceWorkspace({ all }: { all: readonly ApiCase[] }): ReactNode {
-  // A case sitting in Disbursed is money owed to Premier Finserv. Collapsing Disbursed
-  // and Closed would hide exactly this (PRD/Loan Lifecycle.md).
-  const awaitingCloseOut = all.filter((c) => c.stage === "disbursed");
-  const closed = all.filter((c) => c.stage === "closed");
-
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Stat
-          label="Awaiting close-out"
-          value={String(awaitingCloseOut.length)}
-          hint="Invoice not yet raised"
-        />
-        <Stat label="Closed" value={String(closed.length)} />
-        <Stat
-          label="Requested value, active"
-          value={lakhs(
-            all
-              .filter((c) => c.stage !== "closed" && c.stage !== "lost")
-              .reduce((total, c) => total + (c.requestedAmount ?? 0), 0),
-          )}
-          hint="What customers asked for"
-        />
-      </div>
-
-      <Card title="Awaiting close-out">
-        <CaseRows cases={awaitingCloseOut} empty="Nothing awaiting close-out." />
-      </Card>
-
-      <Pending
-        title="Disbursed value and login fees"
-        what="Both come from offers and submissions, which have not moved to the server yet. Only what customers requested can be totalled today."
-      />
-    </div>
-  );
-}
-
-function AdminWorkspace({ all }: { all: readonly ApiCase[] }): ReactNode {
-  const users = useUsers();
-
-  return (
-    <div className="space-y-6">
-      <Card
-        title="Users and roles"
-        subtitle="A user holds many roles and receives the union of their permissions"
-      >
-        {users.loading ? (
-          <Empty>Loading…</Empty>
-        ) : (
-          <Table>
-            <thead>
-              <tr className="border-b border-ink-150 text-left">
-                <Th>User</Th>
-                <Th>Roles</Th>
-                <Th>Cases owned</Th>
-                <Th>Status</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.users.map((user) => (
-                <tr key={user.id} className={TABLE_ROW}>
-                  <Td className="font-medium text-ink-900">{user.fullName}</Td>
-                  <Td muted>{user.roles.join(", ")}</Td>
-                  <Td className="tnum">{all.filter((c) => c.ownerUserId === user.id).length}</Td>
-                  <Td>
-                    {user.isActive ? (
-                      <Badge tone="good">Active</Badge>
-                    ) : (
-                      <Badge tone="neutral">Deactivated</Badge>
-                    )}
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
-      </Card>
-
-      <Pending
-        title="Recent activity"
-        what="The audit log records administrative actions already. Case and customer events join it when their writes move to the server."
-      />
-    </div>
+    </span>
   );
 }

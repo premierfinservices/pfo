@@ -31,7 +31,6 @@ import { api, onUnauthorized, storeToken, storedToken } from "../api/client.js";
 import type { ApiSessionUser } from "../api/types.js";
 import { LoginScreen } from "../screens/LoginScreen.js";
 import { SessionProvider } from "../session.js";
-import { adoptAuthenticatedUser, forgetAuthenticatedUser } from "../fake/store.js";
 import { IdleSessionMonitor } from "./IdleSessionMonitor.js";
 
 type State =
@@ -55,11 +54,6 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
   // (HashRouter survives a refresh), or a reload while reading a case would
   // bounce the employee back to their workspace home.
   const adopt = useCallback((user: ApiSessionUser) => {
-    // The prototype half of the app still authorises through `fake/store.ts`,
-    // which looks the actor up in its own user list. See the function's
-    // comment: this is an identity bridge for the screens that have not
-    // migrated, and carries no customer or case data.
-    adoptAuthenticatedUser(user);
     setNotice(null);
     setState({ status: "authenticated", user });
   }, []);
@@ -85,7 +79,6 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
   // there without waiting for one, and says why, which a stray 401 would not.
   const expireIdle = useCallback(() => {
     storeToken(null);
-    forgetAuthenticatedUser();
     setNotice("You were signed out after 5 minutes of inactivity.");
     setState({ status: "anonymous" });
     navigate("/", { replace: true });
@@ -103,7 +96,6 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
       .catch(() => {
         if (cancelled) return;
         storeToken(null);
-        forgetAuthenticatedUser();
         setState({ status: "anonymous" });
       });
 
@@ -118,7 +110,6 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
   useEffect(
     () =>
       onUnauthorized(() => {
-        forgetAuthenticatedUser();
         setState({ status: "anonymous" });
       }),
     [],
@@ -141,7 +132,6 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
         // Nothing to tell them — the sign-out below happens regardless.
       }
       storeToken(null);
-      forgetAuthenticatedUser();
       setState({ status: "anonymous" });
       // Clears whatever deep route was on screen, so the next employee to
       // sign in on this shared PC never inherits it, even for the instant

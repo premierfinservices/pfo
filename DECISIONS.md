@@ -1968,3 +1968,21 @@ content type recorded at upload would be better and is a small future change.
   - The mobile shows only on the person page, because phone numbers are masked for the app role (0034).
 - **Uploads.** A personal document whose file name carries a co-applicant's whole name is filed under that co-applicant (`partyForFile`). Otherwise it stays with the applicant, and the applicant's own full name always wins. The GST and ITR summary already accepted any party's name.
 - Guarantor and property records stay in the database, but no screen offers them.
+
+## ADR-050 — The prototype store goes; one home screen; Document Rules is reachable
+
+**Status:** Accepted. Tarun Ramesh, 6 November 2026.
+
+- **The in-browser prototype store (`Frontend/src/fake/`, about 8,600 lines) is deleted.** It was loaded at sign-in and still fed the Lenders, Products and Master Data screens. Managers browsing Settings therefore saw made-up lenders and products, while cases used the real ones. Now:
+  - Lenders reads `GET /api/lenders`, the list Send to lenders offers.
+  - Products reads `GET /api/reference`.
+  - Master Data keeps only its database-backed sections: document types, rejection reasons and thresholds.
+  - The prototype-only panels are gone: lender insights, submission rules, the products matrix, and the read-only vocabulary lists.
+  - Unused helpers went with it: `pickers.tsx`, `storage-location.tsx`, `document-financial-years.ts`, `document-status.ts`, and the store lookups in `lib.ts`.
+- **One home screen.** Everyone lands on the work queue. It shows their own cases, and a manager can switch to everyone or to one person, as the MIS's View-as does. Whoever may see office-wide figures also gets the MIS reports, plus a system-health line. Removed:
+  - the five per-role workspace homes and their switcher;
+  - the Founders Dashboard (its figures were worked out in the browser and could disagree with the MIS-checked reports);
+  - the separate Reports link in the nav. The `/reports` address still works.
+- **Settings → Document Rules opens.** The link existed but no route did, so it went to the home screen. It is the only way to change the 13 MIS checklists without a migration.
+- **Inbound email intake stays parked.** The code exists but the supervisor never starts it, and no screen reads its review queue. Turning it on is a separate decision.
+- **Superseded PRDs** (`Loan Lifecycle.md`, `Workflow.md`, `Requirements and Progress.md`) carry a banner saying what replaces them. Rewriting them is still open.

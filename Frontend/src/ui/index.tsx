@@ -15,12 +15,7 @@ import {
   type ReactNode,
 } from "react";
 
-import {
-  CASE_STAGE_LABELS,
-  CASE_STAGE_PROGRESSION,
-  isTerminalStage,
-  type CaseStage,
-} from "@domain/case/stages.js";
+import type { CaseStage } from "@domain/case/stages.js";
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
@@ -62,29 +57,6 @@ export function Button({
 // ---------------------------------------------------------------------------
 // NotConnectedBanner
 // ---------------------------------------------------------------------------
-
-/**
- * For the handful of screens (Products, Lenders, and the "simple" Master
- * Data vocabulary sections) that display `Frontend/src/fake/store.ts` — a
- * per-browser prototype dataset — rather than the office database. Real
- * cases pull loan products and document requirements from PostgreSQL
- * (`Backend/reference.ts`, `Backend/requirements.ts`), which this screen has
- * no path to. These screens do not offer a way to edit this data (Production
- * Readiness Phase 2, "Admin-screen honesty") — showing an editable-looking
- * screen next to data nobody could actually change was itself the trap: a
- * manager who could "save" a change here had every reason to believe it did
- * something.
- */
-export function NotConnectedBanner(): ReactNode {
-  return (
-    <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-200">
-      <strong className="font-semibold">Not connected to the office database.</strong> What's shown
-      here is a per-browser preview, not production configuration — it is not shared with any
-      other PC and has no effect on real cases or document requirements. Read-only: there is no
-      way to change this data from Premier Finserv One yet.
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Card
@@ -174,63 +146,6 @@ export function StageBadge({ stage, label }: { stage: CaseStage; label: string }
 // StageRail — the case lifecycle, drawn as the progression it actually is
 // ---------------------------------------------------------------------------
 
-/**
- * The eight-step system progression (`CASE_STAGE_PROGRESSION`), filled up to
- * wherever this case currently sits. This is the one place the design system
- * spends its signature move: everywhere else colour and shape stay quiet, but
- * a case's position in its own lifecycle is the single fact this product
- * exists to track, so it gets a real visual, not just a coloured word.
- *
- * Terminal stages (`closed`, `lost`) have no ordinal (`stageOrdinal` returns
- * `null` for them by design, ADR-023) — asking "how far along" is not a
- * question with an answer for a case that is not in progress any more, so
- * they render as a plain outcome marker instead of a partially-filled rail.
- */
-export function StageRail({ stage }: { stage: CaseStage }): ReactNode {
-  if (isTerminalStage(stage)) {
-    return (
-      <div className="flex items-center gap-1.5">
-        <span
-          className={cx(
-            "h-1.5 w-1.5 shrink-0 rounded-full",
-            stage === "closed" ? "bg-ink-700" : "bg-red-500",
-          )}
-        />
-        <span className="text-xs font-medium text-ink-500">{CASE_STAGE_LABELS[stage]}</span>
-      </div>
-    );
-  }
-
-  if (stage === "rejected") {
-    return (
-      <div className="flex items-center gap-1.5">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
-        <span className="text-xs font-medium text-ink-500">{CASE_STAGE_LABELS[stage]}</span>
-      </div>
-    );
-  }
-
-  const ordinal = Math.max(0, (CASE_STAGE_PROGRESSION as readonly CaseStage[]).indexOf(stage));
-  return (
-    <div
-      className="flex items-center gap-1"
-      role="img"
-      aria-label={`Stage ${ordinal + 1} of ${CASE_STAGE_PROGRESSION.length}: ${CASE_STAGE_LABELS[stage]}`}
-    >
-      {CASE_STAGE_PROGRESSION.map((step, index) => (
-        <span
-          key={step}
-          title={CASE_STAGE_LABELS[step]}
-          className={cx(
-            "h-1.5 w-4 rounded-full transition-colors",
-            index <= ordinal ? "bg-brand-600" : "bg-ink-150",
-          )}
-        />
-      ))}
-    </div>
-  );
-}
-
 type Tone = "neutral" | "info" | "warn" | "good" | "bad";
 
 const TONE_STYLES: Record<Tone, string> = {
@@ -261,42 +176,6 @@ export function Badge({
 // ---------------------------------------------------------------------------
 // Progress
 // ---------------------------------------------------------------------------
-
-export function ProgressBar({
-  percent,
-  applicable,
-}: {
-  percent: number;
-  applicable: number;
-}): ReactNode {
-  // "Nothing applicable" and "everything verified" are both 100% arithmetically
-  // (ADR-011), but they must not look the same. A full green bar on a case at
-  // Contacted — where no requirement is due yet — reads as "documents done",
-  // which is a lie the progress figure itself never tells.
-  if (applicable === 0) {
-    return (
-      <div className="flex items-center gap-2">
-        <div className="h-1.5 w-full rounded-full bg-ink-100" />
-        {/* A bare "—" reads as an error or "N/A" at a glance; this case is
-            neither — it just has nothing due yet (audit finding 7.2). */}
-        <span className="shrink-0 text-xs text-ink-400">Not started</span>
-      </div>
-    );
-  }
-
-  const tone = percent === 100 ? "bg-emerald-500" : percent >= 60 ? "bg-brand-500" : "bg-amber-500";
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-100">
-        <div className={cx("h-full rounded-full transition-all", tone)} style={{ width: `${percent}%` }} />
-      </div>
-      {/* "Verified", spelled out — a bare percentage after real uploads still
-          reads as "nothing happened" when what it actually means is "nothing
-          has been checked yet" (ADR-011; Workflow Polish audit finding 4.2). */}
-      <span className="tnum shrink-0 text-xs font-medium text-ink-700">{percent}% verified</span>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Empty state

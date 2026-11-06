@@ -16,6 +16,7 @@ import type { ApiSearchHit } from "./api/types.js";
 import { Bankers } from "./screens/Bankers.js";
 import { CaseList } from "./screens/CaseList.js";
 import { ChangePassword } from "./screens/ChangePassword.js";
+import { DocumentRules } from "./screens/DocumentRules.js";
 import { LenderCatalogue } from "./screens/LenderCatalogue.js";
 import { Reports } from "./screens/Reports.js";
 import { LendingProducts } from "./screens/LendingProducts.js";
@@ -25,13 +26,7 @@ import { UpdateCase } from "./screens/UpdateCase.js";
 import { PersonProfile } from "./screens/PersonProfile.js";
 import { UserManagement } from "./screens/UserManagement.js";
 import { WorkspaceHome } from "./screens/WorkspaceHome.js";
-import {
-  WORKSPACE_LABELS,
-  WORKSPACE_QUESTIONS,
-  WORKSPACES,
-  useSession,
-  type Workspace,
-} from "./session.js";
+import { useSession } from "./session.js";
 import { Badge, Button, cx } from "./ui/index.js";
 import { SyncWarning } from "./ui/sync-warning.js";
 
@@ -51,6 +46,7 @@ export function App(): ReactNode {
           <Route path="/people/:personId" element={<PersonProfile />} />
           <Route path="/admin/lending-products" element={<LendingProducts />} />
           <Route path="/admin/lenders" element={<LenderCatalogue />} />
+          <Route path="/admin/document-rules" element={<DocumentRules />} />
           <Route path="/admin/bankers" element={<Bankers />} />
           <Route path="/admin/master-data" element={<MasterData />} />
           <Route path="/admin/users" element={<UserManagement />} />
@@ -81,29 +77,17 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
 }
 
 /**
- * Only Manager and Managing Partner land on the Founders Dashboard
- * (`session.tsx`'s `DEFAULT_WORKSPACE`/`WORKSPACE_ROLES`, `WorkspaceHome`'s own
- * `workspace === "management"` branch) — everyone else's home is their
- * workspace queue, "My Work". The nav's first link names whichever one this
- * session will actually land on.
- */
-function isFounder(session: ReturnType<typeof useSession>): boolean {
-  return session.roles.includes("manager") || session.roles.includes("managing_partner");
-}
-
-/**
  * A case list scoped to "own" reads as "My Cases"; Manager and Managing
  * Partner see every case, so "All Cases" is the honest word for the same
  * link. Telecaller and Login Executive get "My Cases" — the two roles ordinary
  * navigation was cluttering before this pass.
  */
 function casesLabel(session: ReturnType<typeof useSession>): string {
-  return isFounder(session) ? "All Cases" : "My Cases";
+  return session.can("case.read", "all") ? "All Cases" : "My Cases";
 }
 
 function TopBar(): ReactNode {
   const session = useSession();
-  const founder = isFounder(session);
 
   return (
     <header className="sticky top-0 z-40 border-b border-ink-150 bg-white">
@@ -118,31 +102,10 @@ function TopBar(): ReactNode {
         <GlobalSearch />
 
         <nav className="ml-auto flex shrink-0 items-center gap-1">
-          {/* Distinct from the cases link below: this is the work queue, scoped
-              to what this role/session should be looking at right now. Before
-              this label existed, the logo was the only way to it, and nothing
-              distinguished "your work" from "every case" (audit finding 11.1).
-              Founders get "Dashboard" plus a home glyph — their landing screen
-              is a command centre, not a call queue, and it is the one nav item
-              that earns an icon (item 2: restrained, not everywhere). */}
+          {/* One home for everyone (ADR-050): the work queue, and for managers the
+              MIS reports under it. */}
           <NavLink to="/" end className={navLinkClass}>
-            {founder && (
-              <svg
-                aria-hidden
-                viewBox="0 0 16 16"
-                className="mr-1 inline h-3.5 w-3.5 -translate-y-px"
-                fill="none"
-              >
-                <path
-                  d="M2 7.5 8 2l6 5.5M3.5 6.5V13a.5.5 0 0 0 .5.5h3v-4h2v4h3a.5.5 0 0 0 .5-.5V6.5"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-            {founder ? "Dashboard" : "My Work"}
+            Home
           </NavLink>
           <NavLink to="/update-case" className={navLinkClass}>
             Update Case
@@ -150,11 +113,6 @@ function TopBar(): ReactNode {
           <NavLink to="/cases" className={navLinkClass}>
             {casesLabel(session)}
           </NavLink>
-          {session.can("report.view", "all") && (
-            <NavLink to="/reports" className={navLinkClass}>
-              Reports
-            </NavLink>
-          )}
           {session.can("case.create", "all") && (
             <Link to="/cases/new">
               <Button variant="primary">Log a Case</Button>
@@ -165,7 +123,6 @@ function TopBar(): ReactNode {
         <IdentityMenu />
       </div>
 
-      <WorkspaceTabs />
     </header>
   );
 }
@@ -313,50 +270,6 @@ function GlobalSearch(): ReactNode {
 }
 
 /**
- * A user with one role never sees a workspace switcher at all — the concept
- * stays invisible to the people who don't need it (PRD/Permissions.md).
- */
-function WorkspaceTabs(): ReactNode {
-  const session = useSession();
-
-  if (session.availableWorkspaces.length < 2) {
-    return (
-      <div className="border-t border-ink-100 bg-brand-50/40">
-        <div className="mx-auto w-full max-w-7xl px-4 py-1.5">
-          <p className="text-xs text-ink-500">
-            {WORKSPACE_QUESTIONS[session.workspace]}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="border-t border-ink-100 bg-brand-50/40">
-      <div className="mx-auto flex w-full max-w-7xl items-center gap-1 px-4">
-        {session.availableWorkspaces.map((workspace) => (
-          <button
-            key={workspace}
-            onClick={() => session.setWorkspace(workspace as Workspace)}
-            className={cx(
-              "border-b-2 px-3 py-2 text-sm font-medium transition-colors",
-              session.workspace === workspace
-                ? "border-brand-600 text-ink-900"
-                : "border-transparent text-ink-500 hover:text-ink-700",
-            )}
-          >
-            {WORKSPACE_LABELS[workspace]}
-          </button>
-        ))}
-        <span className="ml-3 text-xs text-ink-500">
-          {WORKSPACE_QUESTIONS[session.workspace]}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/**
  * Identity display and sign-out — the authenticated employee's name and
  * role(s), with a logout action. There is no other-user list here any more
  * (Employee Authentication milestone): the normal way to become someone else
@@ -450,4 +363,3 @@ function IdentityMenu(): ReactNode {
   );
 }
 
-export { WORKSPACES };

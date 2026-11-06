@@ -1,5 +1,7 @@
 # Workflow
 
+> **Superseded (6 Nov 2026).** This describes PFO's first lifecycle. The working model is the MIS's: `PRD/Intake and Work Engine.md`, ADR-040, and ADR-047 to ADR-050 in `DECISIONS.md`. Where this file disagrees with them, they win.
+
 **Status:** Rewritten 1 November 2026 to match ADR-040 and `PRD/Intake and Work Engine.md`. For Tarun's review. The earlier transition table is superseded.
 
 How a case moves. `Loan Lifecycle.md` defines the stages; this defines the transitions and the edge cases that break naive designs. The tasks each action raises are in `Intake and Work Engine.md`, Part 4, and are not repeated here.
