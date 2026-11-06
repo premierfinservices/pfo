@@ -12,6 +12,31 @@ Written 30 October 2026 for a Claude session (or a person) that has **no memory 
 - The MIS stays the working system until its data is imported (step 4 below). Tarun says "go live" when he is ready.
 - Tarun is the decision maker. He prefers a straight assessment to validation, wants decisions recorded with reasons, and treats "unknown" as a valid answer. Do not invent numbers, rules or dates.
 
+## Checkpoint, 6 November 2026 (read this first; it overrides the older status below)
+
+Decisions: ADR-047 to ADR-050. Migrations run through 0054; the next number is 0055.
+
+| What | State |
+|---|---|
+| **MIS sync fixed** (ADR-047). From 3 Nov 14:30 to 6 Nov every run failed, because MCM-0036 has three real disbursements and BR-022 allowed one | **Live** since 6 Nov 15:05. Migration 0053 applied. Every MIS case is in scope now, Active and Archived, any date (40 cases; MCM-0027 still excluded). Each case is its own savepoint. Every run is recorded in `mis_sync_run`. Exit codes: 0 clean, 2 kept with issues, 1 nothing kept |
+| Sync-failure banner, Update Case as the only case screen (ADR-048), documents the MIS way with the co-applicant question (ADR-049), prototype store removed and one home screen (ADR-050) | **On `main`, not yet live.** Needs migration 0054 and an elevated restart with a fresh build (below) |
+
+**To make the rest live** (Unfold PC, elevated PowerShell):
+1. Stop the `PFO Server` task.
+2. `npm run migrate`. This applies 0054 if it is not already applied.
+3. `npm run build`.
+4. Start the `PFO Server` task.
+
+Then sign in and open a case. Do not run the build before the restart: the new screens call API routes the running server does not have yet.
+
+**Open, for Tarun**
+- MCM-0023 is skipped on every run because telecaller EMP-004 has no PFO login. Either create the login or exclude the case.
+- FU-00112 has no responsible employee in the MIS.
+- APP-0007 and APP-0029 were deleted from the MIS, so PFO marked them withdrawn.
+- The backend routes only the old Case Detail screen used are still in the API (ADR-048). Removing them means rewriting most of the integration tests' fixtures.
+- Seven end-to-end tests that drove Case Detail are suspended, and need rewriting for Update Case. **Never run Playwright on this PC** until you have checked that `playwright.config.ts` points the API at unused storage and mail ports. It now does; before 6 Nov it fell back to production's.
+- Rewriting the superseded PRDs (they now carry a banner) is still open.
+
 ## Checkpoint, 2 November 2026 (read this first; it overrides the older status below)
 
 `main` is at the commit that adds this section, pushed to `origin`. Running on the Unfold Media Corp PC. Migrations are applied through 0052; the next number is 0053. Decisions: ADR-045 (firm field) and ADR-046 (sync and reports).
