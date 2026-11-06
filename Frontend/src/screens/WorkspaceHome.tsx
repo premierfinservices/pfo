@@ -236,13 +236,6 @@ function LoginDeskWorkspace({ active }: { active: readonly ApiCase[] }): ReactNo
           <CaseRows cases={atBank} empty="Nothing with a bank." />
         </Card>
       </div>
-
-      <div className="space-y-6">
-        <Pending
-          title="Awaiting your verification"
-          what="The verification queue is built from document requirements, which move to the server in a later stage."
-        />
-      </div>
     </div>
   );
 }

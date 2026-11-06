@@ -44,8 +44,9 @@ describe("the words on a requirement row", () => {
     expect(new Set(labels).size).toBe(3);
   });
 
-  it("never calls an uploaded-but-unverified document done", () => {
-    expect(documentStateLabel("received").toLowerCase()).toContain("awaiting");
+  it("says an uploaded document was received, never that it was verified (checking is optional, ADR-040)", () => {
+    expect(documentStateLabel("received")).toBe("Received");
+    expect(documentStateLabel("received").toLowerCase()).not.toContain("verified");
   });
 
   it("says so when a missing document is only optional", () => {

@@ -54,7 +54,8 @@ export function LogCase(): ReactNode {
   const [loanType, setLoanType] = useState("");
   const [variant, setVariant] = useState("");
   const [leadSource, setLeadSource] = useState("");
-  const [firm, setFirm] = useState("");
+  // Every case is MCM for now (Tarun, 2 Nov 2026); still changeable here.
+  const [firm, setFirm] = useState("mcm");
   const [employment, setEmployment] = useState("");
   const [telecaller, setTelecaller] = useState(session.user.id);
   const [pickup, setPickup] = useState(dateFromToday(1));

@@ -1270,7 +1270,7 @@ function AddPropertyModal({
 
 const REQUIREMENT_STATUS_LABELS: Record<ApiRequirement["status"], string> = {
   pending: "Not received",
-  received: "Awaiting verification",
+  received: "Received",
   verified: "Verified",
   rejected: "Rejected",
   waived: "Waived",

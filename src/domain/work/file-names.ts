@@ -15,6 +15,8 @@ export interface FileMatch {
   /** Whether this file is one month of a monthly return. */
   readonly isMonthlyReturn?: boolean;
   readonly recognised: boolean;
+  /** Recognised, but no standard name fits, so it is stored under the name it came with. */
+  readonly keepsOwnName?: boolean;
 }
 
 export type FileKind =
@@ -140,6 +142,11 @@ export function classifyCaseFile(fileName: string, folder = ""): FileKind {
         },
       };
     }
+  }
+  // A GSTR-1, 2A or 9 is not a 3B and has no type of its own: it must not be named
+  // "GST 3B" or fill the 3B row, so it keeps its own name as an Other Document.
+  if (otherGstr) {
+    return { kind: "document", match: { documentTypeCode: "other_document", recognised: true, keepsOwnName: true } };
   }
   if (/^gstr/i.test(name)) {
     return { kind: "document", match: { documentTypeCode: "gst_returns", recognised: true } };

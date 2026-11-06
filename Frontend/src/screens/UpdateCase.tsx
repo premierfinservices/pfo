@@ -626,7 +626,7 @@ function UploadCard({
                 ))}
               </ul>
               <Link to={`/cases/${summary.id}?tab=documents`} className="mt-1 inline-block underline">
-                Open the documents to verify or reject them
+                Open the documents
               </Link>
             </div>
           )}
@@ -655,7 +655,8 @@ function UploadCard({
                     {item.fileName}
                     <span className="text-ink-400">
                       {" "}
-                      · {item.name} · {item.status === "verified" ? "verified" : "not yet verified"}
+                      · {item.name}
+                      {item.status === "verified" ? " · verified" : ""}
                     </span>
                   </span>
                   <Button
@@ -693,7 +694,7 @@ function UploadCard({
             ))}
           </ul>
           <Link to={`/cases/${summary.id}?tab=documents`} className="mt-1 inline-block underline">
-            Verify or reject documents
+            Open the documents
           </Link>
         </details>
       )}

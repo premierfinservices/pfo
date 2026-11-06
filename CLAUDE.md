@@ -45,10 +45,20 @@ check its `.env` too. Do this first, not after attempting the task.
     ```powershell
     $env:PFO_VITE_PORT=5273; $env:PFO_API_PORT=4421
     $env:PFO_STORAGE_PORT=4419; $env:PFO_MAIL_PORT=4420
+    $env:PFO_STORAGE_SERVER_URL="http://127.0.0.1:4419"
+    $env:PFO_MAIL_SERVER_URL="http://127.0.0.1:4420"
+    $env:PFO_API_INTERNAL_URL="http://127.0.0.1:4421"
+    $env:PFO_MAIL_PROVIDER="capture"
     $env:PFO_WEB_HOST="127.0.0.1"; $env:PFO_DB_NAME="pfo_dev"
     $env:PFO_STORAGE_ROOT="C:\PFO\Dev\Data"
     npm run dev
     ```
+    **The three `*_URL` lines are not optional.** The API reaches storage and
+    mail through `PFO_STORAGE_SERVER_URL` / `PFO_MAIL_SERVER_URL`, which
+    default to production's 4319 / 4320. Changing only the ports leaves a dev
+    API writing uploads into `C:\PFO\Data` and sending real email through the
+    live mail server. `PFO_MAIL_PROVIDER=capture` makes the dev mail server
+    write messages to disk instead of sending them. Found 6 Nov 2026.
     `Backend/env.mjs` only fills in vars not already set in the real
     environment, so exporting these first overrides the shared `.env` file
     (which still holds production's values) for this shell only — `.env`

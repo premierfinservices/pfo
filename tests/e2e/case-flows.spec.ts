@@ -119,7 +119,7 @@ test.describe("Case 1 — Business / Machinery Loan (₹65,00,000, GST, existing
     await expect(page.getByText(/pan-card\.pdf uploaded/)).toBeVisible();
     const panRow = documentRow(page, "PAN Card", { exact: true });
     await expect(panRow.getByText(/pan-card\.pdf/)).toBeVisible();
-    await expect(panRow.getByText(/Awaiting verification|Uploaded/i)).toBeVisible();
+    await expect(panRow.getByText(/Received|Uploaded/i)).toBeVisible();
 
     await panRow.getByRole("button", { name: "View" }).click();
     // ViewDocumentDialog (CaseDetail.tsx) titles the modal with the document type's own

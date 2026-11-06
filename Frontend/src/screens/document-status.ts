@@ -66,10 +66,10 @@ export const DOCUMENT_STATE_PRESENTATION: Record<DocumentState, DocumentStatePre
       "Wanted if it exists, never counted against the case. A file is not incomplete for missing one.",
   },
   awaiting_verification: {
-    label: "Awaiting verification",
+    label: "Received",
     tone: "info",
     meaning:
-      "A file has been uploaded and nobody has looked at it. Uploading is not the same as done.",
+      "A file has been uploaded. Checking it here is optional; nothing waits on it (ADR-040).",
   },
   verified: {
     label: "Verified",

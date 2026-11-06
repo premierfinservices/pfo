@@ -765,6 +765,19 @@ describe("the document drop reads, renames and unpacks", () => {
     expect((await stored(logged.id)).map((r) => r.code)).toEqual(["other_document", "other_document", "other_document"]);
   });
 
+  it("keeps a GSTR-1 under its own name as an Other Document, never as GST 3B, and never asks the model", async () => {
+    const session = await signInAs("telecaller");
+    const logged = await logCase(session);
+    expect(await post(session, logged.id, "GSTR-1 Jan 2026.pdf", "a gstr-1")).toMatchObject({
+      result: "filed",
+      documentTypeCode: "other_document",
+    });
+    const [row] = await stored(logged.id);
+    expect(row.code).toBe("other_document");
+    expect(row.file_name).toBe("GSTR-1 Jan 2026.pdf");
+    expect(classify).not.toHaveBeenCalled();
+  });
+
   it("never sends a file to the model when its name already says what it is, or it is a repeat, or it is not a PDF or image", async () => {
     const session = await signInAs("telecaller");
     const logged = await logCase(session);

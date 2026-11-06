@@ -1207,7 +1207,7 @@ export async function uploadCaseFile(
 
   // Named by what it is, once known; a file nothing could place keeps its own name.
   let storedName = file.fileName;
-  if (match.recognised) {
+  if (match.recognised && !match.keepsOwnName) {
     const { rows: owner } = await client.query<{ full_name: string | null }>(
       `select p.full_name
          from document_requirement r

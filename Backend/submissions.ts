@@ -62,7 +62,8 @@ import {
   type SubmissionPackagePlan,
   type SubmissionStatus,
 } from "@domain/submissions/index.js";
-import { documentRowLabel, financialYearOf, type PeriodKind } from "@domain/requirements/index.js";
+import { documentRowLabel, type PeriodKind } from "@domain/requirements/index.js";
+import { attachmentLabel } from "@domain/submissions/attachment-label.js";
 import {
   composeBody,
   type BankerRecipient,
@@ -654,6 +655,7 @@ interface RequirementDocumentRow {
   type_name: string;
   period_kind: string | null;
   period_start: string | null;
+  period_end: string | null;
   file_name: string;
   file_size_bytes: string;
   version: number;
@@ -669,7 +671,7 @@ async function sendableDocumentRows(client: Queryable, caseId: string): Promise<
   const { rows } = await client.query<RequirementDocumentRow>(
     `select r.id as requirement_id, d.id as document_id, dt.code as document_type_code,
             dt.category, dt.name as type_name, dt.period_kind::text as period_kind,
-            r.period_start::text, d.file_name, d.file_size_bytes::text, d.version,
+            r.period_start::text, r.period_end::text, d.file_name, d.file_size_bytes::text, d.version,
             r.is_custom
        from document_requirement r
        join document_type dt on dt.id = r.document_type_id
@@ -690,21 +692,20 @@ async function sendableDocumentRows(client: Queryable, caseId: string): Promise<
           limit 1
        ) d on true
       where r.case_id = $1 and r.status in ('received', 'verified')
-      order by dt.display_order, dt.code`,
+      order by dt.display_order, dt.code, r.period_start`,
     [caseId],
   );
   return rows;
 }
 
 function toCandidate(row: RequirementDocumentRow): CandidateDocument {
-  const financialYearLabel = row.period_start
-    ? financialYearOf(new Date(row.period_start)).label
-    : undefined;
-  const label = documentRowLabel(
-    row.type_name,
-    financialYearLabel,
-    (row.period_kind ?? undefined) as PeriodKind | undefined,
-  );
+  const { label, financialYearLabel } = attachmentLabel({
+    documentTypeCode: row.document_type_code,
+    typeName: row.type_name,
+    periodKind: (row.period_kind ?? undefined) as PeriodKind | undefined,
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
+  });
   return {
     documentId: row.document_id,
     requirementId: row.requirement_id,
@@ -1242,10 +1243,13 @@ async function dispatchEmails(
       category: string | null;
       type_name: string;
       period_kind: string | null;
+      period_start: string | null;
+      period_end: string | null;
     }>(
       `select spd.document_id, spd.document_version, spd.file_name, spd.file_size_bytes::text,
               spd.financial_year_label, d.file_path, dt.code as document_type_code, dt.category,
-              dt.name as type_name, dt.period_kind::text as period_kind
+              dt.name as type_name, dt.period_kind::text as period_kind,
+              d.period_start::text, d.period_end::text
          from submission_package_document spd
          join document d on d.id = spd.document_id
          join document_type dt on dt.id = d.document_type_id
@@ -1257,11 +1261,17 @@ async function dispatchEmails(
     const documents: CandidateDocument[] = documentRows.map((row) => ({
       documentId: row.document_id,
       documentTypeCode: row.document_type_code,
-      label: documentRowLabel(
-        row.type_name,
-        row.financial_year_label ?? undefined,
-        (row.period_kind ?? undefined) as PeriodKind | undefined,
-      ),
+      // A recorded year labels as it always has; a month of 3B carries none, so it
+      // is named from the document's own period.
+      label: row.financial_year_label
+        ? documentRowLabel(row.type_name, row.financial_year_label, (row.period_kind ?? undefined) as PeriodKind | undefined)
+        : attachmentLabel({
+            documentTypeCode: row.document_type_code,
+            typeName: row.type_name,
+            periodKind: (row.period_kind ?? undefined) as PeriodKind | undefined,
+            periodStart: row.period_start,
+            periodEnd: row.period_end,
+          }).label,
       fileName: row.file_name,
       fileSizeBytes: Number(row.file_size_bytes),
       category: row.category ?? "additional",
