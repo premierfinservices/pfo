@@ -75,7 +75,7 @@ describe("summariseProgress", () => {
   });
 
   describe("partial progress", () => {
-    it("counts only verified requirements toward the score", () => {
+    it("counts uploaded documents toward the score, verified or not (ADR-048)", () => {
       const summary = summariseProgress(
         [
           requirement({ status: "verified" }),
@@ -86,20 +86,20 @@ describe("summariseProgress", () => {
         "new",
       );
 
-      expect(summary.percentComplete).toBe(25);
+      expect(summary.percentComplete).toBe(50);
       expect(summary.receivedCount).toBe(1);
-      expect(summary.outstandingCount).toBe(3);
+      expect(summary.outstandingCount).toBe(2);
       expect(summary.isReadyForSubmission).toBe(false);
     });
 
-    it("does not treat received-but-unverified as done — a human must check (BR-032)", () => {
+    it("treats received as done: documents are received or pending, as in the MIS (ADR-048, BR-032 retired)", () => {
       const summary = summariseProgress(
         [requirement({ status: "received" }), requirement({ status: "received" })],
         "new",
       );
 
-      expect(summary.percentComplete).toBe(0);
-      expect(summary.isReadyForSubmission).toBe(false);
+      expect(summary.percentComplete).toBe(100);
+      expect(summary.isReadyForSubmission).toBe(true);
     });
   });
 

@@ -61,6 +61,10 @@ export function LogCase(): ReactNode {
   const [pickup, setPickup] = useState(dateFromToday(1));
   const [different, setDifferent] = useState(false);
   const [isPractice, setIsPractice] = useState(false);
+  // ADR-049: asked on every case, answered Yes or No before saving.
+  const [coApplicant, setCoApplicant] = useState<"" | "yes" | "no">("");
+  const [coName, setCoName] = useState("");
+  const [coMobile, setCoMobile] = useState("");
   const [match, setMatch] = useState<MobileMatch | null>(null);
 
   const words = useMemo(() => {
@@ -115,6 +119,8 @@ export function LogCase(): ReactNode {
           pickupDate: pickup,
           differentCustomer: different,
           isPractice,
+          coApplicant,
+          ...(coApplicant === "yes" ? { coApplicantName: coName, coApplicantMobile: coMobile } : {}),
         },
       }),
     );
@@ -251,6 +257,15 @@ export function LogCase(): ReactNode {
               </Button>
             </div>
           </Field>
+
+          <CoApplicantFields
+            answer={coApplicant}
+            name={coName}
+            mobile={coMobile}
+            onAnswer={setCoApplicant}
+            onName={setCoName}
+            onMobile={setCoMobile}
+          />
         </div>
 
         <label className="mt-4 flex items-center gap-2 text-sm text-ink-600">
@@ -261,11 +276,60 @@ export function LogCase(): ReactNode {
         {mutation.error && <p className="mt-3 text-sm text-red-700">{mutation.error}</p>}
 
         <div className="mt-4 flex justify-end">
-          <Button variant="primary" disabled={mutation.pending || blocked} onClick={() => void save()}>
+          <Button
+            variant="primary"
+            disabled={mutation.pending || blocked || coApplicant === "" || (coApplicant === "yes" && coName.trim() === "")}
+            onClick={() => void save()}
+          >
             {mutation.pending ? "Saving…" : "Log case"}
           </Button>
         </div>
       </Card>
     </div>
+  );
+}
+
+/**
+ * "Co-applicant?" Yes shows the name (needed) and mobile (optional); No is
+ * recorded as no. Also used on Update Case to add one later.
+ */
+export function CoApplicantFields({
+  answer,
+  name,
+  mobile,
+  onAnswer,
+  onName,
+  onMobile,
+}: {
+  answer: "" | "yes" | "no";
+  name: string;
+  mobile: string;
+  onAnswer: (value: "yes" | "no") => void;
+  onName: (value: string) => void;
+  onMobile: (value: string) => void;
+}): ReactNode {
+  return (
+    <>
+      <Field label="Co-applicant?">
+        <div className="flex gap-4 py-1.5 text-sm">
+          {(["yes", "no"] as const).map((value) => (
+            <label key={value} className="flex items-center gap-1.5">
+              <input type="radio" name="co-applicant" checked={answer === value} onChange={() => onAnswer(value)} />
+              {value === "yes" ? "Yes" : "No"}
+            </label>
+          ))}
+        </div>
+      </Field>
+      {answer === "yes" && (
+        <>
+          <Field label="Co-applicant name">
+            <Input value={name} onChange={(event) => onName(event.target.value)} className="uppercase" />
+          </Field>
+          <Field label="Co-applicant mobile (optional)">
+            <Input value={mobile} inputMode="numeric" onChange={(event) => onMobile(event.target.value)} />
+          </Field>
+        </>
+      )}
+    </>
   );
 }

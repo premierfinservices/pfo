@@ -195,6 +195,29 @@ export function belongsToApplicant(documentTypeCode: string): boolean {
   return PERSONAL_TYPES.has(documentTypeCode);
 }
 
+/**
+ * Whose personal document a file is: a co-applicant's when every word of their
+ * name is in the file name ("PAN - LAKSHMI DEVI.pdf"), else the applicant's
+ * (ADR-049). Null when no party is given. Pure.
+ */
+export function partyForFile(
+  fileName: string,
+  parties: readonly { readonly id: string; readonly name: string | null; readonly isPrimary: boolean }[],
+): string | null {
+  const words = (text: string): string[] => text.toUpperCase().split(/[^A-Z0-9]+/).filter((word) => word.length > 1);
+  const inFile = new Set(words(fileName.replace(/\.[^.]+$/, "")));
+  const nameIn = (name: string | null): boolean => {
+    const own = name ? words(name) : [];
+    return own.length > 0 && own.every((word) => inFile.has(word));
+  };
+  const applicant = parties.find((party) => party.isPrimary);
+  // The applicant's own full name in the file wins, so a short co-applicant name
+  // that is part of it ("KUMAR" in "RAVI KUMAR") never takes their document.
+  if (applicant && nameIn(applicant.name)) return applicant.id;
+  const named = parties.find((party) => !party.isPrimary && nameIn(party.name));
+  return (named ?? applicant)?.id ?? null;
+}
+
 /** How a monthly return shows on its own row: "GSTR-3B Apr 2025". */
 export function monthlyReturnName(periodStart: string): string {
   const [year, month] = periodStart.split("-").map(Number);

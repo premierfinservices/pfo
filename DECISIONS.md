@@ -1944,3 +1944,27 @@ content type recorded at upload would be better and is a small future change.
 **Not removed, on purpose.** The backend routes only Case Detail called stay in the API for now: `PATCH /cases/:id`, `stage`, `hold`, `parties`, `properties`, per-requirement upload, `decision`, `waive`, submission `status`/`queries`/`offers`. No screen calls them, and every one still checks permissions. They are the fixtures that most of the integration suite builds on, so removing them means rewriting most of that suite. That is a separate job, and it changes nothing anyone sees.
 
 **End-to-end tests.** Removed the specs that only covered deleted features. Suspended, with a reason, the live tests that click Case Detail controls. `playwright.config.ts` now points the e2e API at unused storage and mail ports. Before this it fell back to the office's own 4319/4320, so an e2e run on the Unfold PC would have written into `C:\PFO\Data` and sent real email.
+
+## ADR-049 — Documents the MIS way; Log a Case asks about a co-applicant
+
+**Status:** Accepted. Tarun Ramesh, 6 November 2026.
+
+**Documents.** The office does not verify documents one by one. The MIS records them as received in full, in part, or pending. So in PFO a document is either on the case, pending, or "not needed". Nothing else.
+- `summariseProgress` counts a received document as done. Rows verified before this still count. BR-032 ("a human must verify") is retired.
+- Verify, reject and waive are gone from every screen with Case Detail (ADR-048).
+- Lender emails no longer say "verified documents".
+- The parked inbound-mail code no longer offers received rows as places to file.
+- `retireDocument` and `clearFinancialSummary` keep their `document.verify` permission (login desk and managers). Only the name is historical; no permission was migrated.
+- There is no database change. The `verified` enum value stays, for the rows that hold it.
+
+**Co-applicant.**
+- **Log a Case** asks "Co-applicant?", and it must be answered.
+  - Yes needs a name and takes an optional mobile. A mobile already on file reuses that person, and a mobile equal to the customer's is refused.
+  - The co-applicant becomes a `case_party` with role `co_applicant`.
+  - Migration 0054 records the answer in `loan_case.has_co_applicant`. It is null when the question was never asked: older cases, and cases copied from the MIS, which has no co-applicant.
+- **Update Case** shows the co-applicant's name, or "None" / "Not asked".
+  - Anyone working the case can add one: `POST /api/work/cases/:id/co-applicant`.
+  - Only a manager (`case.assign`) can take one off. The party is marked removed, never deleted.
+  - The mobile shows only on the person page, because phone numbers are masked for the app role (0034).
+- **Uploads.** A personal document whose file name carries a co-applicant's whole name is filed under that co-applicant (`partyForFile`). Otherwise it stays with the applicant, and the applicant's own full name always wins. The GST and ITR summary already accepted any party's name.
+- Guarantor and property records stay in the database, but no screen offers them.

@@ -34,6 +34,7 @@
  */
 
 import {
+  addCoApplicant,
   answerEligibility,
   caseSummary,
   dropCase,
@@ -47,6 +48,7 @@ import {
   retireDocument,
   clearFinancialSummary,
   requirementRestore,
+  removeCoApplicant,
   reschedule,
   sendToLenders,
   updateApplication,
@@ -1038,6 +1040,13 @@ async function route(
   const workClearSummaryMatch = new RegExp(`^/api/work/cases/(${UUID})/clear-summary$`).exec(path);
   if (workClearSummaryMatch && method === "POST") {
     return await clearFinancialSummary(client, requireActor(actor), workClearSummaryMatch[1]!);
+  }
+  const coApplicantMatch = new RegExp(`^/api/work/cases/(${UUID})/co-applicant(?:/(${UUID})/remove)?$`).exec(path);
+  if (coApplicantMatch && method === "POST") {
+    const who = requireActor(actor);
+    return coApplicantMatch[2]
+      ? await removeCoApplicant(client, who, coApplicantMatch[1]!, coApplicantMatch[2])
+      : await addCoApplicant(client, who, coApplicantMatch[1]!, body);
   }
   const workApplicationMatch = new RegExp(
     `^/api/work/cases/(${UUID})/applications/(${UUID})$`,

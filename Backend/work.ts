@@ -26,7 +26,7 @@ import {
   productCodeFor,
 } from "@domain/work/intake.js";
 import { nextStepLine, workFor, type WorkEvent } from "@domain/work/rules.js";
-import { belongsToApplicant, classifyCaseFile, monthlyReturnName, type FileMatch } from "@domain/work/file-names.js";
+import { belongsToApplicant, classifyCaseFile, monthlyReturnName, partyForFile, type FileMatch } from "@domain/work/file-names.js";
 import { standardFileName } from "@domain/work/standard-names.js";
 import { deriveStatusLine } from "@domain/work/status-line.js";
 import { summaryBelongsTo, summaryBusinessNames } from "@domain/work/financial-summary.js";
@@ -45,7 +45,7 @@ import { createCase, markLost } from "./cases.js";
 import { normaliseIdentifier } from "./customers.js";
 import { uploadDocument } from "./documents.js";
 import type { Queryable } from "./db.js";
-import { recordCaseEvent, recordSubmissionEvent, type SubmissionEventType } from "./events.js";
+import { recordCaseEvent, recordCasePartyEvent, recordSubmissionEvent, type SubmissionEventType } from "./events.js";
 import { readByContent } from "./file-reading.js";
 import { ApiError, refusalMessage } from "./http.js";
 import { regenerateRequirements } from "./requirements.js";
@@ -82,6 +82,7 @@ interface CaseRow {
   is_practice: boolean;
   applicant_name: string | null;
   applicant_person_id: string | null;
+  has_co_applicant: boolean | null;
   owner_name: string | null;
   opened_on: string;
 }
@@ -90,6 +91,7 @@ const CASE_SELECT = `
   select c.id, c.case_number, c.stage::text, c.owner_user_id, c.is_on_hold, c.is_invoice_raised,
          c.stage_before_lost::text, c.financial_summary, c.document_status, c.eligibility_status, c.lost_reason::text,
          c.requested_amount::text, c.loan_type, c.loan_variant, c.place, c.firm, c.mis_managed, c.mis_case_notes, c.is_practice,
+         c.has_co_applicant,
          p.full_name as applicant_name, p.id as applicant_person_id, op.full_name as owner_name,
          coalesce(c.lead_received_on, (c.created_at at time zone 'Asia/Kolkata')::date)::text as opened_on
     from loan_case c
@@ -393,6 +395,12 @@ export async function logCase(client: Queryable, actor: Actor, body: Record<stri
 
   const pickup = requireFutureDate(body.pickupDate, "when the documents will be collected");
 
+  // ADR-049: asked on every new case. Yes needs a name; the mobile is optional.
+  if (body.coApplicant !== "yes" && body.coApplicant !== "no") {
+    throw new ApiError(400, "Answer: is there a co-applicant?");
+  }
+  const coApplicant = body.coApplicant === "yes" ? coApplicantFrom(body, mobile) : null;
+
   const ownerUserId = typeof body.telecallerId === "string" && body.telecallerId ? body.telecallerId : actor.userId;
   const owner = await client.query(`select 1 from app_user where id = $1 and is_active`, [ownerUserId]);
   if (!owner.rows[0]) throw new ApiError(400, "Pick the telecaller.");
@@ -435,10 +443,12 @@ export async function logCase(client: Queryable, actor: Actor, body: Record<stri
     `update loan_case
         set loan_type = $1, loan_variant = $2, place = $3, owner_user_id = $4, duplicate_override_note = $5,
             firm = $6, original_owner_user_id = $4,
-            lead_received_on = (created_at at time zone 'Asia/Kolkata')::date
+            lead_received_on = (created_at at time zone 'Asia/Kolkata')::date,
+            has_co_applicant = $8
       where id = $7`,
-    [loanType, variant || null, place, ownerUserId, note, firm.code, created.id],
+    [loanType, variant || null, place, ownerUserId, note, firm.code, created.id, coApplicant !== null],
   );
+  if (coApplicant) await insertCoApplicant(client, actor, created.id, coApplicant);
   await recordCaseEvent(client, {
     actorUserId: actor.userId,
     caseId: created.id,
@@ -448,6 +458,95 @@ export async function logCase(client: Queryable, actor: Actor, body: Record<stri
 
   await applyWork(client, actor, created.id, { type: "case_logged", due: pickup });
   return await caseSummary(client, actor, created.id, `${name} logged.`);
+}
+
+interface CoApplicantInput {
+  readonly name: string;
+  readonly mobile: string | null;
+}
+
+/** The co-applicant's name and optional mobile from a request body. */
+function coApplicantFrom(body: Record<string, unknown>, applicantMobile: string | null): CoApplicantInput {
+  const name = capitals(String(body.coApplicantName ?? ""));
+  if (name === "") throw new ApiError(400, "Type the co-applicant's name.");
+  const typed = String(body.coApplicantMobile ?? "").trim();
+  const mobile = typed === "" ? null : normaliseMobile(typed);
+  if (typed !== "" && !mobile) {
+    throw new ApiError(400, "Type the co-applicant's 10-digit mobile number, or leave it blank.");
+  }
+  if (mobile && mobile === applicantMobile) {
+    throw new ApiError(400, "The co-applicant's mobile is the customer's own. Leave it blank if they share one.");
+  }
+  return { name, mobile };
+}
+
+/** One co-applicant party on the case, reusing the person when the mobile is already on file. */
+async function insertCoApplicant(client: Queryable, actor: Actor, caseId: string, input: CoApplicantInput): Promise<void> {
+  const personId = input.mobile
+    ? await resolvePerson(client, actor, input.name, input.mobile, false)
+    : (
+        await client.query<{ id: string }>(`insert into person (full_name, created_by) values ($1, $2) returning id`, [
+          input.name,
+          actor.userId,
+        ])
+      ).rows[0]!.id;
+  const inserted = await client.query<{ id: string }>(
+    `insert into case_party (case_id, person_id, role, is_primary, created_by)
+     select $1, $2, 'co_applicant', false, $3
+      where not exists (select 1 from case_party where case_id = $1 and person_id = $2 and removed_at is null)
+     returning id`,
+    [caseId, personId, actor.userId],
+  );
+  if (!inserted.rows[0]) throw new ApiError(409, "That person is already on this case.");
+  await recordCasePartyEvent(client, {
+    actorUserId: actor.userId,
+    caseId,
+    casePartyId: inserted.rows[0].id,
+    eventType: "case.party_added",
+    payloadAfter: { role: "co_applicant", personId },
+  });
+}
+
+/** Update Case: add a co-applicant after the case was logged (ADR-049). */
+export async function addCoApplicant(client: Queryable, actor: Actor, caseId: string, body: Record<string, unknown>) {
+  const row = await loadCase(client, caseId);
+  requireCase(actor, row, "case.update");
+  requireOpen(row);
+  const applicantMobile = await client.query<{ value_normalised: string }>(
+    `select i.value_normalised from case_party cp
+       join person_identifier i on i.person_id = cp.person_id and i.identifier_type = 'phone'
+      where cp.case_id = $1 and cp.is_primary and cp.removed_at is null limit 1`,
+    [caseId],
+  );
+  const own = applicantMobile.rows[0] ? normaliseMobile(applicantMobile.rows[0].value_normalised) : null;
+  await insertCoApplicant(client, actor, caseId, coApplicantFrom(body, own));
+  await client.query(`update loan_case set has_co_applicant = true where id = $1`, [caseId]);
+  return await caseSummary(client, actor, caseId, "Co-applicant added.");
+}
+
+/** Managers take a co-applicant off (`case.assign`). The party is marked removed, never deleted. */
+export async function removeCoApplicant(client: Queryable, actor: Actor, caseId: string, partyId: string) {
+  const row = await loadCase(client, caseId);
+  requireCase(actor, row, "case.assign");
+  const removed = await client.query(
+    `update case_party set removed_at = now(), removed_by = $3
+      where id = $1 and case_id = $2 and role = 'co_applicant' and removed_at is null returning id`,
+    [partyId, caseId, actor.userId],
+  );
+  if (!removed.rows[0]) throw new ApiError(404, "No such co-applicant on this case.");
+  await recordCasePartyEvent(client, {
+    actorUserId: actor.userId,
+    caseId,
+    casePartyId: partyId,
+    eventType: "case.party_removed",
+    payloadAfter: { role: "co_applicant" },
+  });
+  const left = await client.query(
+    `select 1 from case_party where case_id = $1 and role = 'co_applicant' and removed_at is null`,
+    [caseId],
+  );
+  if (!left.rows[0]) await client.query(`update loan_case set has_co_applicant = false where id = $1`, [caseId]);
+  return await caseSummary(client, actor, caseId, "Co-applicant removed.");
 }
 
 async function resolvePerson(
@@ -680,8 +779,15 @@ export async function caseSummary(client: Queryable, actor: Actor, caseId: strin
     open && uploadedRows.length === 0 && (row.document_status === "partial" || row.document_status === "complete");
 
   const tasks = await openTasksOf(client, caseId);
+  const { rows: coApplicants } = await client.query<{ id: string; full_name: string | null }>(
+    `select cp.id, p.full_name from case_party cp join person p on p.id = cp.person_id
+      where cp.case_id = $1 and cp.role = 'co_applicant' and cp.removed_at is null order by cp.created_at`,
+    [caseId],
+  );
   return {
     id: row.id,
+    hasCoApplicant: row.has_co_applicant,
+    coApplicants: coApplicants.map((party) => ({ partyId: party.id, name: party.full_name })),
     caseNumber: row.case_number,
     stage: row.stage,
     customerName: row.applicant_name,
@@ -1078,7 +1184,19 @@ async function requirementForFile(
   caseId: string,
   match: FileMatch,
   rowName: string,
+  fileName: string,
 ): Promise<string> {
+  // A personal document is the applicant's unless the file names a co-applicant (ADR-049).
+  const personal = belongsToApplicant(match.documentTypeCode);
+  const { rows: parties } = await client.query<{ id: string; name: string | null; is_primary: boolean }>(
+    `select cp.id, p.full_name as name, cp.is_primary
+       from case_party cp left join person p on p.id = cp.person_id
+      where cp.case_id = $1 and cp.removed_at is null and (cp.is_primary or cp.role = 'co_applicant')`,
+    [caseId],
+  );
+  const owner = partyForFile(fileName, parties.map((p) => ({ id: p.id, name: p.name, isPrimary: p.is_primary })));
+  const ownerIsCoApplicant = personal && parties.some((p) => p.id === owner && !p.is_primary);
+
   if (!match.isMonthlyReturn) {
     const { rows } = await client.query<{ id: string }>(
       `select r.id
@@ -1086,17 +1204,15 @@ async function requirementForFile(
          join document_type dt on dt.id = r.document_type_id
         where r.case_id = $1 and dt.code = $2 and r.status in ('pending', 'rejected')
           and ($3::date is null or r.period_start = $3::date or r.period_start is null)
-        order by (r.period_start = $3::date) desc nulls last, r.period_start desc nulls last
+          and (not $5 or r.required_of_case_party_id = $4)
+        order by (r.required_of_case_party_id = $4) desc nulls last,
+                 (r.period_start = $3::date) desc nulls last, r.period_start desc nulls last
         limit 1`,
-      [caseId, match.documentTypeCode, match.periodStart ?? null],
+      [caseId, match.documentTypeCode, match.periodStart ?? null, owner, ownerIsCoApplicant],
     );
     if (rows[0]) return rows[0].id;
   }
 
-  const { rows: party } = await client.query<{ id: string }>(
-    `select id from case_party where case_id = $1 and is_primary and removed_at is null`,
-    [caseId],
-  );
   const { rows } = await client.query<{ id: string }>(
     `insert into document_requirement
        (case_id, document_type_id, required_of_case_party_id, applicable_from_stage, applicability_id,
@@ -1107,7 +1223,7 @@ async function requirementForFile(
      returning id`,
     [
       caseId,
-      belongsToApplicant(match.documentTypeCode) ? (party[0]?.id ?? null) : null,
+      personal ? owner : null,
       rowName,
       match.periodStart ?? null,
       match.periodEnd ?? null,
@@ -1222,7 +1338,7 @@ export async function uploadCaseFile(
     : readByAi
       ? typeName
       : file.fileName.replace(/\.[^.]+$/, "");
-  const requirementId = await requirementForFile(client, actor, caseId, match, rowName);
+  const requirementId = await requirementForFile(client, actor, caseId, match, rowName, file.fileName);
 
   // Named by what it is, once known; a file nothing could place keeps its own name.
   let storedName = file.fileName;

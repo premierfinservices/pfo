@@ -123,7 +123,7 @@ async function loadMatchCandidates(
 async function candidateDocumentTypes(client: Queryable, actor: Actor, caseId: string): Promise<CandidateDocumentType[]> {
   const { requirements } = await listCaseRequirements(client, actor, caseId);
   return requirements
-    .filter((requirement) => requirement.status !== "not_applicable" && requirement.status !== "verified")
+    .filter((requirement) => requirement.status !== "not_applicable" && requirement.status !== "verified" && requirement.status !== "received")
     .map((requirement) => ({ code: requirement.documentTypeCode, name: requirement.documentTypeCode }));
 }
 

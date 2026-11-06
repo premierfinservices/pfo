@@ -222,7 +222,7 @@ describe("timeline summary", () => {
     });
     expect(summary).toContain("Documents sent to banker");
     expect(summary).toContain("HDFC Bank — RS Puram");
-    expect(summary).toContain("8 verified documents");
+    expect(summary).toContain("8 documents");
     expect(summary).toContain("3 emails");
     expect(summary).not.toBe("Email sent");
   });

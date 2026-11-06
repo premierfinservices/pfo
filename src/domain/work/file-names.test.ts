@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { classifyCaseFile, monthlyReturnName, type FileKind } from "./file-names.js";
+import { classifyCaseFile, monthlyReturnName, partyForFile, type FileKind } from "./file-names.js";
 
 function typeOf(kind: FileKind): string {
   return kind.kind === "document" ? kind.match.documentTypeCode : kind.kind;
@@ -91,4 +91,32 @@ describe("reading organize's file names", () => {
   });
 
   it("names a month's return", () => expect(monthlyReturnName("2025-04-01")).toBe("GSTR-3B Apr 2025"));
+});
+
+describe("partyForFile (ADR-049)", () => {
+  const parties = [
+    { id: "applicant", name: "RAVI KUMAR", isPrimary: true },
+    { id: "spouse", name: "LAKSHMI DEVI", isPrimary: false },
+  ];
+
+  it("files a document under the co-applicant whose whole name is in the file name", () => {
+    expect(partyForFile("PAN - LAKSHMI DEVI.pdf", parties)).toBe("spouse");
+    expect(partyForFile("aadhaar_lakshmi_devi_front.jpg", parties)).toBe("spouse");
+  });
+
+  it("keeps everything else with the applicant, including a partial name", () => {
+    expect(partyForFile("PAN - RAVI KUMAR.pdf", parties)).toBe("applicant");
+    expect(partyForFile("PAN - LAKSHMI.pdf", parties)).toBe("applicant");
+    expect(partyForFile("PAN.pdf", parties)).toBe("applicant");
+  });
+
+  it("never gives the applicant's own document to a co-applicant whose name is part of theirs", () => {
+    const short = [parties[0]!, { id: "son", name: "KUMAR", isPrimary: false }];
+    expect(partyForFile("PAN - RAVI KUMAR.pdf", short)).toBe("applicant");
+    expect(partyForFile("PAN - KUMAR.pdf", short)).toBe("son");
+  });
+
+  it("answers null when the case has no party", () => {
+    expect(partyForFile("PAN.pdf", [])).toBeNull();
+  });
 });

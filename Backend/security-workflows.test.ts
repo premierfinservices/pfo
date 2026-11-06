@@ -273,9 +273,12 @@ describe("a telecaller sending their own case to a lender, as aos_app (ADR-042)"
         firm: "premier",
         employmentType: "proprietorship",
         pickupDate: new Date(Date.now() + 5.5 * 3_600_000 + 86_400_000).toISOString().slice(0, 10),
+        coApplicant: "yes",
+        coApplicantName: "rls co applicant",
       },
     });
     expect(logged.status, `log-case: ${JSON.stringify(logged.body)}`).toBe(200);
+    expect(logged.body.coApplicants.map((c: any) => c.name)).toEqual(["RLS CO APPLICANT"]);
 
     const options = await api(`/api/work/cases/${logged.body.id}/lenders`, { token: owner.token });
     expect(options.status, `lender list: ${JSON.stringify(options.body)}`).toBe(200);

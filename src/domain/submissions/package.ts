@@ -91,7 +91,7 @@ export function describePackageProblem(problem: PackagePlanProblem): string {
     case "no_addressee":
       return "Everybody is copied and nobody is addressed. Mark at least one banker as 'To'.";
     case "nothing_selected":
-      return "Choose at least one verified document to send.";
+      return "Choose at least one document to send.";
     case "document_not_sendable":
       // One wording per reason across the whole system — the selection list
       // shows the same sentence beside the row it disabled.

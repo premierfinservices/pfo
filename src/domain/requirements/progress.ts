@@ -128,12 +128,16 @@ export function summariseProgress(
   const verifiedCount = applicable.filter((r) => r.status === "verified").length;
   const receivedCount = applicable.filter((r) => r.status === "received").length;
   const rejectedCount = applicable.filter((r) => r.status === "rejected").length;
-  const outstandingCount = applicable.length - verifiedCount;
+  // An uploaded document counts as done, verified or not: the office works the
+  // MIS way, where documents are received or pending and nobody verifies them one
+  // by one (ADR-048). Rows verified before then still count.
+  const doneCount = verifiedCount + receivedCount;
+  const outstandingCount = applicable.length - doneCount;
 
   // A case with nothing applicable is complete. This is the simple-case
   // guarantee: one applicant, no optional parties, and the bar fills.
   const percentComplete =
-    applicable.length === 0 ? 100 : Math.round((verifiedCount / applicable.length) * 100);
+    applicable.length === 0 ? 100 : Math.round((doneCount / applicable.length) * 100);
 
   return {
     applicableCount: applicable.length,

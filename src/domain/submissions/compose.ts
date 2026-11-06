@@ -266,7 +266,7 @@ export function describeSubmissionForTimeline(input: {
   readonly recipients: readonly string[];
   readonly counterparty?: string | undefined;
 }): string {
-  const documents = `${input.documentCount} verified document${input.documentCount === 1 ? "" : "s"}`;
+  const documents = `${input.documentCount} document${input.documentCount === 1 ? "" : "s"}`;
   const emails = `${input.batchCount} email${input.batchCount === 1 ? "" : "s"}`;
   const to = joinWithAmpersand(input.recipients);
   const where = input.counterparty === undefined ? "" : ` at ${input.counterparty}`;

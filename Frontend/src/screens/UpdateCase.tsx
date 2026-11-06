@@ -23,7 +23,7 @@ import { exactly } from "../lib.js";
 import { useSession } from "../session.js";
 import { ViewDocumentDialog } from "../ui/document-preview.js";
 import { Badge, Button, Card, Empty, Field, Input, Modal, Select, StageBadge, cx } from "../ui/index.js";
-import { dateFromToday, type WorkLists } from "./LogCase.js";
+import { CoApplicantFields, dateFromToday, type WorkLists } from "./LogCase.js";
 import { FinancialSummary, FinancialsOrEmpty, SummarySkeleton } from "./FinancialSummary.js";
 import { SentDocuments } from "./SentDocuments.js";
 
@@ -67,6 +67,9 @@ interface Summary {
   readonly openedOn: string;
   readonly ownerName: string | null;
   readonly ownerUserId: string;
+  /** The answer on Log a Case: null when never asked (older and MIS-synced cases). */
+  readonly hasCoApplicant: boolean | null;
+  readonly coApplicants: readonly { partyId: string; name: string | null }[];
   readonly amount: number | null;
   readonly amountInWords: string;
   readonly loanType: string | null;
@@ -511,6 +514,8 @@ function CaseTab({
         </div>
       </Card>
 
+      <CoApplicantCard summary={summary} act={act} pending={pending} />
+
       <UploadCard summary={summary} refresh={refresh} act={act} pending={pending} />
 
       <Card title="Pending documents" subtitle="For information only. Nothing here stops the file going to a lender.">
@@ -551,6 +556,78 @@ function CaseTab({
         </Button>
       </Card>
     </div>
+  );
+}
+
+/** Who borrows with the customer (ADR-049). Anyone on the case adds one; a manager takes one off. */
+function CoApplicantCard({ summary, act, pending }: { summary: Summary; act: Act; pending: boolean }): ReactNode {
+  const session = useSession();
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const [mobile, setMobile] = useState("");
+  const mayRemove = !summary.misManaged && session.canActOnCase(summary.ownerUserId, "case.assign");
+  const answer =
+    summary.coApplicants.length > 0 ? null : summary.hasCoApplicant === false ? "None." : "Not asked when the case was logged.";
+  return (
+    <Card title="Co-applicant">
+      {answer ? (
+        <p className="text-sm text-ink-600">{answer}</p>
+      ) : (
+        <ul className="space-y-1 text-sm">
+          {summary.coApplicants.map((party) => (
+            <li key={party.partyId} className="flex items-center justify-between gap-2">
+              <span>{party.name}</span>
+              {mayRemove && (
+                <Button
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => void act(`co-applicant/${party.partyId}/remove`, {})}
+                >
+                  Remove
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {!summary.misManaged &&
+        (adding ? (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <CoApplicantFields
+              answer="yes"
+              name={name}
+              mobile={mobile}
+              onAnswer={() => undefined}
+              onName={setName}
+              onMobile={setMobile}
+            />
+            <div className="flex gap-2 sm:col-span-2">
+              <Button
+                variant="primary"
+                disabled={pending || name.trim() === ""}
+                onClick={() =>
+                  void act("co-applicant", { coApplicantName: name, coApplicantMobile: mobile }).then((done) => {
+                    if (done) {
+                      setAdding(false);
+                      setName("");
+                      setMobile("");
+                    }
+                  })
+                }
+              >
+                Add
+              </Button>
+              <Button variant="ghost" onClick={() => setAdding(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button className="mt-3" variant="ghost" onClick={() => setAdding(true)}>
+            Add a co-applicant
+          </Button>
+        ))}
+    </Card>
   );
 }
 

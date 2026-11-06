@@ -239,7 +239,7 @@ describe("refusals, in the order a user can act on them", () => {
   it("refuses an empty selection", () => {
     const result = planSubmissionPackage(input({ documents: [] }));
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(describePackageProblem(result.problem)).toContain("at least one verified document");
+    if (!result.ok) expect(describePackageProblem(result.problem)).toContain("at least one document");
   });
 
   it("would refuse a batch a provider could not carry, before anything is sent", () => {

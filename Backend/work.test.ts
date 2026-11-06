@@ -120,6 +120,7 @@ function caseBody(over: Record<string, unknown> = {}) {
     firm: "mcm",
     employmentType: "proprietorship",
     pickupDate: today(1),
+    coApplicant: "no",
     ...over,
   };
 }
@@ -311,6 +312,62 @@ describe("Log a Case", () => {
     const ids = (r: any) => r.body.map((c: any) => c.id);
     expect(ids(await api("/api/work/cases", { token: telecaller.token }))).not.toContain(logged.id);
     expect(ids(await api("/api/work/cases?ended=1", { token: telecaller.token }))).toContain(logged.id);
+  });
+
+  it("asks whether there is a co-applicant, and records Yes with a name and No as no (ADR-049)", async () => {
+    const telecaller = await signInAs("telecaller");
+    const unanswered = await api("/api/work/log-case", {
+      method: "POST",
+      token: telecaller.token,
+      body: caseBody({ coApplicant: undefined }),
+    });
+    expect(unanswered.status).toBe(400);
+    const noName = await api("/api/work/log-case", {
+      method: "POST",
+      token: telecaller.token,
+      body: caseBody({ coApplicant: "yes" }),
+    });
+    expect(noName.status).toBe(400);
+    const badMobile = await api("/api/work/log-case", {
+      method: "POST",
+      token: telecaller.token,
+      body: caseBody({ coApplicant: "yes", coApplicantName: "x", coApplicantMobile: "123" }),
+    });
+    expect(badMobile.status).toBe(400);
+
+    const without = await logCase(telecaller);
+    expect(without.hasCoApplicant).toBe(false);
+    expect(without.coApplicants).toEqual([]);
+
+    const coMobile = freshMobile();
+    const withOne = await logCase(telecaller, { coApplicant: "yes", coApplicantName: "demo spouse", coApplicantMobile: coMobile });
+    expect(withOne.hasCoApplicant).toBe(true);
+    expect(withOne.coApplicants.map((c: any) => c.name)).toEqual(["DEMO SPOUSE"]);
+    const { rows } = await pool.query(
+      `select cp.role::text, i.value_normalised from case_party cp
+         join person_identifier i on i.person_id = cp.person_id and i.identifier_type = 'phone'
+        where cp.case_id = $1 and not cp.is_primary`,
+      [withOne.id],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].role).toBe("co_applicant");
+    expect(rows[0].value_normalised).toContain(coMobile);
+  });
+
+  it("adds a co-applicant later, and only a manager takes one off (ADR-049)", async () => {
+    const telecaller = await signInAs("telecaller");
+    const logged = await logCase(telecaller);
+    const added = await ok(telecaller, logged.id, "co-applicant", { coApplicantName: "late partner" });
+    expect(added.hasCoApplicant).toBe(true);
+    const partyId = added.coApplicants[0].partyId;
+
+    expect((await act(telecaller, logged.id, `co-applicant/${partyId}/remove`)).status).toBe(403);
+    const manager = await signInAs("manager");
+    const removed = await ok(manager, logged.id, `co-applicant/${partyId}/remove`);
+    expect(removed.coApplicants).toEqual([]);
+    expect(removed.hasCoApplicant).toBe(false);
+    const { rows } = await pool.query(`select removed_by from case_party where id = $1`, [partyId]);
+    expect(rows[0].removed_by).toBe(manager.userId);
   });
 
   it("assigns the telecaller chosen, not the person typing", async () => {
@@ -670,6 +727,23 @@ describe("uploading a case folder", () => {
     const cleared = await ok(manager, logged.id, "clear-summary");
     expect(cleared.financialSummary).toBeNull();
     expect(cleared.financialSummaryWarning).toBeNull();
+  });
+
+  it("files a document under the co-applicant when the file names them (ADR-049)", async () => {
+    const telecaller = await signInAs("telecaller");
+    const logged = await logCase(telecaller, { customerName: "ravi demo", coApplicant: "yes", coApplicantName: "lakshmi devi" });
+    await upload(telecaller, logged.id, "PAN - LAKSHMI DEVI.pdf");
+    await upload(telecaller, logged.id, "PAN - RAVI DEMO.pdf");
+    const { rows } = await pool.query(
+      `select cp.role::text, d.file_name
+         from document_requirement r
+         join case_party cp on cp.id = r.required_of_case_party_id
+         join document d on d.id = r.uploaded_document_id
+        where r.case_id = $1 order by cp.is_primary`,
+      [logged.id],
+    );
+    expect(rows.map((r: any) => r.role)).toEqual(["co_applicant", "applicant"]);
+    expect(rows[0].file_name).toContain("LAKSHMI DEVI");
   });
 
   it("retires a wrongly uploaded document with a reason, keeps the file on record, and asks for it again", async () => {
