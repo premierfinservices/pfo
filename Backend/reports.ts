@@ -6,6 +6,7 @@
 
 import { PERIODS, computeMisReport, periodRange, type ReportApplication, type ReportCase, type ReportTask } from "@domain/reports/mis-report.js";
 import { FIRMS, LEAD_SOURCES } from "@domain/work/intake.js";
+import { syncWarning, type SyncRun } from "@domain/work/sync-status.js";
 
 import { can, type Actor } from "./authorize.js";
 import type { Queryable } from "./db.js";
@@ -155,4 +156,18 @@ export async function misReport(client: Queryable, actor: Actor, params: URLSear
       amount: c.amount,
     })),
   };
+}
+
+/**
+ * The latest MIS sync run and the warning, if any, managers should see (ADR-047).
+ * Same audience as the reports: whoever may see whole-office figures.
+ */
+export async function misSyncStatus(client: Queryable, actor: Actor) {
+  if (!can(actor, "report.view", "all")) return { warning: null };
+  const { rows } = await client.query<{ finished_at: Date; outcome: SyncRun["outcome"]; issues: string[] }>(
+    `select finished_at, outcome, issues from mis_sync_run order by finished_at desc limit 1`,
+  );
+  const row = rows[0];
+  const latest = row ? { finishedAt: row.finished_at.toISOString(), outcome: row.outcome, issues: row.issues } : null;
+  return { latest, warning: syncWarning(latest, new Date().toISOString()) };
 }

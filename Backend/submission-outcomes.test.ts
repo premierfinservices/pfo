@@ -469,7 +469,7 @@ describe("multi-bank behaviour", () => {
     expect(events.map((e) => e.event_type)).toContain("offer.accepted");
   });
 
-  it("enforces one disbursed submission per case (BR-022)", async () => {
+  it("lets a case be disbursed by more than one lender (ADR-047, BR-022 retired)", async () => {
     const owner = await signInAs("telecaller");
     const verifier = await signInAs("login_executive");
     const loanCase = await aReadyCase(owner, verifier);
@@ -488,7 +488,7 @@ describe("multi-bank behaviour", () => {
     expect(firstDisbursed.status, JSON.stringify(firstDisbursed.body)).toBe(200);
 
     const secondDisbursed = await setStatus(verifier, loanCase.id, subB.id, "disbursed");
-    expect(secondDisbursed.status).toBe(409);
+    expect(secondDisbursed.status, JSON.stringify(secondDisbursed.body)).toBe(200);
   });
 });
 

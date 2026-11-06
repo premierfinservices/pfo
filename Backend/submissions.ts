@@ -1600,9 +1600,9 @@ export async function listPackages(
 //
 // Everything below writes `submission.status`, `offer` or `submission_query`
 // — the three tables Stage 3D's schema always carried but nothing wrote to
-// (Database/migrations/0006). The state invariants (BR-022 one disbursed
-// submission per case, BR-023 a sanction needs an offer, BR-024 a rejection
-// needs a reason, BR-025 one accepted offer per submission) are already
+// (Database/migrations/0006). The state invariants (BR-023 a sanction needs an
+// offer, BR-024 a rejection needs a reason, BR-025 one accepted offer per
+// submission; BR-022, one disbursed submission per case, was retired by ADR-047) are already
 // enforced by Postgres constraints and the deferred `submission_sanction_
 // has_offer` trigger; what was missing was the TRANSITION layer the 0006
 // header explicitly reserves for the domain/application (`@domain/
@@ -1683,16 +1683,6 @@ export async function updateSubmissionStatus(
     ]);
     if (!offerRows[0]) {
       throw new ApiError(409, "A sanction needs an offer attached before it can be recorded (BR-023).");
-    }
-  }
-
-  if (to === "disbursed") {
-    const { rows: otherDisbursed } = await client.query(
-      `select id from submission where case_id = $1 and status = 'disbursed' and id <> $2`,
-      [caseId, submissionId],
-    );
-    if (otherDisbursed[0]) {
-      throw new ApiError(409, "This case already has a disbursed submission (BR-022).");
     }
   }
 

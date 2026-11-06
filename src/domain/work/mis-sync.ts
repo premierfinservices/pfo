@@ -84,15 +84,15 @@ export interface MisData {
   readonly employees: readonly MisEmployee[];
 }
 
-/** Tarun, 2 Nov 2026: cases with a lead date from here on, and only live ones. */
-export const MIS_SYNC_FROM = "2026-10-13";
-
 /** Tarun, 2 Nov 2026: stays in the MIS, never comes to PFO. */
 export const MIS_SYNC_EXCLUDED: ReadonlySet<string> = new Set(["MCM-0027"]);
 
+/**
+ * Tarun, 6 Nov 2026 (ADR-047): every MIS case, live or archived, of any date.
+ * Until then only live cases with a lead date from 13 Oct 2026 came across.
+ */
 export function inSyncScope(customer: MisCustomer): boolean {
-  if (MIS_SYNC_EXCLUDED.has(customer.caseId)) return false;
-  return customer.location === "Active" && customer.leadDate !== null && customer.leadDate.slice(0, 10) >= MIS_SYNC_FROM;
+  return !MIS_SYNC_EXCLUDED.has(customer.caseId);
 }
 
 const STAGES: Readonly<Record<string, CaseStage>> = {

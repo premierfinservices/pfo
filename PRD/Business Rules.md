@@ -86,9 +86,10 @@ branch. It cannot exist without both.
 independent status.
 *Why:* Multi-bank submission is normal. See ADR-004.
 
-**BR-022** — A case may have at most one submission in `Disbursed`.
-*Why:* One loan is disbursed. Two would be a serious error, and the database
-should make it impossible rather than merely unlikely.
+**BR-022** — *Retired 6 November 2026 (ADR-047).* It said a case could have at
+most one submission in `Disbursed`. The MIS showed one customer disbursed by three
+lenders (MCM-0036), and Tarun confirmed it is real. A case may now have several
+disbursed applications; the reports count customers and applications separately.
 
 **BR-023** — A submission cannot enter `Sanctioned` without an attached offer.
 *Why:* "Sanctioned" with no amount, rate or tenure is not information.

@@ -1572,13 +1572,6 @@ export async function updateApplication(
   if (to === "disbursed" && (disbursementAmount === null || !disbursementDate)) {
     throw new ApiError(400, "Disbursement amount and date are needed.");
   }
-  if (to === "disbursed") {
-    const other = await client.query(
-      `select 1 from submission where case_id = $1 and status = 'disbursed' and id <> $2`,
-      [caseId, submissionId],
-    );
-    if (other.rows[0]) throw new ApiError(409, "This case already has a disbursed application.");
-  }
 
   const reasonText = typeof body.reason === "string" ? body.reason.trim() : "";
   if (to === "not_eligible_precheck" && reasonText === "") throw new ApiError(400, "Note why the lender found the customer not eligible.");

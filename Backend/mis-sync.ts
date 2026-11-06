@@ -49,6 +49,14 @@ export interface SyncReport {
   released: number;
   reusedPeople: number;
   readonly caseIds: string[];
+  /**
+   * Cases that came across with nothing to report, applications and follow-ups
+   * included. Only these are compared figure by figure with the MIS: a case with a
+   * skipped row cannot match, and it is already named in `issues`.
+   */
+  readonly cleanCaseIds: string[];
+  /** Cases whose sync threw. Each was undone on its own; the others were kept. */
+  readonly failed: string[];
   readonly employees: Record<string, string>;
   readonly issues: string[];
   /** The same customer on a case the MIS does not know. Told each run, never changed. */
@@ -251,15 +259,21 @@ async function syncCase(ctx: Context, customer: MisCustomer): Promise<string | n
     return null;
   }
 
+  // A case PFO already holds keeps its last good copy when it is skipped; say so,
+  // or PFO looks up to date when it is not.
+  const stale = (): null => {
+    if (current) report.issues.push(`${customer.caseId}: STALE, PFO still shows the copy from its last good sync.`);
+    return null;
+  };
   const mobile = normaliseMobile(customer.mobile ?? "");
   if (!mobile) {
     report.issues.push(`${customer.caseId}: skipped, its mobile is not a valid 10-digit number.`);
-    return null;
+    return stale();
   }
   const wanted = wantedCase(customer, ctx);
-  if (!wanted) return null;
+  if (!wanted) return stale();
   const ids = await lookupCaseIds(ctx, customer);
-  if (!ids) return null;
+  if (!ids) return stale();
   const row: Record<string, unknown> = { ...wanted, loan_product_id: ids.product, referral_source_id: ids.source };
 
   if (!current) {
@@ -359,8 +373,10 @@ async function syncApplication(
 ): Promise<string | null> {
   const { client, report, automation, data, people } = ctx;
   const id = application.applicationId;
+  const held = await client.query(`select 1 from submission where mis_application_id = $1`, [id]);
   const skip = (why: string): null => {
-    report.issues.push(`${id} (${application.caseId}): skipped, ${why}.`);
+    const staleNote = held.rows[0] ? " STALE: PFO still shows its last good copy." : "";
+    report.issues.push(`${id} (${application.caseId}): skipped, ${why}.${staleNote}`);
     return null;
   };
 
@@ -547,7 +563,8 @@ async function syncFollowup(
 
   const assignee = followup.responsibleId ? people.get(followup.responsibleId) : undefined;
   if (!assignee) {
-    report.issues.push(`${followup.followupId}: skipped, ${followup.responsibleId} has no PFO login.`);
+    const staleNote = current ? " STALE: PFO still shows its last good copy." : "";
+    report.issues.push(`${followup.followupId}: skipped, ${followup.responsibleId} has no PFO login.${staleNote}`);
     return;
   }
   const completed = followup.status === "Completed";
@@ -586,6 +603,67 @@ async function closeMissingTasks(ctx: Context, caseId: string, seen: ReadonlySet
   }
 }
 
+/** One case with its applications and follow-ups. False when the case was skipped or released. */
+async function syncWholeCase(
+  ctx: Context,
+  customer: MisCustomer,
+  lenders: Map<string, Lender>,
+  notCategorised: string,
+): Promise<boolean> {
+  const { data } = ctx;
+  const caseId = await syncCase(ctx, customer);
+  if (!caseId) return false;
+
+  const submissions = new Map<string, string>();
+  const seenApplications = new Set<string>();
+  for (const application of data.applications.filter((a) => a.caseId === customer.caseId)) {
+    seenApplications.add(application.applicationId);
+    const id = await syncApplication(ctx, application, caseId, lenders, notCategorised);
+    if (id) submissions.set(application.applicationId, id);
+  }
+  await withdrawMissing(ctx, caseId, seenApplications);
+
+  const seenFollowups = new Set<string>();
+  for (const followup of data.followups.filter((f) => f.caseId === customer.caseId)) {
+    seenFollowups.add(followup.followupId);
+    await syncFollowup(ctx, followup, caseId, submissions);
+  }
+  await closeMissingTasks(ctx, caseId, seenFollowups);
+  return true;
+}
+
+type Counts = Pick<SyncReport, "cases" | "applications" | "tasks" | "released" | "reusedPeople">;
+
+function snapshot(report: SyncReport): Counts {
+  return structuredClone({
+    cases: report.cases,
+    applications: report.applications,
+    tasks: report.tasks,
+    released: report.released,
+    reusedPeople: report.reusedPeople,
+  });
+}
+
+/** Put the tallies back as they were before a case that was undone. */
+function restore(report: SyncReport, counts: Counts): void {
+  Object.assign(report.cases, counts.cases);
+  Object.assign(report.applications, counts.applications);
+  Object.assign(report.tasks, counts.tasks);
+  report.released = counts.released;
+  report.reusedPeople = counts.reusedPeople;
+}
+
+/**
+ * The database's words, plus which constraint and table, never the row's values:
+ * Postgres puts key values in `detail`, and those can be a customer's mobile.
+ */
+export function describeError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const pg = error as Error & { constraint?: string; table?: string };
+  const where = [pg.table && `table ${pg.table}`, pg.constraint && `constraint ${pg.constraint}`].filter(Boolean).join(", ");
+  return where ? `${error.message} (${where})` : error.message;
+}
+
 /** Runs inside the caller's transaction; a dry run rolls it back. */
 export async function syncFromMis(client: Queryable, data: MisData): Promise<SyncReport> {
   const report: SyncReport = {
@@ -595,6 +673,8 @@ export async function syncFromMis(client: Queryable, data: MisData): Promise<Syn
     released: 0,
     reusedPeople: 0,
     caseIds: [],
+    cleanCaseIds: [],
+    failed: [],
     employees: {},
     issues: [],
     sameCustomer: [],
@@ -637,25 +717,32 @@ export async function syncFromMis(client: Queryable, data: MisData): Promise<Syn
     // Once copied, a case stays in step even after it leaves the live list, so an
     // archive in the MIS closes it here too.
     if (!inSyncScope(customer) && !alreadyHere.has(customer.caseId)) continue;
-    const caseId = await syncCase(ctx, customer);
-    if (!caseId) continue;
-    report.caseIds.push(customer.caseId);
 
-    const submissions = new Map<string, string>();
-    const seenApplications = new Set<string>();
-    for (const application of data.applications.filter((a) => a.caseId === customer.caseId)) {
-      seenApplications.add(application.applicationId);
-      const id = await syncApplication(ctx, application, caseId, lenders, notCategorised);
-      if (id) submissions.set(application.applicationId, id);
+    // Each case is its own savepoint (ADR-047). One case the database refuses is
+    // undone and named; every other case is still kept. Until 6 Nov 2026 one
+    // refused row rolled back the whole run, every run, for three days.
+    const issuesBefore = report.issues.length;
+    const counts = snapshot(report);
+    await client.query("savepoint mis_case");
+    try {
+      const synced = await syncWholeCase(ctx, customer, lenders, notCategorised);
+      // Deferred checks (a sanction needs an offer) would otherwise fire only at
+      // commit, where they would undo every case at once.
+      await client.query("set constraints all immediate");
+      await client.query("set constraints all deferred");
+      await client.query("release savepoint mis_case");
+      if (synced) {
+        report.caseIds.push(customer.caseId);
+        if (report.issues.length === issuesBefore) report.cleanCaseIds.push(customer.caseId);
+      }
+    } catch (error) {
+      await client.query("rollback to savepoint mis_case");
+      await client.query("release savepoint mis_case");
+      restore(report, counts);
+      report.issues.splice(issuesBefore);
+      report.failed.push(customer.caseId);
+      report.issues.push(`${customer.caseId}: FAILED and undone, ${describeError(error)}.${alreadyHere.has(customer.caseId) ? " STALE: PFO still shows the copy from its last good sync." : ""}`);
     }
-    await withdrawMissing(ctx, caseId, seenApplications);
-
-    const seenFollowups = new Set<string>();
-    for (const followup of data.followups.filter((f) => f.caseId === customer.caseId)) {
-      seenFollowups.add(followup.followupId);
-      await syncFollowup(ctx, followup, caseId, submissions);
-    }
-    await closeMissingTasks(ctx, caseId, seenFollowups);
   }
 
   const { rows: alsoHere } = await client.query<{ mis_case_id: string; other: string }>(

@@ -32,9 +32,14 @@ let lender = "";
 beforeAll(async () => {
   await withAdmin(async (client) => {
     await client.query(`update app_user set is_active = true where username = 'pfo.automation'`);
+    // A name only one active user has: the sync matches MIS employees by name, and
+    // other test files create several users with the same name.
     const user = await client.query<{ full_name: string }>(
       `select p.full_name from app_user u join person p on p.id = u.person_id
-        where u.is_active and u.username <> 'pfo.automation' order by u.created_at limit 1`,
+        where u.is_active and u.username <> 'pfo.automation'
+          and (select count(*) from app_user u2 join person p2 on p2.id = u2.person_id
+                where u2.is_active and upper(trim(p2.full_name)) = upper(trim(p.full_name))) = 1
+        order by u.created_at limit 1`,
     );
     telecallerName = user.rows[0]!.full_name;
     const bank = await client.query<{ name: string }>(
@@ -139,11 +144,10 @@ const ownIssues = (issues: readonly string[]): string[] => issues.filter((issue)
 const ist = (column: string): string => `to_char(${column} at time zone 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS')`;
 
 describe("what the MIS's words mean", () => {
-  it("takes only active cases from 13 Oct 2026", () => {
+  it("takes every MIS case, live or archived, of any date, except MCM-0027 (ADR-047)", () => {
     expect(inSyncScope(customer())).toBe(true);
-    expect(inSyncScope(customer({ leadDate: "2026-10-13T00:00:00" }))).toBe(true);
-    expect(inSyncScope(customer({ leadDate: "2026-10-12T00:00:00" }))).toBe(false);
-    expect(inSyncScope(customer({ location: "Archived" }))).toBe(false);
+    expect(inSyncScope(customer({ leadDate: "2026-07-01T00:00:00" }))).toBe(true);
+    expect(inSyncScope(customer({ location: "Archived" }))).toBe(true);
     expect(inSyncScope(customer({ caseId: "MCM-0027" }))).toBe(false);
   });
 
@@ -392,12 +396,106 @@ describe("syncing", () => {
     });
   });
 
-  it("never brings in an archived case or one from before 13 Oct", async () => {
+  it("brings in archived and older cases, closed when disbursed, lost otherwise (ADR-047)", async () => {
     await inRollback(async (client) => {
-      const archived = customer({ location: "Archived" });
-      const old = customer({ leadDate: "2026-10-12T00:00:00" });
-      const report = await syncFromMis(client, misData({ customers: [archived, old] }));
-      expect(report.caseIds).toEqual([]);
+      const disbursed = customer({
+        leadDate: "2026-07-15T00:00:00",
+        createdAt: "2026-07-15T10:00:00",
+        caseStatus: "Disbursed",
+        location: "Archived",
+        closureReason: "Disbursed: case complete",
+        closureDate: "2026-08-12T00:00:00",
+      });
+      const dropped = customer({
+        leadDate: "2026-08-01T00:00:00",
+        createdAt: "2026-08-01T10:00:00",
+        location: "Archived",
+        closureReason: "Customer not interested",
+        closureDate: "2026-08-20T00:00:00",
+      });
+      const older = customer({ leadDate: "2026-09-01T00:00:00", createdAt: "2026-09-01T10:00:00" });
+      const report = await syncFromMis(client, misData({ customers: [disbursed, dropped, older] }));
+      expect(report.caseIds).toEqual([disbursed.caseId, dropped.caseId, older.caseId]);
+      const { rows } = await client.query<{ mis_case_id: string; stage: string }>(
+        `select mis_case_id, stage::text from loan_case where mis_case_id = any ($1) order by mis_case_id`,
+        [[disbursed.caseId, dropped.caseId, older.caseId]],
+      );
+      expect(rows.map((r) => r.stage)).toEqual(["closed", "lost", "login_completed"]);
+    });
+  });
+
+  it("copies a case disbursed by three lenders (MCM-0036, ADR-047)", async () => {
+    await inRollback(async (client) => {
+      const c = customer({ caseStatus: "Disbursed" });
+      const disbursed = (amount: number, day: string) =>
+        application(c.caseId, {
+          status: "Disbursed",
+          sanctionAmount: amount,
+          sanctionDate: `2026-10-${day}T00:00:00`,
+          acceptanceStatus: "Accepted",
+          acceptanceDate: `2026-10-${day}T00:00:00`,
+          disbursementAmount: amount,
+          disbursementDate: `2026-10-${day}T00:00:00`,
+        });
+      const apps = [disbursed(5000000, "29"), disbursed(4800000, "30"), disbursed(3500000, "31")];
+      const report = await syncFromMis(client, misData({ customers: [c], applications: apps }));
+      expect(report.failed).toEqual([]);
+      expect(report.applications.created).toBe(3);
+      expect(report.cleanCaseIds).toEqual([c.caseId]);
+
+      const rows = await reportRows(client, "mcm", true);
+      const caseRow = rows.cases.find((row) => row.caseNumber === c.caseId)!;
+      const mine = {
+        ...rows,
+        cases: [caseRow],
+        applications: rows.applications.filter((a) => a.caseId === caseRow.id),
+        tasks: [],
+      };
+      const figures = computeMisReport({ ...mine, from: "2026-10-01", to: "2026-10-31", today: "2026-11-02" });
+      expect(figures.cards.customersDisbursed.n).toBe(1);
+      expect(figures.cards.applicationsDisbursed.n).toBe(3);
+      expect(figures.cards.disbursementValue.n).toBe(13300000);
+    });
+  });
+
+  it("undoes only the case the database refuses, and keeps the others (ADR-047)", async () => {
+    await inRollback(async (client) => {
+      const good = customer();
+      // Not a case number the schema accepts (MCM- and four digits), so its insert throws.
+      const refused = customer({ caseId: "MCM-12" });
+      const after = customer();
+      const report = await syncFromMis(client, misData({
+        customers: [good, refused, after],
+        applications: [application(refused.caseId), application(after.caseId)],
+      }));
+      expect(report.failed).toEqual(["MCM-12"]);
+      expect(report.caseIds).toEqual([good.caseId, after.caseId]);
+      expect(report.applications.created).toBe(1);
+      const failure = ownIssues(report.issues).find((issue) => issue.startsWith("MCM-12:"))!;
+      expect(failure).toContain("FAILED and undone");
+      expect(failure).toContain("loan_case");
+      const { rows } = await client.query(`select 1 from loan_case where mis_case_id = $1`, ["MCM-12"]);
+      expect(rows).toHaveLength(0);
+    });
+  });
+
+  it("says STALE when a row PFO already holds can no longer be copied, and keeps it", async () => {
+    await inRollback(async (client) => {
+      const c = customer();
+      const app = application(c.caseId);
+      await syncFromMis(client, misData({ customers: [c], applications: [app] }));
+      const again = await syncFromMis(client, misData({
+        customers: [c],
+        applications: [{ ...app, status: "Some New Status" }],
+      }));
+      const issue = ownIssues(again.issues).find((text) => text.startsWith(app.applicationId))!;
+      expect(issue).toContain("STALE");
+      expect(again.cleanCaseIds).toEqual([]);
+      const { rows } = await client.query<{ status: string }>(
+        `select status::text from submission where mis_application_id = $1`,
+        [app.applicationId],
+      );
+      expect(rows[0]!.status).not.toBe("withdrawn");
     });
   });
 

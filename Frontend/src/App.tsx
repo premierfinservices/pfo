@@ -33,11 +33,13 @@ import {
   type Workspace,
 } from "./session.js";
 import { Badge, Button, cx } from "./ui/index.js";
+import { SyncWarning } from "./ui/sync-warning.js";
 
 export function App(): ReactNode {
   return (
     <div className="flex min-h-full flex-col">
       <TopBar />
+      <SyncWarning />
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
         <Routes>
           <Route path="/" element={<WorkspaceHome />} />

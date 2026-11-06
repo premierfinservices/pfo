@@ -1902,3 +1902,20 @@ content type recorded at upload would be better and is a small future change.
 **Added the same day.** The sync runs every 30 minutes from 08:00 to 21:00 (task `PFO MIS Sync`, log `C:\PFO\Logs\mis-sync.log`). A case PFO holds outside the MIS for the same customer is named in each run's output and left alone, by Tarun's decision: PF-2026-00001 and MCM-0020 stay separate. Neither is merged, and its documents stay where they are.
 
 **One case removed, by Tarun's decision (2 November 2026).** MCM-0027 stays in the MIS and never comes to PFO; `MIS_SYNC_EXCLUDED` keeps it out. It had been copied by that day's sync with no documents or applications. Removing it was a one-off exception to BR-013 and BR-051: the append-only trigger on `event` was disabled inside one transaction and restored in the same transaction, and the case's two sync events were erased with it. The nightly-format backup taken just before holds the only copy. No other case or event was touched, and this sets no precedent.
+
+## ADR-047 — Every MIS case syncs; a case may be disbursed by several lenders; one bad case no longer stops the sync
+
+**Status:** Accepted. Tarun Ramesh, 6 November 2026.
+
+**What happened.** From 3 November 14:30 every sync run failed with `submission_one_disbursed_per_case`. MCM-0036 was disbursed by three lenders between 31 October and 3 November, and BR-022 let a case hold only one disbursed application. Because the run was one transaction, the refused row undid every other case too. PFO stopped hearing from the MIS for three days, and only the log file said so.
+
+**Decisions.**
+1. **BR-022 is retired.** Tarun confirmed MCM-0036's three disbursements are real. One customer can be disbursed by several lenders. Migration 0053 drops the index, and the two API checks that refused a second disbursement are removed. The MIS reports already count customers disbursed and applications disbursed separately, so `computeMisReport` needed no change.
+2. **Every MIS case comes across.** That means live and archived cases, of any date. `inSyncScope` keeps only the MCM-0027 exclusion. Archived cases arrive closed if their closure reason is "Disbursed: case complete" and lost otherwise, through the same path that already closed a synced case when the MIS archived it. Older cases arrive with no documents, because the MIS holds none. This settles the "8 older cases" question in `Docs/MCM Go-Live Design.md`.
+3. **One case is one savepoint.** A case together with its applications and follow-ups is synced inside its own savepoint. Deferred checks are forced at the end of each case. If the database refuses anything, only that case is undone. It is named as `FAILED and undone` with the table and constraint but never the row's values, because Postgres's `detail` can carry a mobile number. Every other case is kept.
+4. **The figure check compares clean cases only.** A case with any reported issue cannot match the MIS figure for figure, and it is already named. A mismatch over the clean cases still undoes the run, as before.
+5. **Stale copies are named.** A case, application or follow-up PFO already holds that can no longer be copied, because its status or lender is unknown or its telecaller has no login, is reported as `STALE`. PFO keeps the last good copy; the report says it is not current.
+6. **Failures show on screen.** Every `--apply` run writes one row to `mis_sync_run`, also when it fails. `GET /api/work/sync-status` turns the latest row into a warning (`src/domain/work/sync-status.ts`). Whoever holds `report.view` at `all` sees it under the top bar when a run kept nothing, when a case could not be copied, or when no run has finished for an hour between 08:00 and 21:00. Ordinary skips do not raise it. The run report lists them.
+7. **Exit codes.** 0 means clean. 2 means kept, with cases needing a look. 1 means nothing was kept.
+
+**Not done here.** The BR-025 cascade (accepting one offer withdraws every other live application) stays in the Banks-tab code for now. The sync never applied it, and the Banks tab is retired by the single case screen work that follows.

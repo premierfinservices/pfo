@@ -524,9 +524,10 @@ Read as sentences:
    are shared and recycled — so a phone collision prompts rather than blocks, and
    any override is an event (ADR-013).
 2. Every case has exactly one primary applicant and exactly one owner.
-3. A case can have at most one disbursed submission.
+3. *Retired (ADR-047).* A case may have several disbursed submissions.
 4. A submission cannot reach Sanctioned without an offer attached.
-5. A case cannot **enter** *Ready for Submission* while any applicable
+5. *Superseded: the Ready for Submission stage was retired by ADR-040, and nothing
+   enforces this.* A case cannot **enter** *Ready for Submission* while any applicable
    requirement is unverified. It is returned to *Documents Pending* automatically
    if one appears later — that backwards move is required behaviour, not a
    violation (`Workflow.md`). Waiving is allowed, named, and reasoned.

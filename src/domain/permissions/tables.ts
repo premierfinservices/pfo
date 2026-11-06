@@ -1026,6 +1026,17 @@ export const TABLE_BINDINGS: readonly TableBinding[] = [
   },
 
   {
+    table: "mis_sync_run",
+    family: "reference",
+    purpose:
+      "One row per applied MIS sync, so a failed run shows on screen (ADR-047, migration 0053).",
+    select: permits("report.view"),
+    insert: internal("Written only by Backend/mis-sync-cli.ts, which connects as the admin role."),
+    update: forbidden("A run's record is history. A later run writes its own row."),
+    delete: forbidden("A run's record is history. See update."),
+  },
+
+  {
     table: "offer",
     family: "case-derived",
     purpose:
@@ -1101,9 +1112,6 @@ export function permissionsReferencedByTables(): ReadonlySet<string> {
  * "no orphan permissions" test can be exact rather than approximate.
  */
 export const NON_TABLE_PERMISSIONS: Record<string, string> = {
-  "report.view":
-    "Gates aggregate reporting. The aggregates are computed over rows the user may " +
-    "already see, so it grants no additional row access.",
   "person.override_duplicate":
     "Gates an action at the moment of creation — proceeding past a duplicate warning " +
     "— rather than access to a row. The override itself is an event (BR-053).",

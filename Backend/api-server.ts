@@ -55,7 +55,7 @@ import {
   workLists,
   workQueue,
 } from "./work.js";
-import { misReport } from "./reports.js";
+import { misReport, misSyncStatus } from "./reports.js";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type pg from "pg";
@@ -963,6 +963,9 @@ async function route(
   // ── Log a Case, Update Case, the work queue (ADR-040) ─────────────────────
   if (method === "GET" && path === "/api/reports/mis") {
     return await misReport(client, requireActor(actor), new URL(req.url ?? "/", "http://localhost").searchParams);
+  }
+  if (method === "GET" && path === "/api/work/sync-status") {
+    return await misSyncStatus(client, requireActor(actor));
   }
   if (method === "GET" && path === "/api/work/lists") {
     requireActor(actor);
