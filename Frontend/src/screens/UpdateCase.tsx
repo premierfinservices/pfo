@@ -354,7 +354,7 @@ function ReassignModal({ summary, onClose, onDone }: { summary: Summary; onClose
       <div className="space-y-3">
         <Field label="Hand it to" hint="Only active employees.">
           <Select value={ownerUserId} onChange={(event) => setOwnerUserId(event.target.value)}>
-            {users.activeUsers.map((user) => (
+            {users.activeUsers.filter((user) => user.username !== "pfo.automation").map((user) => (
               <option key={user.id} value={user.id}>
                 {user.fullName}
               </option>

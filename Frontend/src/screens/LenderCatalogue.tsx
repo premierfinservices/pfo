@@ -12,6 +12,8 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useLenders } from "../api/lenders.js";
 import { Badge, Card, Empty, Input } from "../ui/index.js";
 
+const LENDER_TYPES: Record<string, string> = { bank: "Bank", nbfc: "NBFC", hfc: "Housing finance" };
+
 export function LenderCatalogue(): ReactNode {
   const lenders = useLenders();
   const [search, setSearch] = useState("");
@@ -57,7 +59,7 @@ export function LenderCatalogue(): ReactNode {
                   onClick={() => setOpen(open === lender.id ? null : lender.id)}
                 >
                   <span className="text-sm font-medium text-ink-900">{lender.name}</span>
-                  {lender.lenderType && <Badge>{lender.lenderType}</Badge>}
+                  {lender.lenderType && <Badge>{LENDER_TYPES[lender.lenderType] ?? lender.lenderType}</Badge>}
                   <span className="ml-auto text-xs text-ink-500">
                     {lender.branches.length} branch{lender.branches.length === 1 ? "" : "es"}
                   </span>
