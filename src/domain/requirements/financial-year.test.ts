@@ -4,10 +4,11 @@ import {
   financialYearLabel,
   financialYearOf,
   financialYearStartYear,
+  recentAvailableFinancialYears,
   recentCompletedFinancialYears,
   recentFinancialYears,
 } from "./financial-year.js";
-import { assessmentYearLabel } from "./document-catalogue.js";
+import { DOCUMENT_CATALOGUE, assessmentYearLabel } from "./document-catalogue.js";
 
 describe("financialYearStartYear", () => {
   it("puts a January date in the financial year that started the previous April", () => {
@@ -95,6 +96,49 @@ describe("recentCompletedFinancialYears", () => {
         expect(fy.endDate < isoDate).toBe(true);
       }
     }
+  });
+});
+
+describe("recentAvailableFinancialYears — asking only for what can exist yet", () => {
+  const ayOf = (count: number, readyFrom: string, iso: string) =>
+    recentAvailableFinancialYears(count, readyFrom, new Date(`${iso}T00:00:00Z`)).map((fy) =>
+      assessmentYearLabel(fy.label),
+    );
+
+  it("does not ask for the ITR of the year just ended before its 31 July deadline", () => {
+    expect(ayOf(2, "08-01", "2026-04-15")).toEqual(["2025-26", "2024-25"]);
+    expect(ayOf(2, "08-01", "2026-07-31")).toEqual(["2025-26", "2024-25"]);
+  });
+
+  it("asks for it from 1 August", () => {
+    expect(ayOf(2, "08-01", "2026-08-01")).toEqual(["2026-27", "2025-26"]);
+    expect(ayOf(2, "08-01", "2027-03-31")).toEqual(["2026-27", "2025-26"]);
+  });
+
+  it("gives an audited business until 31 October", () => {
+    expect(ayOf(1, "11-01", "2026-10-31")).toEqual(["2025-26"]);
+    expect(ayOf(1, "11-01", "2026-11-01")).toEqual(["2026-27"]);
+  });
+
+  it("never asks for a year that has not closed", () => {
+    for (const iso of ["2026-01-10", "2026-04-01", "2026-09-30", "2027-02-28"]) {
+      for (const fy of recentAvailableFinancialYears(3, "06-16", new Date(`${iso}T00:00:00Z`))) {
+        expect(fy.endDate < iso).toBe(true);
+      }
+    }
+  });
+});
+
+describe("the catalogue's year-end documents", () => {
+  it("gives every assessment-year document a ready date", () => {
+    for (const type of DOCUMENT_CATALOGUE) {
+      if (type.periodKind === "assessment_year") expect(type.readyFrom, type.code).toMatch(/^\d\d-\d\d$/);
+    }
+  });
+
+  it("does not ask for a balance sheet of a year still open", () => {
+    const balanceSheet = DOCUMENT_CATALOGUE.find((type) => type.code === "balance_sheet");
+    expect(balanceSheet?.readyFrom).toBeDefined();
   });
 });
 

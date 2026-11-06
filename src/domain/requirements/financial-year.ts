@@ -90,3 +90,27 @@ export function recentCompletedFinancialYears(
   );
 }
 
+/**
+ * The `count` most recent financial years whose document can EXIST yet, as of
+ * `asOf`, most recent first.
+ *
+ * `readyFrom` is a "MM-DD" in the calendar year after the financial year
+ * ends: the day a banker starts expecting that year's document — the day after
+ * its filing deadline. Before that day the year just ended is skipped and the
+ * window starts one year earlier, so on 1 July nobody is chased for an ITR
+ * that is not due until 31 July.
+ */
+export function recentAvailableFinancialYears(
+  count: number,
+  readyFrom: string,
+  asOf: Date = new Date(),
+): FinancialYear[] {
+  if (count < 1) return [];
+  let latestStartYear = financialYearStartYear(asOf) - 1;
+  const readyDate = new Date(`${latestStartYear + 1}-${readyFrom}T00:00:00Z`);
+  if (asOf.getTime() < readyDate.getTime()) latestStartYear -= 1;
+  return Array.from({ length: count }, (_, offset) =>
+    financialYearFromStartYear(latestStartYear - offset),
+  );
+}
+

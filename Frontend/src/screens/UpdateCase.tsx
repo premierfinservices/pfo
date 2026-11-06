@@ -101,6 +101,8 @@ interface LenderOption {
   readonly bankers: readonly string[];
   /** Banker name (capitals) to the address already on file. */
   readonly bankerEmails: Readonly<Record<string, string>>;
+  /** Who this lender's last file went to; filled in when the lender is ticked. */
+  readonly lastBanker: { readonly name: string | null; readonly email: string | null } | null;
 }
 
 const TODAY = (): string => dateFromToday(0);
@@ -829,14 +831,18 @@ function SendTab({
                   type="checkbox"
                   checked={isPicked}
                   disabled={lender.already}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    const checked = event.target.checked;
                     setPicked((current) => {
                       const next = { ...current };
-                      if (event.target.checked) next[lender.id] = "";
+                      // Ticking brings in whoever this lender's last file went to.
+                      if (checked) next[lender.id] = lender.lastBanker?.name ?? "";
                       else delete next[lender.id];
                       return next;
-                    })
-                  }
+                    });
+                    const lastEmail = lender.lastBanker?.email;
+                    if (checked && lastEmail) setEmails((current) => ({ ...current, [lender.id]: lastEmail }));
+                  }}
                 />
                 {lender.supports ? "★ " : ""}
                 {lender.name}

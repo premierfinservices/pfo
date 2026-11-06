@@ -106,6 +106,7 @@ export function caseFromRow(
     applicantId: row.applicant_id ?? null,
     applicantName: row.applicant_name ?? null,
     applicantPhone: row.applicant_phone ?? null,
+    ...(typeof row.sent_to_lenders === "number" ? { sentToLenders: row.sent_to_lenders } : {}),
     ...(progress ? { progress } : {}),
   };
 }
@@ -167,7 +168,12 @@ export async function listCases(client: Queryable, actor: Actor) {
 
   const ownOnly = scope === "own";
   const { rows } = await client.query(
-    `select ${COLUMNS}, ${APPLICANT_COLUMNS}
+    // sent_to_lenders: live applications, so a file that has gone to a bank is
+    // not shown as still collecting while it waits for the bank's login.
+    `select ${COLUMNS}, ${APPLICANT_COLUMNS},
+            (select count(*)::int from submission s
+              where s.case_id = c.id
+                and s.status not in ('rejected', 'withdrawn', 'not_eligible_precheck')) as sent_to_lenders
        from loan_case c ${APPLICANT_JOIN}
       ${ownOnly ? "where c.owner_user_id = $1" : ""}
       order by c.created_at desc limit 500`,

@@ -71,6 +71,7 @@ export {
   financialYearLabel,
   financialYearOf,
   financialYearStartYear,
+  recentAvailableFinancialYears,
   recentCompletedFinancialYears,
   recentFinancialYears,
   type FinancialYear,

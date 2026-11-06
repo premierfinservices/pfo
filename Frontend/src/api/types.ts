@@ -97,6 +97,8 @@ export interface ApiCase {
    * detail this summary does not.
    */
   readonly progress?: { readonly percentComplete: number; readonly applicableCount: number };
+  /** `/api/cases` only: lenders the file has gone to and not been turned down by. */
+  readonly sentToLenders?: number;
 }
 
 export type RequirementStatus = "pending" | "received" | "verified" | "rejected" | "waived" | "not_applicable";

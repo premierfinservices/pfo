@@ -859,8 +859,9 @@ describe("sending and the applications", () => {
     const done = await ok(session, caseId, `applications/${appId}`, { status: "login_completed", ...loginFields(session) });
     expect(done.stage).toBe("login_completed");
     expect(done.applications[0].statusLabel).toBe("Login Completed");
-    expect(done.tasks).toHaveLength(1);
-    expect(done.tasks[0].title).toBe("Collect documents");
+    // Sending closed collection, and the login closed its own task.
+    expect(done.tasks).toHaveLength(0);
+    expect(done.next).toContain("Waiting on HDFC Bank");
   });
 
   it("a query raises a task for the login employee, due in two days, and closes when answered", async () => {
@@ -930,7 +931,48 @@ describe("sending and the applications", () => {
     expect(declined.applications[0].statusLabel).toBe("Not Eligible (Pre-check)");
     expect(declined.stage).toBe("documents_pending");
     expect(declined.tasks.map((t: any) => t.title)).not.toContain("Confirm login with HDFC Bank");
-    expect(declined.tasks.map((t: any) => t.title)).toContain("Collect documents");
+    // The only lender said no, so the case goes back to being sent.
+    expect(declined.tasks.map((t: any) => t.title)).toContain("Send file to lenders");
+  });
+
+  it("after sending, the Next line moves on from collecting to the lender's login", async () => {
+    const session = await signInAs("login_executive");
+    const logged = await logCase(session);
+    expect(logged.tasks.map((t: any) => t.title)).toContain("Collect documents");
+    const sent = await ok(session, logged.id, "send", { lenders: [{ id: await aLender(), banker: "ravi" }] });
+    expect(sent.tasks.map((t: any) => t.title)).not.toContain("Collect documents");
+    expect(sent.next).toContain("Confirm login with HDFC Bank");
+  });
+
+  it("ticking a lender brings in the banker its last file went to", async () => {
+    const session = await signInAs("login_executive");
+    // A lender no other test sends to, so "last" is this test's send.
+    const { rows } = await pool.query(
+      `select o.id from organisation o
+        where o.is_active and 'lender' = any (o.roles) and o.parent_organisation_id is null
+          and o.canonical_name <> 'HDFC Bank'
+          and exists (select 1 from organisation b where b.parent_organisation_id = o.id and 'branch' = any (b.roles) and b.is_active)
+        order by o.canonical_name desc limit 1`,
+    );
+    const lenderId = rows[0].id as string;
+    const first = await logCase(session);
+    const banker = `LAST BANKER ${Date.now()}`;
+    await ok(session, first.id, "send", {
+      mode: "email",
+      lenders: [{ id: lenderId, banker, email: "last.banker@example-bank.test" }],
+    });
+
+    const second = await logCase(session);
+    const lenders = await api(`/api/work/cases/${second.id}/lenders`, { token: session.token });
+    expect(lenders.status).toBe(200);
+    const lender = lenders.body.find((l: any) => l.id === lenderId);
+    expect(lender.lastBanker).toEqual({ name: banker, email: "last.banker@example-bank.test" });
+
+    // The case list says the first file has gone out, so the login desk can
+    // show it as sent rather than still collecting.
+    const list = await api("/api/cases", { token: session.token });
+    expect(list.body.find((c: any) => c.id === first.id).sentToLenders).toBe(1);
+    expect(list.body.find((c: any) => c.id === second.id).sentToLenders).toBe(0);
   });
 
   it("a rejection closes one application and never the case", async () => {

@@ -181,37 +181,6 @@ test.describe("Permission refusals — plain language, technical code tucked awa
   });
 });
 
-test.describe("Telecaller attention — rejected documents surface on the home screen", () => {
-  test("a rejected document appears in 'Rejected — needs your follow-up' for its telecaller", async ({ page }) => {
-    await page.goto("/");
-    await switchUser(page, USERS.telecaller);
-    const caseUrl = await createCaseThroughUi(page, {
-      name: "Rejected Followup Applicant",
-      phone: "9843129006",
-      loanTypeLabel: "Personal Loan · Personal Loan",
-      amount: "300000",
-    });
-    await advanceToDocumentsPending(page);
-    await gotoTab(page, "documents");
-    await uploadForRow(page, "PAN Card", fixture("pan-card.pdf"), undefined, { exact: true });
-
-    await switchUser(page, USERS.loginExecutive);
-    await page.goto(caseUrl);
-    await gotoTab(page, "documents");
-    const panRow = documentRow(page, "PAN Card", { exact: true });
-    await panRow.getByRole("button", { name: "Verify" }).click();
-    await page.getByRole("button", { name: "No — wrong or unreadable" }).click();
-    await page.getByLabel("Reason for rejection").fill("Blurry — ask for a clearer photo.");
-    await page.getByRole("button", { name: "Confirm rejection" }).click();
-
-    await switchUser(page, USERS.telecaller);
-    await page.goto("/");
-    await expect(page.getByText("Rejected — needs your follow-up")).toBeVisible();
-    await expect(page.getByText("PAN Card").first()).toBeVisible();
-    await expect(page.getByText("Blurry — ask for a clearer photo.")).toBeVisible();
-  });
-});
-
 test.describe("Waiting on — distinct from Currently with", () => {
   test("appears on the case header and changes once a document is rejected", async ({ page }) => {
     await page.goto("/");

@@ -187,6 +187,14 @@ export interface DocumentTypeDefinition {
    * `financialYearsRequested`.
    */
   readonly defaultFinancialYears?: number;
+  /**
+   * For a year-end document: "MM-DD", the day after its deadline in the year
+   * after the financial year ends — when a banker starts expecting it. Until
+   * then the year just ended is not asked for. Omitted means the document is
+   * read mid-year (GST, bank statements) and the open year is asked for too.
+   * Deadlines move when the government extends them; change them here.
+   */
+  readonly readyFrom?: string;
   readonly displayOrder: number;
 }
 
@@ -206,9 +214,9 @@ export const DOCUMENT_CATALOGUE: readonly DocumentTypeDefinition[] = [
 
   // --- Personal income -------------------------------------------------------
   { code: "salary_slip", name: "Salary Slip", localName: "Payslip", ownerKind: "person", requiresPeriod: true, requiresExpiry: false, description: "Last three months' payslips. Six months where the salary includes incentive or overtime.", category: "income", displayOrder: 50 },
-  { code: "form_16", name: "Form 16", ownerKind: "person", requiresPeriod: true, requiresExpiry: false, description: "The employer's annual salary and TDS certificate, one per year.", category: "income", periodKind: "assessment_year", defaultFinancialYears: 2, displayOrder: 60 },
+  { code: "form_16", name: "Form 16", ownerKind: "person", requiresPeriod: true, requiresExpiry: false, description: "The employer's annual salary and TDS certificate, one per year.", category: "income", periodKind: "assessment_year", defaultFinancialYears: 2, readyFrom: "06-16", displayOrder: 60 },
   { code: "bank_statement", name: "Bank Statement", ownerKind: "person", requiresPeriod: true, requiresExpiry: false, description: "Statement of the account the salary or income comes into. Six months for salaried, twelve for self-employed. A PDF downloaded from net banking is accepted.", category: "income", periodKind: "financial_year", defaultFinancialYears: 1, displayOrder: 70 },
-  { code: "itr", name: "ITR", localName: "Income Tax Return", ownerKind: "person", requiresPeriod: true, requiresExpiry: false, description: "The customer's personal income tax return with the computation sheet, one per assessment year.", category: "income", periodKind: "assessment_year", defaultFinancialYears: 2, displayOrder: 80 },
+  { code: "itr", name: "ITR", localName: "Income Tax Return", ownerKind: "person", requiresPeriod: true, requiresExpiry: false, description: "The customer's personal income tax return with the computation sheet, one per assessment year.", category: "income", periodKind: "assessment_year", defaultFinancialYears: 2, readyFrom: "08-01", displayOrder: 80 },
 
   // --- The business, as first modelled: GST and the annual accounts ---------
   // Display order 100 is retired. It belonged to `financial_statements`, which
@@ -217,8 +225,8 @@ export const DOCUMENT_CATALOGUE: readonly DocumentTypeDefinition[] = [
   // entry here — nothing may ask for it again.
   { code: "gst_certificate", name: "GST Registration Certificate (GST REG-06)", ownerKind: "organisation", requiresPeriod: false, requiresExpiry: false, description: "The certificate issued after GST registration. It carries the GSTIN.", category: "business_registration", displayOrder: 90 },
   { code: "gst_returns", name: "GST 3B", localName: "GSTR-3B", ownerKind: "organisation", requiresPeriod: true, requiresExpiry: false, description: "Monthly GST return. Ask for a full financial year at a time — lenders read the last three years to see the turnover trend.", category: "business_financials", periodKind: "financial_year", defaultFinancialYears: 3, displayOrder: 110 },
-  { code: "balance_sheet", name: "Balance Sheet", ownerKind: "organisation", requiresPeriod: true, requiresExpiry: false, description: "The year-end statement of what the business owns and owes, signed by the auditor or CA.", category: "business_financials", periodKind: "financial_year", defaultFinancialYears: 2, displayOrder: 120 },
-  { code: "profit_and_loss", name: "Profit & Loss Statement", localName: "P&L Account", ownerKind: "organisation", requiresPeriod: true, requiresExpiry: false, description: "The year's income and expenses, signed by the auditor or CA. Filed with the balance sheet.", category: "business_financials", periodKind: "financial_year", defaultFinancialYears: 2, displayOrder: 130 },
+  { code: "balance_sheet", name: "Balance Sheet", ownerKind: "organisation", requiresPeriod: true, requiresExpiry: false, description: "The year-end statement of what the business owns and owes, signed by the auditor or CA.", category: "business_financials", periodKind: "financial_year", defaultFinancialYears: 2, readyFrom: "10-01", displayOrder: 120 },
+  { code: "profit_and_loss", name: "Profit & Loss Statement", localName: "P&L Account", ownerKind: "organisation", requiresPeriod: true, requiresExpiry: false, description: "The year's income and expenses, signed by the auditor or CA. Filed with the balance sheet.", category: "business_financials", periodKind: "financial_year", defaultFinancialYears: 2, readyFrom: "10-01", displayOrder: 130 },
 
   // --- Property: title, revenue record and the bank's own checks ------------
   { code: "sale_deed", name: "Sale Deed", localName: "Title Deed", ownerKind: "property", requiresPeriod: false, requiresExpiry: false, description: "The registered deed by which the current owner bought the property.", category: "property", displayOrder: 140 },
@@ -258,9 +266,9 @@ export const DOCUMENT_CATALOGUE: readonly DocumentTypeDefinition[] = [
   { code: "udyam_certificate", name: "Udyam Registration Certificate", localName: "Udyog Aadhaar / MSME Certificate", ownerKind: "organisation", requiresPeriod: false, requiresExpiry: false, description: "The MSME registration certificate. Compulsory for MUDRA and CGTMSE loans, and asked for on every other business loan.", category: "business_registration", displayOrder: 360 },
 
   // --- The business: its numbers --------------------------------------------
-  { code: "org_itr", name: "Business ITR", ownerKind: "organisation", requiresPeriod: true, requiresExpiry: false, description: "The business's income tax return with computation, one per assessment year. On a proprietorship this is the owner's own return.", category: "business_financials", periodKind: "assessment_year", defaultFinancialYears: 3, displayOrder: 370 },
+  { code: "org_itr", name: "Business ITR", ownerKind: "organisation", requiresPeriod: true, requiresExpiry: false, description: "The business's income tax return with computation, one per assessment year. On a proprietorship this is the owner's own return.", category: "business_financials", periodKind: "assessment_year", defaultFinancialYears: 3, readyFrom: "11-01", displayOrder: 370 },
   { code: "org_bank_statement", name: "Business Bank Statement", localName: "Current Account Statement", ownerKind: "organisation", requiresPeriod: true, requiresExpiry: false, description: "Twelve months of the business account. This is what the bank reads to judge daily turnover.", category: "business_financials", periodKind: "financial_year", defaultFinancialYears: 1, displayOrder: 380 },
-  { code: "audit_report", name: "Audit Report", ownerKind: "organisation", requiresPeriod: true, requiresExpiry: false, description: "The auditor's report for the year. Companies and LLPs have one; a small proprietorship usually does not.", category: "business_financials", periodKind: "financial_year", defaultFinancialYears: 2, displayOrder: 390 },
+  { code: "audit_report", name: "Audit Report", ownerKind: "organisation", requiresPeriod: true, requiresExpiry: false, description: "The auditor's report for the year. Companies and LLPs have one; a small proprietorship usually does not.", category: "business_financials", periodKind: "financial_year", defaultFinancialYears: 2, readyFrom: "10-01", displayOrder: 390 },
   { code: "stock_statement", name: "Stock Statement", ownerKind: "organisation", requiresPeriod: true, requiresExpiry: false, description: "A list of stock in hand and money customers owe. This is the security on a cash credit limit.", category: "business_financials", periodKind: "financial_year", displayOrder: 400 },
   { code: "debtors_creditors_statement", name: "Debtors & Creditors List", ownerKind: "organisation", requiresPeriod: true, requiresExpiry: false, description: "Who owes the business money and whom it owes, with how long each has been outstanding.", category: "business_financials", periodKind: "financial_year", displayOrder: 410 },
 
@@ -325,7 +333,7 @@ export const DOCUMENT_CATALOGUE: readonly DocumentTypeDefinition[] = [
   { code: "tenant_kyc", name: "Tenant KYC", ownerKind: "case", requiresPeriod: false, requiresExpiry: false, description: "Identity and agreement papers of the tenant paying the rent, for a rent-based loan.", category: "additional", displayOrder: 800 },
 
   // --- What the tax department itself says, and what the customer paid ------
-  { code: "form_26as", name: "Form 26AS / AIS", localName: "Tax Credit Statement", ownerKind: "person", requiresPeriod: true, requiresExpiry: false, description: "The income tax department's own record of income and TDS, downloaded from the income tax portal. Banks compare it against the ITR.", category: "income", periodKind: "assessment_year", defaultFinancialYears: 2, displayOrder: 810 },
+  { code: "form_26as", name: "Form 26AS / AIS", localName: "Tax Credit Statement", ownerKind: "person", requiresPeriod: true, requiresExpiry: false, description: "The income tax department's own record of income and TDS, downloaded from the income tax portal. Banks compare it against the ITR.", category: "income", periodKind: "assessment_year", defaultFinancialYears: 2, readyFrom: "08-01", displayOrder: 810 },
   { code: "own_contribution_proof", name: "Own Contribution Proof", localName: "Margin Money Proof", ownerKind: "case", requiresPeriod: false, requiresExpiry: false, description: "Proof the customer has paid their own share — the builder's or seller's receipt, or the bank transfer that paid it.", category: "additional", displayOrder: 820 },
 
   /**

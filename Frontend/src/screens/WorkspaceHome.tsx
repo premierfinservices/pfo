@@ -209,18 +209,20 @@ function CallingWorkspace({ active }: { active: readonly ApiCase[] }): ReactNode
             empty="Everything has been touched recently."
           />
         </Card>
-        <Pending
-          title="Rejected — needs your follow-up"
-          what="Document rejections come back here once documents and the requirement engine move to the server."
-        />
       </div>
     </div>
   );
 }
 
 function LoginDeskWorkspace({ active }: { active: readonly ApiCase[] }): ReactNode {
-  const collecting = active.filter((c) => c.stage === "documents_pending");
-  const ready = active.filter((c) => c.stage === "documents_collected");
+  // Sending does not move the stage (ADR-040) — a lender's login does — so a
+  // file that has gone out is pulled out of Collecting and Ready by whether it
+  // has a live application, not by its stage.
+  const early = ["documents_pending", "documents_collected", "eligibility_check"];
+  const sent = active.filter((c) => early.includes(c.stage) && (c.sentToLenders ?? 0) > 0);
+  const notSent = active.filter((c) => !sent.includes(c));
+  const collecting = notSent.filter((c) => c.stage === "documents_pending");
+  const ready = notSent.filter((c) => c.stage === "documents_collected");
   const atBank = active.filter((c) => ["login_completed", "query_raised", "approved", "sanction_accepted"].includes(c.stage));
 
   return (
@@ -231,6 +233,9 @@ function LoginDeskWorkspace({ active }: { active: readonly ApiCase[] }): ReactNo
         </Card>
         <Card title="Ready to go to a bank">
           <CaseRows cases={ready} empty="Nothing ready." />
+        </Card>
+        <Card title="Sent, waiting for login" subtitle="Gone to a lender; update it when the bank confirms login">
+          <CaseRows cases={sent} empty="Nothing waiting on a bank's login." />
         </Card>
         <Card title="With a bank" subtitle="Submitted or sanctioned">
           <CaseRows cases={atBank} empty="Nothing with a bank." />

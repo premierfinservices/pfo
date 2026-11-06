@@ -30,16 +30,16 @@
  */
 
 import {
+  DOCUMENT_CATALOGUE,
   FINANCIAL_YEAR_DOCUMENT_TYPES,
   evaluateRules,
   financialYearOf,
-  recentCompletedFinancialYears,
+  recentAvailableFinancialYears,
   recentFinancialYears,
   type CaseFacts,
   type FinancialYear,
   type GeneratedRequirement,
   type PartyFacts,
-  type PeriodKind,
   type PropertyFacts,
 } from "@domain/requirements/index.js";
 
@@ -191,10 +191,9 @@ export function buildCaseFacts(db: Database, loanCase: LoanCase): CaseFacts {
  * beyond the default (`addFinancialYearRequirement` in fake/store.ts) being
  * discarded the next time anything else on the case triggers regeneration.
  *
- * An assessment-year document (an ITR, a Form 16) is filed for a financial
- * year only once that year has closed, so its trailing window is the last N
- * COMPLETED financial years, not the current still-open one — "previous 3
- * assessment years" never includes a return nobody could have filed yet.
+ * A year-end document (an ITR, a Form 16, a balance sheet) exists for a year
+ * only after that year has closed AND its deadline has passed — its catalogue
+ * `readyFrom` — so on 1 July nobody is asked for an ITR due on 31 July.
  * Everything else (GST returns, bank statements) is legitimately asked for
  * mid-year and keeps the current financial year in its window.
  */
@@ -204,13 +203,12 @@ function financialYearsFor(
   documentTypeId: Id,
   subject: { casePartyId?: Id; casePropertyId?: Id },
   trailingYears: number,
-  periodKind: PeriodKind | undefined,
+  readyFrom: string | undefined,
 ): FinancialYear[] {
   const byLabel = new Map<string, FinancialYear>();
-  const window =
-    periodKind === "assessment_year"
-      ? recentCompletedFinancialYears(trailingYears)
-      : recentFinancialYears(trailingYears);
+  const window = readyFrom
+    ? recentAvailableFinancialYears(trailingYears, readyFrom)
+    : recentFinancialYears(trailingYears);
   for (const fy of window) {
     byLabel.set(fy.label, fy);
   }
@@ -292,7 +290,7 @@ function expand(
     documentType.id,
     subject,
     trailingYears,
-    documentType.periodKind,
+    DOCUMENT_CATALOGUE.find((type) => type.code === documentType.code)?.readyFrom,
   ).map((fy) => ({
     ...base,
     periodStart: fy.startDate,

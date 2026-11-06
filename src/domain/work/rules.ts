@@ -28,7 +28,9 @@ export type WorkEvent =
   | { readonly type: "query_raised"; readonly bank: string; readonly submissionId: string }
   | { readonly type: "query_answered"; readonly submissionId: string }
   | { readonly type: "sanctioned"; readonly bank: string; readonly submissionId: string }
-  | { readonly type: "application_finished"; readonly submissionId: string };
+  | { readonly type: "application_finished"; readonly submissionId: string }
+  /** Every lender the file went to has turned it down or been withdrawn. */
+  | { readonly type: "no_lender_left" };
 
 export type Assignee = "owner" | "actor" | "login_employee";
 
@@ -94,8 +96,10 @@ export function workFor(event: WorkEvent): WorkPlan {
     case "dropped":
       return { closeScope: "all" };
     case "sent_to_lender":
+      // The file has gone: collecting and checking are over, whatever was left
+      // open. Anything still missing comes back as the lender's query.
       return {
-        closeKinds: ["send_to_lenders"],
+        closeKinds: ["collect_documents", "collect_remaining_documents", "check_eligibility", "send_to_lenders"],
         create: {
           kind: "confirm_login",
           title: `Confirm login with ${event.bank}`,
@@ -130,6 +134,9 @@ export function workFor(event: WorkEvent): WorkPlan {
       };
     case "application_finished":
       return { closeSubmissionId: event.submissionId };
+    case "no_lender_left":
+      // Sending closed collection; with no lender left, the case still needs a next step.
+      return { create: SEND };
   }
 }
 

@@ -28,7 +28,7 @@ import {
   FINANCIAL_YEAR_DOCUMENT_TYPES,
   evaluateRules,
   financialYearOf,
-  recentCompletedFinancialYears,
+  recentAvailableFinancialYears,
   recentFinancialYears,
   summariseProgress,
   type CaseFacts,
@@ -298,11 +298,11 @@ interface PlannedRow {
 function financialYearsFor(
   existingPeriods: readonly string[],
   trailingYears: number,
-  isAssessmentYear: boolean,
+  readyFrom: string | undefined,
 ): FinancialYear[] {
   const byLabel = new Map<string, FinancialYear>();
-  const window = isAssessmentYear
-    ? recentCompletedFinancialYears(trailingYears)
+  const window = readyFrom
+    ? recentAvailableFinancialYears(trailingYears, readyFrom)
     : recentFinancialYears(trailingYears);
   for (const fy of window) byLabel.set(fy.label, fy);
   for (const periodStart of existingPeriods) {
@@ -335,7 +335,7 @@ function expand(
   const years = financialYearsFor(
     existingPeriodsForSubject(generated.documentTypeCode, subjectKey),
     trailingYears,
-    definition.periodKind === "assessment_year",
+    definition.readyFrom,
   );
 
   return years.map((fy) => ({ ...base, periodStart: fy.startDate, periodEnd: fy.endDate }));

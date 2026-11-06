@@ -1279,8 +1279,15 @@ export async function lenderOptions(client: Queryable, actor: Actor, caseId: str
     already: boolean;
     bankers: string[];
     bankerEmails: Record<string, string>;
+    lastBanker: { name: string | null; email: string | null } | null;
   }>(
+    // lastBanker: whoever this lender's most recent file went to, so ticking the
+    // lender fills the banker in instead of making someone type it every time.
     `select o.id, o.canonical_name as name,
+            (select jsonb_build_object('name', bc.contact_name, 'email', lower(nullif(btrim(bc.work_email), '')))
+               from submission s join bank_contact bc on bc.id = s.bank_contact_id and bc.is_active
+              where s.institution_organisation_id = o.id
+              order by s.created_at desc limit 1) as "lastBanker",
             ($2::text = any (p.supported_loan_types)) as supports,
             exists (select 1 from submission s where s.case_id = $1 and s.institution_organisation_id = o.id
                      and s.status not in ('rejected', 'withdrawn', 'not_eligible_precheck')) as already,
@@ -1662,6 +1669,14 @@ export async function updateApplication(
   if (closingQuery) await applyWork(client, actor, caseId, { type: "query_answered", submissionId });
   if (to === "sanctioned") await applyWork(client, actor, caseId, { type: "sanctioned", bank, submissionId });
   if (FINISHED.includes(to)) await applyWork(client, actor, caseId, { type: "application_finished", submissionId });
+  if (to !== "disbursed" && FINISHED.includes(to)) {
+    const live = await client.query(
+      `select 1 from submission where case_id = $1
+          and status not in ('rejected', 'withdrawn', 'not_eligible_precheck') limit 1`,
+      [caseId],
+    );
+    if (!live.rows[0]) await applyWork(client, actor, caseId, { type: "no_lender_left" });
+  }
 
   await advanceCaseStage(client, caseId, { entityType: "submission", entityId: submissionId });
   return await caseSummary(client, actor, caseId, `${bank} is now ${SUBMISSION_STATUS_LABELS[to]}.`);

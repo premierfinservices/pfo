@@ -82,7 +82,13 @@ describe("what each action leaves to do", () => {
 
   it("sending raises Confirm login in two days", () => {
     const plan = workFor({ type: "sent_to_lender", bank: "Demo Bank", submissionId: "s1" });
-    expect(plan.closeKinds).toEqual(["send_to_lenders"]);
+    // Sending ends collection, so the Next line moves on to the lender.
+    expect(plan.closeKinds).toEqual([
+      "collect_documents",
+      "collect_remaining_documents",
+      "check_eligibility",
+      "send_to_lenders",
+    ]);
     expect(plan.create).toMatchObject({ title: "Confirm login with Demo Bank", due: 2, submissionId: "s1" });
   });
 

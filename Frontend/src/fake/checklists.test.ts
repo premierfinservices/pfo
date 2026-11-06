@@ -19,7 +19,7 @@ import {
   DOCUMENT_CATEGORIES,
   documentRowLabel,
 } from "@domain/requirements/document-catalogue.js";
-import { financialYearOf } from "@domain/requirements/financial-year.js";
+import { financialYearOf, recentAvailableFinancialYears } from "@domain/requirements/financial-year.js";
 
 import { createStorageModule } from "./storage.mock.js";
 
@@ -169,7 +169,8 @@ describe("the checklist every product family generates", () => {
       "Business PAN Card",
       "Business Address Proof",
       "Udyam Registration Certificate",
-      "Balance Sheet – FY " + financialYearOf(new Date()).label,
+      // A balance sheet exists only once its year has closed and been audited.
+      "Balance Sheet – FY " + recentAvailableFinancialYears(1, "10-01")[0]!.label,
     ]) {
       expect(labels, `business loan should ask for ${expected}`).toContain(expected);
     }
