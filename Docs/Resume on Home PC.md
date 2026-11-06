@@ -19,13 +19,15 @@ Decisions: ADR-047 to ADR-050. Migrations run through 0054; the next number is 0
 | What | State |
 |---|---|
 | **MIS sync fixed** (ADR-047). From 3 Nov 14:30 to 6 Nov every run failed, because MCM-0036 has three real disbursements and BR-022 allowed one | **Live** since 6 Nov 15:05. Migration 0053 applied. Every MIS case is in scope now, Active and Archived, any date (40 cases; MCM-0027 still excluded). Each case is its own savepoint. Every run is recorded in `mis_sync_run`. Exit codes: 0 clean, 2 kept with issues, 1 nothing kept |
-| Sync-failure banner, Update Case as the only case screen (ADR-048), documents the MIS way with the co-applicant question (ADR-049), prototype store removed and one home screen (ADR-050) | **On `main`, not yet live.** Needs migration 0054 and an elevated restart with a fresh build (below) |
+| Sync-failure banner, Update Case as the only case screen (ADR-048), documents the MIS way with the co-applicant question (ADR-049), prototype store removed and one home screen (ADR-050) | **On branch `mis-simplify`, not yet on `main` or live.** Merge, migrate, build and restart together (below). The API runs from the main folder's source, so merging early could put new API code in front of the old screens if anything restarts it |
 
 **To make the rest live** (Unfold PC, elevated PowerShell):
-1. Stop the `PFO Server` task.
-2. `npm run migrate`. This applies 0054 if it is not already applied.
-3. `npm run build`.
-4. Start the `PFO Server` task.
+1. `npm run backup` and confirm "dump checksum matches".
+2. Stop the `PFO Server` task.
+3. `git fetch origin` then `git merge --ff-only origin/mis-simplify`.
+4. `npm run migrate`. This applies 0054 (one added column, rehearsed on 6 Nov).
+5. `npm run build`.
+6. Start the `PFO Server` task.
 
 Then sign in and open a case. Do not run the build before the restart: the new screens call API routes the running server does not have yet.
 
