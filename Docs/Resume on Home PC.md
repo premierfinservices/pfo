@@ -12,7 +12,20 @@ Written 30 October 2026 for a Claude session (or a person) that has **no memory 
 - The MIS stays the working system until its data is imported (step 4 below). Tarun says "go live" when he is ready.
 - Tarun is the decision maker. He prefers a straight assessment to validation, wants decisions recorded with reasons, and treats "unknown" as a valid answer. Do not invent numbers, rules or dates.
 
-## Checkpoint, 6 November 2026 (read this first; it overrides the older status below)
+## Checkpoint, 12 November 2026 (read this first)
+
+Decision: ADR-051, a hardening pass. **Not yet deployed.** No migration; the next number is still 0055.
+
+The work is on branch `claude/pfo-vibe-coding-check-mlks2g`, not yet merged into `main`. To put it live, on the Unfold PC after it reaches `main`:
+1. `npm run backup`.
+2. Stop `PFO Server`, `git pull --ff-only`, `npm install` (the lockfile changed), `npm run build`, start `PFO Server`.
+3. Check: sign in, open a document, upload a PDF. `Backend\supervisor.log` should show one JSON line per request.
+
+What an employee may notice: a first sign-in that is a little slower (the password is re-hashed once), and a refusal when uploading a program, a web page, or a `.pdf` that is not a PDF.
+
+Tests at this point: unit 611 of 611; integration 373 of 373 on Linux with PostgreSQL 16. The integration run needs `npm run build` first, because `supervisor.test.ts` starts the web server.
+
+## Checkpoint, 6 November 2026 (it overrides the older status below)
 
 Decisions: ADR-047 to ADR-050. Migrations run through 0054; the next number is 0055.
 

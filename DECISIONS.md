@@ -1986,3 +1986,40 @@ content type recorded at upload would be better and is a small future change.
 - **Settings → Document Rules opens.** The link existed but no route did, so it went to the home screen. It is the only way to change the 13 MIS checklists without a migration.
 - **Inbound email intake stays parked.** The code exists but the supervisor never starts it, and no screen reads its review queue. Turning it on is a separate decision.
 - **Superseded PRDs** (`Loan Lifecycle.md`, `Workflow.md`, `Requirements and Progress.md`) carry a banner saying what replaces them. Rewriting them is still open.
+
+## ADR-051 — Hardening pass: headers, uploads, throttling, hashing, CI
+
+**Status:** Accepted. Tarun Ramesh, 12 November 2026. Not yet deployed.
+
+A review of PFO against a general production checklist. No database migration.
+
+**Two things that were wrong and nobody had noticed.**
+- **The sign-in lockout was per-username for the whole office.** It was keyed on the socket address, but every employee reaches the API through the web server's loopback proxy, so that address was always `127.0.0.1`. Ten wrong guesses from any PC locked that employee out everywhere. The web server now sends the real address in `X-Forwarded-For`, overwriting whatever the browser sent, and the API believes it only when the connection itself is loopback.
+- **The storage and mail backends answered any `Host`.** They are loopback-only with no sign-in. A web page open in a browser on the server PC could reach them by DNS rebinding. Both now refuse a request not addressed to `127.0.0.1` or `localhost`.
+
+**Decided by Tarun.**
+- **No two-factor sign-in, SSO, passkeys or magic links for now.** PFO is reachable only on the office LAN. Passkeys need a host name, not an IP address.
+- **The sign-in token stays in sessionStorage.** A Content-Security-Policy is added instead, so a script that did not come from PFO does not run. An HttpOnly cookie would share one sign-in across tabs and could outlive the browser, which reverses an earlier decision.
+- **Uploads refuse named dangerous types; everything else is still accepted.** An allowlist would break folder drops that hold file types nobody listed.
+- **No alerting.** Each request now has an ID and a log line, so a problem can be traced. Who gets mailed, and how often, is a separate decision.
+
+**What changed.**
+- **Headers.** The CSP, `nosniff`, `X-Frame-Options` and `Referrer-Policy` go on every response, not only static files. HSTS is sent when TLS is on; browsers ignore it for a bare IP address. API responses are `no-store`.
+- **Throttling.** Beyond the per-username lockout: 30 failed sign-ins from one PC in 15 minutes locks that PC out for any username, and 1,200 requests a minute from one PC is the ceiling. Both are in memory, as the existing lockout is.
+- **Passwords.** PBKDF2 goes from 100,000 to 600,000 iterations. An older hash is replaced the next time its owner signs in.
+- **Uploads** (`src/domain/storage/upload-safety.ts`, called from `uploadDocument`, where every upload, zip entry and email attachment ends up).
+  - Refused by extension: programs, scripts, installers, shortcuts, web pages, SVG, and macro Office files.
+  - Refused by content: a Windows program under any name; a `.pdf` that is not a PDF; an image that is not an image.
+  - Not refused: HTML saved as `.xls` (banks do this), a PNG named `.jpg`, XML and JSON (ITR files), unknown types.
+  - The browser's stated type is ignored. The type comes from the file name. Only PDFs and images open in place; anything else is a download.
+  - A file name with non-Latin characters used to make the download fail. It now works.
+- **Timeouts.** A database statement is cut off at 60 seconds and a wait for a connection at 10. Calls to storage, mail, Gmail and the Claude API give up instead of waiting for ever.
+- **Request log.** One JSON line per request: time, ID, method, path, status, duration, user. No query string and no body. A 500 shows "(Reference …)", which is that ID.
+- **CI.** GitHub Actions runs typecheck, unit tests, build, integration tests and `npm audit` on runtime dependencies. Dependabot opens weekly update requests. It deploys nothing.
+
+**Known and left.**
+- **No virus scan in PFO.** Windows Defender's real-time protection covers files written to `C:\PFO\Data`, as long as that folder is not excluded from it.
+- **vitest 3 has an open advisory** (tinypool). The fix is vitest 5, a breaking upgrade. It is a test tool and never runs on the office server.
+- **Stopping the server cuts off requests in flight.** Each request is one database transaction, so a cut-off request saves nothing.
+- **Disk encryption** for the server and the backup drive (BitLocker) is a Windows setting, not something PFO can do.
+- The weak temporary passwords on the live accounts are still Tarun's to change.
