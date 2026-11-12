@@ -153,6 +153,12 @@ import {
   updateSubmissionStatus,
 } from "./submissions.js";
 import { handleInboundEmail, type InboundEmailInput } from "./inbound-mail.js";
+import {
+  assertResetRequestAllowed,
+  completePasswordReset,
+  requestPasswordReset,
+  resetPasswordResetThrottle,
+} from "./password-reset.js";
 
 const PORT = Number(process.env.PFO_API_PORT ?? 4321);
 
@@ -618,6 +624,7 @@ function clearLoginFailures(key: string): void {
 export function resetLoginThrottle(): void {
   loginAttempts.clear();
   requestCounts.clear();
+  resetPasswordResetThrottle();
 }
 
 /**
@@ -848,6 +855,15 @@ async function route(
   }
 
   if (method === "POST" && path === "/api/auth/login") return await login(client, req, body);
+
+  // "Forgot password" (ADR-052). Both are reachable without signing in.
+  if (method === "POST" && path === "/api/auth/forgot-password") {
+    assertResetRequestAllowed(clientAddress(req));
+    return await requestPasswordReset(client, body);
+  }
+  if (method === "POST" && path === "/api/auth/reset-password") {
+    return await completePasswordReset(client, body);
+  }
 
   if (method === "POST" && path === "/api/auth/logout") {
     const token = bearerToken(req);

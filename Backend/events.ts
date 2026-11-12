@@ -50,6 +50,7 @@ export type UserEventType =
   | "user.deactivated"
   | "user.password_reset"
   | "user.password_changed"
+  | "user.password_reset_by_link"
   | "user.permission_granted"
   | "user.permission_denied"
   | "user.permission_override_revoked";

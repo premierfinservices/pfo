@@ -2023,3 +2023,27 @@ A review of PFO against a general production checklist. No database migration.
 - **Stopping the server cuts off requests in flight.** Each request is one database transaction, so a cut-off request saves nothing.
 - **Disk encryption** for the server and the backup drive (BitLocker) is a Windows setting, not something PFO can do.
 - The weak temporary passwords on the live accounts are still Tarun's to change.
+
+## ADR-052 — "Forgot password": a reset link mailed to the office mailbox
+
+**Status:** Accepted. Tarun Ramesh, 12 November 2026. Deployed 12 Nov 2026 at 07:04 (Unfold PC, elevated): migration 0055 applied, `.env` settings added, server restarted. **Reset emails do not arrive until the Gmail refresh token is renewed** (see below).
+
+**Decided by Tarun.**
+- **The link goes to the office mailbox, never to the employee.** PFO stores no email address per employee, and a manager who reads that mailbox forwards the link. This keeps that mailbox the gatekeeper: nobody can reset an account without access to it. Per-employee email was offered and declined.
+- **A link lasts 30 minutes and works once.** Asking again for the same account retires the older link.
+
+**What changed.**
+- **Login screen.** A "Forgot password?" button asks for a username. The emailed link opens `/#/reset-password?token=...`, where the employee chooses a new password. The token sits in the address fragment, which the browser does not send, so no request log holds it.
+- **The answer does not depend on the account.** An unknown or deactivated username gets the same reply and no email, so the form does not show who works here.
+- **Flood limits.** One email a minute per account, and five requests in ten minutes from one PC (in memory, like the sign-in lockout).
+- **A completed reset ends every session of that account**, as a manager's reset does. The event `user.password_reset_by_link` is recorded against the account owner, because the link has just proved who they are.
+- **Storage.** Table `password_reset_token` holds only the SHA-256 of the token. Rows are marked used, never deleted.
+- **Settings in `.env`, none with a default in the code:** `PFO_PASSWORD_RESET_TO` (the mailbox), `PFO_PUBLIC_URL` (the address employees use, for example `https://192.168.0.110:4300`), and the existing `PFO_MAIL_SENDER_ADDRESS`. The link is built from `PFO_PUBLIC_URL`, never from a header the browser sent. If any is missing the form says so (503) and nothing is sent.
+
+**Known and left.**
+- **If the server PC's address changes, links point at the old one** until `PFO_PUBLIC_URL` is updated.
+- **The mailbox is also the one PFO reads for bank replies, when that is switched on.** On 12 Nov it was not (`PFO_MAIL_INBOUND_PROVIDER` unset). If it is switched on later, the reset mail is sent from that account to itself, so it carries the Sent label and the poll (`-in:sent`) skips it. Check once then.
+- **No audit entry for a request**, only for a completed reset. A request has no proven identity to record it against.
+- **A failed send is logged and the form still shows the normal reply**, so a mail fault cannot be used to tell which usernames exist. The employee is told to ask a manager if nothing arrives.
+- **Not exercised in a browser yet.** The routes are covered by 13 integration tests; the screens are typechecked and built.
+- **Found at deploy: Google refuses the saved Gmail refresh token** ("Bad Request" on refresh). Every email PFO sends fails, not only reset links. Not caused by this change. Renewing it is an interactive Google sign-in as the mailbox (`Docs/Email and WhatsApp Integration.md`, steps 3 and 5). If the OAuth consent screen is still in "Testing", tokens expire every 7 days, so publish it.

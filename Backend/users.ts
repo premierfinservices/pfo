@@ -59,7 +59,7 @@ export { ApiError as UserAdminError } from "./http.js";
  * obstacle: the protection that matters here is that hashing is PBKDF2 and
  * the office network is not on the internet.
  */
-const MIN_PASSWORD_LENGTH = 8;
+export const MIN_PASSWORD_LENGTH = 8;
 
 // ---------------------------------------------------------------------------
 // Reading overrides — the line Stage 2 said would be the only one to change

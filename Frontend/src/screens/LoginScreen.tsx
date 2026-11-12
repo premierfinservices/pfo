@@ -19,6 +19,8 @@ import { api, storeToken } from "../api/client.js";
 import type { ApiSessionUser } from "../api/types.js";
 import { Button, Field, Input } from "../ui/index.js";
 
+import { ForgotPasswordForm, ResetPasswordForm } from "./ForgotPassword.js";
+
 interface LoginResponse {
   readonly token: string;
   readonly user: ApiSessionUser;
@@ -27,8 +29,14 @@ interface LoginResponse {
 export function LoginScreen({
   onAuthenticated,
   notice,
+  resetToken = null,
+  onResetFinished,
 }: {
   onAuthenticated: (user: ApiSessionUser) => void;
+  /** Set when the page was opened from an emailed reset link (ADR-052): the card
+   * then shows the "choose a new password" form instead of sign-in. */
+  resetToken?: string | null;
+  onResetFinished?: () => void;
   /** Why the form is here, when it is not the first visit — e.g. an idle
    * sign-out. Not an error: shown in a neutral tone, separate from `error`
    * below, and cleared the moment sign-in succeeds. */
@@ -38,6 +46,7 @@ export function LoginScreen({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [forgotten, setForgotten] = useState(false);
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -72,7 +81,9 @@ export function LoginScreen({
             <p className="font-display text-sm font-semibold text-ink-900">
               Premier Finserv One
             </p>
-            <p className="text-xs text-ink-500">Sign in with your employee ID</p>
+            <p className="text-xs text-ink-500">
+              {resetToken !== null ? "Choose a new password" : forgotten ? "Reset your password" : "Sign in with your employee ID"}
+            </p>
           </div>
         </div>
 
@@ -82,43 +93,58 @@ export function LoginScreen({
           </p>
         )}
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <Field label="Username / Employee ID">
-            <Input
-              autoFocus
-              name="username"
-              autoComplete="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={submitting}
-            />
-          </Field>
-          <Field label="Password">
-            <Input
-              type="password"
-              name="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={submitting}
-            />
-          </Field>
+        {resetToken !== null ? (
+          <ResetPasswordForm token={resetToken} onFinished={onResetFinished ?? (() => undefined)} />
+        ) : forgotten ? (
+          <ForgotPasswordForm onBack={() => setForgotten(false)} />
+        ) : (
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <Field label="Username / Employee ID">
+              <Input
+                autoFocus
+                name="username"
+                autoComplete="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={submitting}
+              />
+            </Field>
+            <Field label="Password">
+              <Input
+                type="password"
+                name="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={submitting}
+              />
+            </Field>
 
-          {error && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-              {error}
-            </p>
-          )}
+            {error && (
+              <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
+                {error}
+              </p>
+            )}
 
-          <Button
-            type="submit"
-            variant="primary"
-            className="w-full justify-center"
-            disabled={submitting || !username || !password}
-          >
-            {submitting ? "Signing in…" : "Sign in"}
-          </Button>
-        </form>
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full justify-center"
+              disabled={submitting || !username || !password}
+            >
+              {submitting ? "Signing in…" : "Sign in"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="mt-2 w-full justify-center"
+              onClick={() => setForgotten(true)}
+              disabled={submitting}
+            >
+              Forgot password?
+            </Button>
+          </form>
+        )}
       </div>
     </div>
   );

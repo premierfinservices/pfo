@@ -25,7 +25,7 @@
  */
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { api, onUnauthorized, storeToken, storedToken } from "../api/client.js";
 import type { ApiSessionUser } from "../api/types.js";
@@ -47,6 +47,13 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
   // password, not why the form is here at all.
   const [notice, setNotice] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // The emailed "forgot password" link (ADR-052). Null on every other route.
+  const resetToken =
+    location.pathname === "/reset-password"
+      ? (new URLSearchParams(location.search).get("token") ?? "")
+      : null;
 
   // Adopts an identity without touching the route. Used both by a fresh
   // sign-in and by restoring an already-valid session on page load — the
@@ -139,6 +146,18 @@ export function AuthGate({ children }: { children: ReactNode }): ReactNode {
       navigate("/", { replace: true });
     })();
   }, [navigate]);
+
+  // Ahead of the session checks on purpose: the link must open the reset form
+  // even in a browser where someone else is signed in. It uses no session.
+  if (resetToken !== null) {
+    return (
+      <LoginScreen
+        onAuthenticated={login}
+        resetToken={resetToken}
+        onResetFinished={() => navigate("/", { replace: true })}
+      />
+    );
+  }
 
   if (state.status === "checking") {
     // Deliberately not the login form. Flashing "sign in" at somebody who IS

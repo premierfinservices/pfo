@@ -160,6 +160,23 @@ export const TABLE_BINDINGS: readonly TableBinding[] = [
       "answerable.",
   },
   {
+    table: "password_reset_token",
+    family: "self",
+    purpose:
+      "A one-time 'forgot password' link, mailed to the office mailbox so a manager " +
+      "can pass it to the employee (ADR-052).",
+    select: internal(
+      "Only the API server looks a link up, when someone opens it. No client role " +
+        "reads this table: a live link is the ability to set someone's password.",
+    ),
+    insert: internal("Written when someone asks for a reset on the login screen, who cannot sign in."),
+    update: internal("Marked used when the link is used or replaced by a newer one, by the API server."),
+    delete: NEVER_DELETED,
+    notes:
+      "Stores only the SHA-256 of the token. A link works once and for 30 minutes. " +
+      "Rows are marked used, never deleted.",
+  },
+  {
     table: "user_role",
     family: "self",
     purpose:
