@@ -893,12 +893,13 @@ export async function workQueue(client: Queryable, actor: Actor, who: string | n
     case_id: string;
     case_number: string;
     title: string;
+    kind: string | null;
     due_on: string | null;
     assignee_name: string | null;
     customer_name: string | null;
     firm: string;
   }>(
-    `select t.id, t.case_id, c.case_number, c.firm, t.title,
+    `select t.id, t.case_id, c.case_number, c.firm, t.title, t.kind,
             (t.due_at at time zone 'Asia/Kolkata')::date::text as due_on,
             ap.full_name as assignee_name, p.full_name as customer_name
        from task t
@@ -919,6 +920,7 @@ export async function workQueue(client: Queryable, actor: Actor, who: string | n
     caseNumber: row.case_number,
     firm: row.firm,
     title: row.title,
+    kind: row.kind,
     dueOn: row.due_on,
     assigneeName: row.assignee_name,
     customerName: row.customer_name,
