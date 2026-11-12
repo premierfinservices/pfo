@@ -15,7 +15,12 @@
  * invalidating passwords hashed under a lower count.
  */
 
-const PBKDF2_ITERATIONS = 100_000;
+/**
+ * 600,000 is OWASP's current figure for PBKDF2-HMAC-SHA256. It was 100,000
+ * until ADR-051; hashes made under the old count still verify, and `needsRehash`
+ * lets the sign-in path replace them the next time their owner signs in.
+ */
+const PBKDF2_ITERATIONS = 600_000;
 const SALT_BYTES = 16;
 const HASH_BITS = 256;
 const ALGORITHM_TAG = "pbkdf2";
@@ -89,6 +94,17 @@ export async function verifyPassword(password: string, stored: string): Promise<
 
   const actual = await deriveHash(password, salt, iterations);
   return timingSafeEqual(actual, expected);
+}
+
+/**
+ * True when a stored hash was made under a lower iteration count than today's,
+ * so the caller, holding the password it has just verified, should hash it again.
+ * False for anything malformed: that is `verifyPassword`'s refusal to make.
+ */
+export function needsRehash(stored: string): boolean {
+  const parts = stored.split("$");
+  const iterations = Number(parts[1]);
+  return parts.length === 4 && parts[0] === ALGORITHM_TAG && Number.isInteger(iterations) && iterations < PBKDF2_ITERATIONS;
 }
 
 function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {

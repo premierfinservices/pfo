@@ -64,6 +64,7 @@ import {
 } from "@domain/submissions/index.js";
 import { documentRowLabel, type PeriodKind } from "@domain/requirements/index.js";
 import { attachmentLabel } from "@domain/submissions/attachment-label.js";
+import { contentTypeFor } from "@domain/storage/upload-safety.js";
 import {
   composeBody,
   type BankerRecipient,
@@ -974,25 +975,6 @@ export interface SendResultView {
   readonly sentCount: number;
   readonly failedCount: number;
   readonly message: string;
-}
-
-function contentTypeFor(fileName: string): string {
-  const extension = fileName.slice(fileName.lastIndexOf(".") + 1).toLowerCase();
-  const known: Record<string, string> = {
-    pdf: "application/pdf",
-    png: "image/png",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    webp: "image/webp",
-    heic: "image/heic",
-    doc: "application/msword",
-    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    xls: "application/vnd.ms-excel",
-    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    txt: "text/plain",
-    zip: "application/zip",
-  };
-  return known[extension] ?? "application/octet-stream";
 }
 
 export async function sendPackage(

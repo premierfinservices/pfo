@@ -100,6 +100,43 @@ const MIME_TYPES = {
 };
 
 /**
+ * Sent on EVERY response this server writes: a file, the app shell, and a
+ * proxied API answer alike (ADR-051). They used to go out on static files only.
+ *
+ * THE CONTENT SECURITY POLICY is the answer to "the sign-in token is in
+ * sessionStorage, where a script can read it": a script that did not come from
+ * this server does not run at all. What each exception is for:
+ *
+ *   style-src 'unsafe-inline'    React writes `style=""` attributes.
+ *   fonts.googleapis/gstatic     the two fonts `Frontend/index.html` loads.
+ *   img-src / frame-src blob:    the document preview shows fetched bytes
+ *                                through an object URL (ui/document-preview.tsx).
+ *
+ * HSTS is sent only when this server is itself serving HTTPS. Browsers ignore
+ * it for a bare IP address, which is how the office reaches PFO today, so it
+ * starts to matter the day PFO is given a host name.
+ */
+const SECURITY_HEADERS = {
+  "Content-Security-Policy": [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' blob: data:",
+    "frame-src blob:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join("; "),
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "same-origin",
+  ...(TLS_OPTIONS ? { "Strict-Transport-Security": "max-age=31536000" } : {}),
+};
+
+/**
  * Resolve a URL path to a file inside `dist`, or null.
  *
  * The `startsWith` check is the load-bearing one, not the `..` filter: on
@@ -133,11 +170,6 @@ async function serveFile(res, filePath, { immutable }) {
     // fingerprints, and a cached copy is how an employee ends up running last
     // week's frontend against this week's API after a deploy.
     "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "no-store",
-    // The app loads nothing from anywhere else, so say so. Cheap defence
-    // against an injected script trying to exfiltrate a case list.
-    "X-Content-Type-Options": "nosniff",
-    "X-Frame-Options": "DENY",
-    "Referrer-Policy": "same-origin",
   });
   createReadStream(filePath).pipe(res);
   return true;
@@ -151,7 +183,15 @@ function proxyToApi(req, res) {
       port: API_PORT,
       method: req.method,
       path: req.url,
-      headers: { ...req.headers, host: `${API_HOST}:${API_PORT}` },
+      headers: {
+        ...req.headers,
+        host: `${API_HOST}:${API_PORT}`,
+        // Which PC this really came from. OVERWRITTEN, never appended to: the
+        // API trusts this header because this process is the only thing that
+        // sets it, and a browser must not be able to choose its own address
+        // for the sign-in throttle (Backend/api-server.ts, `forwardedAddress`).
+        "x-forwarded-for": req.socket.remoteAddress ?? "unknown",
+      },
     },
     (upstreamRes) => {
       res.writeHead(upstreamRes.statusCode ?? 502, upstreamRes.headers);
@@ -186,6 +226,8 @@ function proxyToApi(req, res) {
 const server = TLS_OPTIONS ? createHttpsServer(TLS_OPTIONS, requestHandler) : createHttpServer(requestHandler);
 
 function requestHandler(req, res) {
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
+
   void (async () => {
     const url = req.url ?? "/";
 

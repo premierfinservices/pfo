@@ -232,6 +232,17 @@ async function handleOpenFolder(req, res) {
 }
 
 const server = createServer((req, res) => {
+  // Loopback binding keeps other machines out, but not a web page open in a
+  // browser ON this PC: by re-pointing its own host name at 127.0.0.1 (DNS
+  // rebinding) such a page can talk to this port as if it were its own site.
+  // Its requests still carry ITS name in `Host`, so anything not addressed to
+  // this server by a loopback name is refused (ADR-051).
+  if (!["127.0.0.1", "localhost"].includes((req.headers.host ?? "").replace(/:\d+$/, ""))) {
+    res.writeHead(403);
+    res.end();
+    return;
+  }
+
   const origin = req.headers.origin;
   res.setHeader("Vary", "Origin");
   if (isOriginAllowed(origin)) {

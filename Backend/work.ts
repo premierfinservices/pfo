@@ -28,6 +28,7 @@ import {
 import { nextStepLine, workFor, type WorkEvent } from "@domain/work/rules.js";
 import { belongsToApplicant, classifyCaseFile, monthlyReturnName, partyForFile, type FileMatch } from "@domain/work/file-names.js";
 import { standardFileName } from "@domain/work/standard-names.js";
+import { uploadRefusal } from "@domain/storage/upload-safety.js";
 import { deriveStatusLine } from "@domain/work/status-line.js";
 import { summaryBelongsTo, summaryBusinessNames } from "@domain/work/financial-summary.js";
 import { documentRowLabel, financialYearOf, type PeriodKind } from "@domain/requirements/index.js";
@@ -1263,7 +1264,7 @@ export async function uploadCaseFile(
   client: Queryable,
   actor: Actor,
   caseId: string,
-  file: { bytes: Uint8Array; fileName: string; folder: string; contentType?: string },
+  file: { bytes: Uint8Array; fileName: string; folder: string },
   insideArchive = false,
 ): Promise<UploadAnswer> {
   const row = await loadCase(client, caseId);
@@ -1296,6 +1297,11 @@ export async function uploadCaseFile(
 
   const kind = classifyCaseFile(file.fileName, file.folder);
   if (kind.kind === "skip") return { fileName: file.fileName, result: "skipped" };
+
+  // Before anything is written for this file: `uploadDocument` refuses it too,
+  // but by then a checklist line would already exist for a file never stored.
+  const refusal = uploadRefusal(file.fileName, file.bytes);
+  if (refusal) throw new ApiError(415, refusal);
 
   if (kind.kind === "financial_summary") {
     await client.query(
@@ -1376,7 +1382,6 @@ export async function uploadCaseFile(
     fileName: storedName,
     contentSha256,
     ...(storedName !== file.fileName ? { originalFileName: file.fileName } : {}),
-    ...(file.contentType ? { contentType: file.contentType } : {}),
   });
 
   // Twelve months in means the 3B set is complete, so it leaves the pending list.

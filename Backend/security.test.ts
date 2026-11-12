@@ -24,7 +24,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AddressInfo } from "node:net";
-import { randomBytes, randomUUID } from "node:crypto";
+import { pbkdf2Sync, randomBytes, randomUUID } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
 import path from "node:path";
 import pg from "pg";
@@ -1040,6 +1040,93 @@ describe("login throttling", () => {
     expect((await signIn(api, employee.username)).token).toBeTruthy();
 
     resetLoginThrottle();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ADR-051: the throttle sees the PC, not the proxy; ceilings; headers; hashes
+// ---------------------------------------------------------------------------
+
+describe("the address the web server forwards", () => {
+  /** A request as `web-server.mjs` hands it on: from loopback, naming the PC. */
+  const from = (address: string) => ({ "X-Forwarded-For": address });
+  const attempt = (username: string, password: string, address: string) =>
+    api("/api/auth/login", { method: "POST", body: { username, password }, headers: from(address) });
+
+  it("locks out the PC that guessed badly, and not the same employee at their own", async () => {
+    resetLoginThrottle();
+    const employee = await createEmployee("telecaller");
+
+    for (let n = 0; n < 10; n += 1) {
+      expect((await attempt(employee.username, "wrong-password", "192.168.0.50")).status).toBe(401);
+    }
+    expect((await attempt(employee.username, PASSWORD, "192.168.0.50")).status).toBe(429);
+
+    // Every employee arrives from 127.0.0.1 as far as the socket can tell.
+    // Before ADR-051 this was a 429 too: one PC could lock a colleague out.
+    expect((await attempt(employee.username, PASSWORD, "192.168.0.51")).status).toBe(200);
+
+    resetLoginThrottle();
+  });
+
+  it("stops one PC trying name after name", async () => {
+    resetLoginThrottle();
+    const employee = await createEmployee("telecaller");
+
+    for (let n = 0; n < 30; n += 1) {
+      const nobody = `nobody.${n}.${randomUUID().slice(0, 6)}`;
+      expect((await attempt(nobody, "wrong-password", "192.168.0.60")).status).toBe(401);
+    }
+    // A name it has never tried, with the right password: still refused.
+    expect((await attempt(employee.username, PASSWORD, "192.168.0.60")).status).toBe(429);
+    expect((await attempt(employee.username, PASSWORD, "192.168.0.61")).status).toBe(200);
+
+    resetLoginThrottle();
+  });
+
+  it("refuses a PC that floods the API, and nobody else", async () => {
+    resetLoginThrottle();
+    const flood = from("192.168.0.70");
+
+    for (let batch = 0; batch < 24; batch += 1) {
+      const answers = await Promise.all(Array.from({ length: 50 }, () => api("/api/health", { headers: flood })));
+      expect(answers.every((answer) => answer.status === 200)).toBe(true);
+    }
+    const over = await api("/api/health", { headers: flood });
+    expect(over.status).toBe(429);
+    expect(over.body.message).toMatch(/Too many requests/);
+
+    expect((await api("/api/health", { headers: from("192.168.0.71") })).status).toBe(200);
+    // The server's own processes, which arrive on loopback unforwarded.
+    expect((await api("/api/health")).status).toBe(200);
+
+    resetLoginThrottle();
+  }, 60_000);
+});
+
+describe("what every API response carries", () => {
+  it("has a request id, and is neither sniffed nor cached", async () => {
+    const response = await api("/api/health");
+    expect(response.headers.get("x-request-id")).toMatch(/^[0-9a-f]{12}$/);
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+});
+
+describe("a password hashed under the old iteration count", () => {
+  it("still signs in as aos_app, and is replaced by a stronger hash when it does", async () => {
+    const employee = await createEmployee("telecaller");
+    const salt = randomBytes(16);
+    const derived = pbkdf2Sync(PASSWORD, salt, 100_000, 32, "sha256");
+    const old = ["pbkdf2", "100000", salt.toString("hex"), derived.toString("hex")].join("$");
+    await pool.query(`update app_user set password_hash = $1 where id = $2`, [old, employee.userId]);
+
+    await signIn(appApi, employee.username);
+
+    const { rows } = await pool.query(`select password_hash from app_user where id = $1`, [employee.userId]);
+    expect(rows[0].password_hash.startsWith("pbkdf2$600000$")).toBe(true);
+    // And the new hash is of the same password.
+    await signIn(appApi, employee.username);
   });
 });
 

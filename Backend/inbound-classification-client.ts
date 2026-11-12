@@ -66,6 +66,9 @@ export async function classifyAttachment(input: ClassifyAttachmentInput): Promis
           },
         ],
       }),
+      // Reading a file is a help, never a step anything waits on: a slow answer
+      // is treated like no answer, and the file goes to a person instead.
+      signal: AbortSignal.timeout(60_000),
     });
   } catch (error) {
     return zeroConfidenceResult(

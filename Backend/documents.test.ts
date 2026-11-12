@@ -18,6 +18,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AddressInfo } from "node:net";
+import { request as httpRequest } from "node:http";
 import { randomUUID } from "node:crypto";
 import { readFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -418,5 +419,118 @@ describe("the complete document path: upload, storage, verification, progress, r
     );
     expect(bogus.status).toBe(404);
     expect(bogus.body.message).not.toMatch(/column|relation|syntax|postgres/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// What may be stored, and how it is handed back (ADR-051)
+// ---------------------------------------------------------------------------
+
+describe("upload safety", () => {
+  async function openRequirement(session: Session) {
+    const loanCase = await aCase(session);
+    await toDocumentsPending(session, loanCase.id);
+    const listing = await api(`/api/cases/${loanCase.id}/requirements`, { token: session.token });
+    return { caseId: loanCase.id, requirementId: listing.body.requirements[0].id as string };
+  }
+
+  const send = (session: Session, at: { caseId: string; requirementId: string }, fileName: string, bytes: Buffer) =>
+    api(`/api/cases/${at.caseId}/requirements/${at.requirementId}/documents`, {
+      method: "POST",
+      token: session.token,
+      rawBody: bytes,
+      // What a hostile browser would claim. None of it is believed.
+      headers: { "Content-Type": "application/pdf", "X-File-Name": encodeURIComponent(fileName) },
+    });
+
+  it("refuses a program, a web page, and a file that is not what its name says", async () => {
+    const telecaller = await signInAs("telecaller");
+    const at = await openRequirement(telecaller);
+
+    for (const [fileName, bytes] of [
+      ["invoice.exe", Buffer.from("anything")],
+      ["PAN.html", Buffer.from("<script>alert(1)</script>")],
+      ["PAN.pdf", Buffer.from("<html><script>alert(1)</script>")],
+      ["PAN.pdf", Buffer.from("MZ\x90\x00 a program")],
+      ["photo.jpg", Buffer.from("<svg onload=alert(1)>")],
+    ] as const) {
+      const refused = await send(telecaller, at, fileName, bytes);
+      expect(refused.status, fileName).toBe(415);
+      expect(refused.body.message).toContain(fileName);
+    }
+
+    // Nothing was recorded for any of them.
+    const listing = await api(`/api/cases/${at.caseId}/requirements`, { token: telecaller.token });
+    expect(listing.body.requirements[0].document).toBeNull();
+  });
+
+  it("answers a file name that is not valid encoding with 400, not a crash", async () => {
+    const telecaller = await signInAs("telecaller");
+    const at = await openRequirement(telecaller);
+    const bad = await api(`/api/cases/${at.caseId}/requirements/${at.requirementId}/documents`, {
+      method: "POST",
+      token: telecaller.token,
+      rawBody: FIXTURE,
+      headers: { "X-File-Name": "%E0%A4%A" },
+    });
+    expect(bad.status).toBe(400);
+  });
+
+  it("serves a document as the type its name says, whatever the uploader claimed", async () => {
+    const telecaller = await signInAs("telecaller");
+    const at = await openRequirement(telecaller);
+
+    // Accepted, since it is not a named dangerous type, but claimed as HTML.
+    const uploaded = await api(`/api/cases/${at.caseId}/requirements/${at.requirementId}/documents`, {
+      method: "POST",
+      token: telecaller.token,
+      rawBody: Buffer.from("<html><script>alert(1)</script>"),
+      headers: { "Content-Type": "text/html", "X-File-Name": encodeURIComponent("statement.xls") },
+    });
+    expect(uploaded.status, JSON.stringify(uploaded.body)).toBe(200);
+
+    const response = await fetch(`${baseUrl}/api/documents/${uploaded.body.document.id}/download`, {
+      headers: { Authorization: `Bearer ${telecaller.token}` },
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/vnd.ms-excel");
+    expect(response.headers.get("content-disposition")).toMatch(/^attachment;/);
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
+  it("shows a PDF in place, and survives a file name a header cannot carry", async () => {
+    const telecaller = await signInAs("telecaller");
+    const at = await openRequirement(telecaller);
+    const name = "பான் அட்டை.pdf";
+    const uploaded = await send(telecaller, at, name, FIXTURE);
+    expect(uploaded.status, JSON.stringify(uploaded.body)).toBe(200);
+
+    const response = await fetch(`${baseUrl}/api/documents/${uploaded.body.document.id}/download`, {
+      headers: { Authorization: `Bearer ${telecaller.token}` },
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/pdf");
+    const disposition = response.headers.get("content-disposition") ?? "";
+    expect(disposition).toMatch(/^inline;/);
+    expect(decodeURIComponent(/filename\*=UTF-8''([^;]+)/.exec(disposition)![1]!)).toBe(name);
+  });
+});
+
+describe("the storage backend", () => {
+  it("refuses a request that was not addressed to it by a loopback name", async () => {
+    // What DNS rebinding looks like from here: the right port, somebody else's name.
+    const status = await new Promise<number>((resolve, reject) => {
+      httpRequest(
+        { host: "127.0.0.1", port: 4329, path: "/objects/list?prefix=", headers: { Host: "attacker.example:4329" } },
+        (response) => {
+          response.resume();
+          resolve(response.statusCode ?? 0);
+        },
+      )
+        .on("error", reject)
+        .end();
+    });
+    expect(status).toBe(403);
+    expect((await fetch("http://127.0.0.1:4329/health")).status).toBe(200);
   });
 });

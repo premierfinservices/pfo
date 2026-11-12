@@ -54,8 +54,23 @@ export function createHttpEmailProvider(
               base64: toBase64(attachment.bytes),
             })),
           }),
+          // The mail backend gives Gmail PFO_MAIL_TIMEOUT_MS itself. Twice that
+          // with no answer means the backend is wedged, not that Gmail is slow.
+          signal: AbortSignal.timeout(2 * Number(process.env.PFO_MAIL_TIMEOUT_MS ?? 60_000)),
         });
-      } catch {
+      } catch (error) {
+        // Gave up waiting. Unlike the case below, the email MAY have gone, so
+        // it must not be reported as unsent.
+        if (error instanceof Error && error.name === "TimeoutError") {
+          return {
+            ok: false,
+            submissionPackageEmailId: email.submissionPackageEmailId,
+            failure: {
+              kind: "timeout",
+              message: "The local mail backend did not answer in time. Check the Sent folder before sending this again.",
+            },
+          };
+        }
         // The mail backend is not running, or the machine is offline. A
         // transport fault is a typed failure, not a throw: the caller is
         // mid-way through a package and has to record this email as failed

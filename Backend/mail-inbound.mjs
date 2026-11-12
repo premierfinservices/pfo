@@ -56,9 +56,15 @@ function internalToken() {
 // Gmail API — listing, fetching, and marking messages read.
 // ---------------------------------------------------------------------------
 
+/** One hung call must not stop the poll for good: the next tick tries again. */
+const GMAIL_TIMEOUT_MS = 30_000;
+
 async function gmailFetchJson(url) {
   const token = await gmailAccessToken();
-  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(GMAIL_TIMEOUT_MS),
+  });
   if (!response.ok) {
     throw new Error(`Gmail returned HTTP ${response.status} for ${url}`);
   }
@@ -89,6 +95,7 @@ async function gmailMarkRead(id) {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ removeLabelIds: ["UNREAD"] }),
+    signal: AbortSignal.timeout(GMAIL_TIMEOUT_MS),
   });
 }
 

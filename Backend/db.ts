@@ -55,6 +55,12 @@ export const pool = new pg.Pool({
   // `app.allocate_case_number`'s per-year row lock (ADR-024) from queueing
   // behind connections doing nothing.
   max: 10,
+  // Nothing PFO asks takes a minute, so a statement that does is stuck, and a
+  // stuck statement holds one of the ten connections every employee shares.
+  // Likewise a full pool: fail the request in ten seconds and say so, rather
+  // than leave a browser waiting on a connection that is not coming (ADR-051).
+  statement_timeout: 60_000,
+  connectionTimeoutMillis: 10_000,
 });
 
 export type Queryable = Pick<pg.PoolClient, "query">;

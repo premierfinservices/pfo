@@ -284,6 +284,8 @@ export async function apiDownload(
   }
 
   const disposition = response.headers.get("content-disposition") ?? "";
-  const match = /filename="([^"]*)"/.exec(disposition);
-  return { blob: await response.blob(), fileName: match?.[1] ?? "document" };
+  // `filename*=` carries the real name; `filename=` is its plain-ASCII fallback.
+  const encoded = /filename\*=UTF-8''([^;]+)/.exec(disposition)?.[1];
+  const plain = /filename="([^"]*)"/.exec(disposition)?.[1];
+  return { blob: await response.blob(), fileName: (encoded && decodeURIComponent(encoded)) ?? plain ?? "document" };
 }

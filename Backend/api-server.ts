@@ -62,7 +62,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type pg from "pg";
 
-import { verifyPassword } from "@domain/auth/password.js";
+import { hashPassword, needsRehash, verifyPassword } from "@domain/auth/password.js";
+import { contentTypeFor, isShownInline } from "@domain/storage/upload-safety.js";
 import type { Role } from "@domain/permissions/index.js";
 
 import { pool, withActor } from "./db.js";
@@ -261,9 +262,20 @@ async function readBinaryBody(req: IncomingMessage): Promise<Buffer> {
 class RawResponse {
   constructor(
     readonly bytes: Uint8Array,
-    readonly contentType: string,
     readonly fileName: string,
   ) {}
+}
+
+/** A percent-encoded request header (`X-File-Name`), decoded. A header that is
+ * not valid encoding is the caller's mistake, so it is a 400 and not a crash. */
+function decodedHeader(req: IncomingMessage, name: string): string | undefined {
+  const value = req.headers[name];
+  if (typeof value !== "string") return undefined;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    throw new HttpError(400, "The file name could not be read.");
+  }
 }
 
 async function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
@@ -511,16 +523,57 @@ const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
  * attacker cannot reset the counter by pausing for less than they lose. */
 const LOGIN_WINDOW_MS = 30 * 60 * 1000;
 
+/**
+ * Failed sign-ins allowed from one address across ALL usernames (ADR-051). The
+ * per-username count above does nothing against a caller who changes the
+ * username on every attempt, and each attempt costs a full password hash on
+ * the one process every employee shares.
+ */
+const LOGIN_MAX_ATTEMPTS_PER_ADDRESS = 30;
+
 const loginAttempts = new Map<string, { failures: number; first: number; lockedUntil: number }>();
 
+function isLoopback(address: string | undefined): boolean {
+  return address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
+}
+
+/**
+ * The address the web server says a request came from, or null when nobody
+ * forwarded it.
+ *
+ * WHY THIS EXISTS (ADR-051). Employees reach this process through
+ * `web-server.mjs`'s loopback proxy, so `req.socket.remoteAddress` is
+ * 127.0.0.1 for every one of them. The throttle below was keyed on it and was
+ * therefore per-username for the whole office: ten wrong guesses from any PC
+ * locked that employee out everywhere, which is the denial of service its own
+ * comment says it avoids.
+ *
+ * TRUSTED ONLY FROM LOOPBACK. The web server overwrites `X-Forwarded-For` with
+ * the socket address it saw, so a browser cannot choose its own. A caller that
+ * reaches this process directly from another machine (PFO_API_HOST=0.0.0.0)
+ * could set the header to anything, so there it is ignored.
+ */
+function forwardedAddress(req: IncomingMessage): string | null {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (!isLoopback(req.socket.remoteAddress) || typeof forwarded !== "string") return null;
+  return forwarded.trim() || null;
+}
+
+function clientAddress(req: IncomingMessage): string {
+  return forwardedAddress(req) ?? req.socket.remoteAddress ?? "unknown";
+}
+
 function throttleKey(username: string, req: IncomingMessage): string {
-  // The socket address, not X-Forwarded-For: nothing in the PFO topology sets
-  // that header, so trusting it would let a caller choose their own bucket.
   // Length-prefixed rather than delimited: no separator character can be
   // smuggled in through a username, and unlike the NUL byte that did the
   // same job a moment ago, it leaves this file as text that git can diff.
   const who = username.toLowerCase();
-  return `${who.length}:${who}:${req.socket.remoteAddress ?? "unknown"}`;
+  return `${who.length}:${who}:${clientAddress(req)}`;
+}
+
+/** Cannot collide with `throttleKey`, which always starts with a digit. */
+function addressThrottleKey(req: IncomingMessage): string {
+  return `address:${clientAddress(req)}`;
 }
 
 /** Throws 429 when this username/address pair is locked out. Called before the
@@ -541,7 +594,7 @@ function assertNotThrottled(key: string): void {
   if (now - entry.first > LOGIN_WINDOW_MS) loginAttempts.delete(key);
 }
 
-function recordLoginFailure(key: string): void {
+function recordLoginFailure(key: string, maxAttempts = LOGIN_MAX_ATTEMPTS): void {
   const now = Date.now();
   const entry = loginAttempts.get(key);
   if (!entry || now - entry.first > LOGIN_WINDOW_MS) {
@@ -549,7 +602,7 @@ function recordLoginFailure(key: string): void {
     return;
   }
   entry.failures += 1;
-  if (entry.failures >= LOGIN_MAX_ATTEMPTS) {
+  if (entry.failures >= maxAttempts) {
     entry.lockedUntil = now + LOGIN_LOCKOUT_MS;
   }
 }
@@ -564,6 +617,36 @@ function clearLoginFailures(key: string): void {
  * otherwise leak a lockout from one test into the next. */
 export function resetLoginThrottle(): void {
   loginAttempts.clear();
+  requestCounts.clear();
+}
+
+/**
+ * A ceiling on requests from one PC (ADR-051): a runaway script or a stuck tab
+ * must not be able to starve the one API process the office shares. High
+ * enough that a 500-file folder drop, one request per file, is nowhere near it.
+ *
+ * In memory for the same reason as the login throttle above. Only forwarded
+ * requests are counted, which is every employee: a request that arrives on
+ * loopback with no forwarded address is one of the server's own processes
+ * (the mail poller, `pfo-status.ps1`), and those are not strangers.
+ */
+const REQUEST_LIMIT = 1200;
+const REQUEST_WINDOW_MS = 60_000;
+
+const requestCounts = new Map<string, { start: number; count: number }>();
+
+function overRequestLimit(req: IncomingMessage): boolean {
+  const address = isLoopback(req.socket.remoteAddress) ? forwardedAddress(req) : (req.socket.remoteAddress ?? "unknown");
+  if (address === null) return false;
+
+  const now = Date.now();
+  const entry = requestCounts.get(address);
+  if (!entry || now - entry.start > REQUEST_WINDOW_MS) {
+    requestCounts.set(address, { start: now, count: 1 });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > REQUEST_LIMIT;
 }
 
 async function login(client: pg.PoolClient, req: IncomingMessage, body: Record<string, unknown>) {
@@ -571,7 +654,9 @@ async function login(client: pg.PoolClient, req: IncomingMessage, body: Record<s
   const password = typeof body.password === "string" ? body.password : "";
 
   const key = throttleKey(username, req);
+  const addressKey = addressThrottleKey(req);
   assertNotThrottled(key);
+  assertNotThrottled(addressKey);
 
   const { rows } = await client.query(
     `select id, password_hash, is_active from app_user where lower(username) = lower($1)`,
@@ -585,6 +670,7 @@ async function login(client: pg.PoolClient, req: IncomingMessage, body: Record<s
   const rejection = new HttpError(401, "Incorrect username or password.");
   const refuse = (): never => {
     recordLoginFailure(key);
+    recordLoginFailure(addressKey, LOGIN_MAX_ATTEMPTS_PER_ADDRESS);
     throw rejection;
   };
   if (!user || !user.password_hash) refuse();
@@ -596,6 +682,17 @@ async function login(client: pg.PoolClient, req: IncomingMessage, body: Record<s
   if (!user.is_active) refuse();
 
   clearLoginFailures(key);
+
+  // A hash made under the old iteration count is replaced now, while the
+  // password it was just checked against is in hand (ADR-051). Nobody has to
+  // change their password for the stronger setting to reach them.
+  if (needsRehash(user.password_hash)) {
+    await client.query(`update app_user set password_hash = $1 where id = $2`, [
+      await hashPassword(password),
+      user.id,
+    ]);
+  }
+
   const token = randomBytes(32).toString("base64url");
   await client.query(
     `insert into api_session (user_id, token_hash, expires_at) values ($1, $2, $3)`,
@@ -1018,12 +1115,10 @@ async function route(
   const workUploadMatch = new RegExp(`^/api/work/cases/(${UUID})/upload$`).exec(path);
   if (workUploadMatch && method === "POST") {
     if (!rawBody) throw new HttpError(400, "A file is required.");
-    const contentType = req.headers["content-type"];
     return await uploadCaseFile(client, requireActor(actor), workUploadMatch[1]!, {
       bytes: rawBody,
-      fileName: decodeURIComponent((req.headers["x-file-name"] as string | undefined) ?? "document"),
-      folder: decodeURIComponent((req.headers["x-file-folder"] as string | undefined) ?? ""),
-      ...(typeof contentType === "string" && contentType.length > 0 ? { contentType } : {}),
+      fileName: decodedHeader(req, "x-file-name") ?? "document",
+      folder: decodedHeader(req, "x-file-folder") ?? "",
     });
   }
   const workNotNeededMatch = new RegExp(
@@ -1178,12 +1273,9 @@ async function route(
   const uploadMatch = new RegExp(`^/api/cases/(${UUID})/requirements/(${UUID})/documents$`).exec(path);
   if (uploadMatch && method === "POST") {
     if (!rawBody) throw new HttpError(400, "A file is required.");
-    const fileName = decodeURIComponent(req.headers["x-file-name"] as string | undefined ?? "document");
-    const contentType = req.headers["content-type"];
     return await uploadDocument(client, requireActor(actor), uploadMatch[1]!, uploadMatch[2]!, {
       bytes: rawBody,
-      fileName,
-      ...(typeof contentType === "string" && contentType.length > 0 ? { contentType } : {}),
+      fileName: decodedHeader(req, "x-file-name") ?? "document",
     });
   }
 
@@ -1200,7 +1292,7 @@ async function route(
   const downloadMatch = new RegExp(`^/api/documents/(${UUID})/download$`).exec(path);
   if (downloadMatch && method === "GET") {
     const result = await downloadDocument(client, requireActor(actor), downloadMatch[1]!);
-    return new RawResponse(result.bytes, result.contentType, result.fileName);
+    return new RawResponse(result.bytes, result.fileName);
   }
 
   // ── Lenders ───────────────────────────────────────────────────────────────
@@ -1342,6 +1434,39 @@ async function route(
 export function createApiServer() {
   return createServer((req, res) => {
     void (async () => {
+      const startedAt = Date.now();
+      const method = req.method ?? "GET";
+      const path = new URL(req.url ?? "/", "http://localhost").pathname;
+
+      // Something to quote. An employee who is shown an error can read this
+      // out, and the line below is how it is found in the server log (ADR-051).
+      const requestId = randomBytes(6).toString("hex");
+      let userId: string | null = null;
+      res.setHeader("X-Request-Id", requestId);
+      // Customer data: never sniffed into another type, never kept by a cache.
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Cache-Control", "no-store");
+
+      // One line per request: who, what, how it ended, how long it took. The
+      // path only, never the query string or the body, so no customer's name
+      // or number reaches the log. The supervisor's own health polling is left
+      // out; it would be most of the file and says nothing.
+      if (!path.startsWith("/api/health")) {
+        res.on("finish", () => {
+          console.log(
+            JSON.stringify({
+              time: new Date(startedAt).toISOString(),
+              id: requestId,
+              method,
+              path,
+              status: res.statusCode,
+              ms: Date.now() - startedAt,
+              user: userId,
+            }),
+          );
+        });
+      }
+
       applyCors(req, res);
       if (req.method === "OPTIONS") {
         res.writeHead(204);
@@ -1349,8 +1474,10 @@ export function createApiServer() {
         return;
       }
 
-      const method = req.method ?? "GET";
-      const path = new URL(req.url ?? "/", "http://localhost").pathname;
+      if (overRequestLimit(req)) {
+        json(res, 429, { message: "Too many requests from this PC. Wait a minute and try again." });
+        return;
+      }
 
       // The one route that carries file bytes instead of form fields — read
       // as a raw body, never through the JSON parser (which caps a request at
@@ -1374,6 +1501,7 @@ export function createApiServer() {
         // this system should be able to reach.
         const result = await withActor(null, async (client) => {
           const actor = await loadActor(client, token);
+          userId = actor?.userId ?? null;
           const inner = await withActorIdentity(client, actor, () =>
             route(client, req, method, path, body, actor, rawBody),
           );
@@ -1381,10 +1509,21 @@ export function createApiServer() {
         });
 
         if (result instanceof RawResponse) {
+          // The type comes from the file's NAME, never from what its sender
+          // claimed, and only a PDF or an image is ever shown in place:
+          // anything else is a download, whatever it contains (ADR-051).
+          //
+          // Two spellings of the name, as RFC 6266 has it: a header may only
+          // carry Latin-1, so a Tamil file name used to make this very call
+          // throw. `filename=` is the plain fallback, `filename*=` the real one.
+          const fileName = result.fileName.replace(/[\u0000-\u001f\u007f]/g, "");
+          const disposition = isShownInline(fileName) ? "inline" : "attachment";
           res.writeHead(200, {
-            "Content-Type": result.contentType,
+            "Content-Type": contentTypeFor(fileName),
             "Content-Length": result.bytes.byteLength,
-            "Content-Disposition": `inline; filename="${result.fileName.replace(/"/g, "")}"`,
+            "Content-Disposition":
+              `${disposition}; filename="${fileName.replace(/[^\x20-\x7e]|["\\]/g, "_")}"; ` +
+              `filename*=UTF-8''${encodeURIComponent(fileName)}`,
           });
           res.end(result.bytes);
           return;
@@ -1414,8 +1553,8 @@ export function createApiServer() {
 
         // Never return a driver error to the browser: it would carry table and
         // column names straight to anyone probing the API.
-        console.error("[api] unhandled:", error);
-        json(res, 500, { message: "Something went wrong. Please try again." });
+        console.error(`[api] unhandled (${requestId}):`, error);
+        json(res, 500, { message: `Something went wrong. Please try again. (Reference ${requestId})` });
       }
     })();
   });

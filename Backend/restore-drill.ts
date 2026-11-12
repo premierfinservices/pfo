@@ -297,7 +297,6 @@ async function seedSyntheticCase(): Promise<Seeded> {
     const uploaded = await uploadDocument(client, actor, created.id, target.id, {
       bytes: fixture,
       fileName: "drill-pan-card.pdf",
-      contentType: "application/pdf",
     });
     await decideDocument(client, actor, created.id, target.id, { decision: "verified" });
 

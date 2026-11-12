@@ -25,6 +25,7 @@ import {
 import type { CaseStage } from "@domain/case/stages.js";
 import { resolveDocumentOwner, buildStoragePath, type DocumentOwnerFields } from "@domain/storage/path.js";
 import { nextVersion } from "@domain/storage/versioning.js";
+import { contentTypeFor, uploadRefusal } from "@domain/storage/upload-safety.js";
 
 import type { Queryable } from "./db.js";
 import { can, canActOnCase, type Actor } from "./authorize.js";
@@ -36,7 +37,7 @@ import {
   recordSystemCaseEvent,
 } from "./events.js";
 import { regenerateRequirements } from "./requirements.js";
-import { storageAdapter, getObjectWithContentType } from "./storage-client.js";
+import { storageAdapter } from "./storage-client.js";
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
@@ -383,7 +384,6 @@ export async function uploadDocument(
   file: {
     bytes: Uint8Array;
     fileName: string;
-    contentType?: string;
     /** Set when `fileName` is a standard name PFO chose, so the name it arrived with is kept. */
     originalFileName?: string;
     contentSha256?: string;
@@ -396,6 +396,10 @@ export async function uploadDocument(
   if (file.bytes.byteLength > MAX_UPLOAD_BYTES) {
     throw new ApiError(413, "That file is larger than Premier Finserv One currently accepts (25 MB).");
   }
+  // Every upload ends here: the screen, a zip's contents, an inbound email's
+  // attachment. So this is where a program or a web page is turned away.
+  const refusal = uploadRefusal(file.fileName, file.bytes);
+  if (refusal) throw new ApiError(415, refusal);
 
   const subject = await loadRequirementSubject(client, caseId, requirementId);
   const ownerFields = ownerFieldsFor(subject, caseId);
@@ -434,9 +438,7 @@ export async function uploadDocument(
 
   let stored;
   try {
-    stored = await storageAdapter.put(path, file.bytes, {
-      ...(file.contentType ? { contentType: file.contentType } : {}),
-    });
+    stored = await storageAdapter.put(path, file.bytes, { contentType: contentTypeFor(file.fileName) });
   } catch (error) {
     throw new ApiError(
       502,
@@ -781,7 +783,7 @@ export async function downloadDocument(
   client: Queryable,
   actor: Actor,
   documentId: string,
-): Promise<{ bytes: Uint8Array; contentType: string; fileName: string }> {
+): Promise<{ bytes: Uint8Array; fileName: string }> {
   const { rows } = await client.query<{
     case_id: string | null;
     person_id: string | null;
@@ -816,7 +818,7 @@ export async function downloadDocument(
     throw new ApiError(404, "No such document.");
   }
 
-  const object = await getObjectWithContentType(row.file_path);
+  const bytes = await storageAdapter.get(row.file_path);
 
   if (row.resolved_case_id) {
     await recordDocumentEvent(client, {
@@ -828,7 +830,7 @@ export async function downloadDocument(
     });
   }
 
-  return { bytes: object.bytes, contentType: object.contentType, fileName: row.file_name ?? "document" };
+  return { bytes, fileName: row.file_name ?? "document" };
 }
 
 // ---------------------------------------------------------------------------

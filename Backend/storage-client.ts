@@ -17,6 +17,10 @@ import type { StorageAdapter, StoredObject } from "@domain/storage/index.js";
 const BASE_URL =
   (process.env.PFO_STORAGE_SERVER_URL ?? "http://127.0.0.1:4319").replace(/\/$/, "");
 
+/** The storage backend is on this machine. Half a minute of silence means it is
+ * wedged, and a request that waits on it forever holds a database connection. */
+const STORAGE_TIMEOUT_MS = 30_000;
+
 async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
     const body = (await response.json()) as { message?: string };
@@ -38,6 +42,7 @@ class HttpStorageAdapter implements StorageAdapter {
         method: "PUT",
         headers: options?.contentType ? { "Content-Type": options.contentType } : {},
         body: new Uint8Array(bytes),
+        signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
       });
     } catch {
       throw new Error("Could not reach the document storage backend.");
@@ -51,7 +56,9 @@ class HttpStorageAdapter implements StorageAdapter {
   async get(path: string): Promise<Uint8Array> {
     let response: Response;
     try {
-      response = await fetch(`${BASE_URL}/objects?path=${encodeURIComponent(path)}`);
+      response = await fetch(`${BASE_URL}/objects?path=${encodeURIComponent(path)}`, {
+        signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
+      });
     } catch {
       throw new Error("Could not reach the document storage backend.");
     }
@@ -64,7 +71,9 @@ class HttpStorageAdapter implements StorageAdapter {
   async list(prefix: string): Promise<readonly StoredObject[]> {
     let response: Response;
     try {
-      response = await fetch(`${BASE_URL}/objects/list?prefix=${encodeURIComponent(prefix)}`);
+      response = await fetch(`${BASE_URL}/objects/list?prefix=${encodeURIComponent(prefix)}`, {
+        signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
+      });
     } catch {
       throw new Error("Could not reach the document storage backend.");
     }
@@ -84,7 +93,9 @@ export async function getObjectWithContentType(
 ): Promise<{ bytes: Uint8Array; contentType: string }> {
   let response: Response;
   try {
-    response = await fetch(`${BASE_URL}/objects?path=${encodeURIComponent(path)}`);
+    response = await fetch(`${BASE_URL}/objects?path=${encodeURIComponent(path)}`, {
+      signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
+    });
   } catch {
     throw new Error("Could not reach the document storage backend.");
   }

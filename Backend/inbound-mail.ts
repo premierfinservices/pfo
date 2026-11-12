@@ -255,7 +255,6 @@ export async function handleInboundEmail(
         const updated = await uploadDocument(client, actor, match.loanCaseId, matchedRequirement.id, {
           bytes,
           fileName: attachment.fileName,
-          contentType: attachment.contentType,
         });
         const resultingDocumentId = updated.document?.id ?? null;
 

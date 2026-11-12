@@ -54,6 +54,18 @@ async function waitFor(url: string): Promise<void> {
 
 const PASSWORD = "integration-test-password";
 
+/**
+ * Test text, dressed as the file its name says it is. PFO refuses a `.pdf` that
+ * is not a PDF and an image that is not one (ADR-051), so a fixture that is only
+ * a sentence gets the few leading bytes that make it one. Same text, same bytes.
+ */
+function asFile(name: string, content: string | Uint8Array): Uint8Array {
+  if (typeof content !== "string") return content;
+  const lower = name.toLowerCase();
+  const head = lower.endsWith(".pdf") ? "%PDF-1.4\n" : /\.(jpe?g|png)$/.test(lower) ? "\u00ff\u00d8\u00ff" : "";
+  return Uint8Array.from(head + content, (character) => character.charCodeAt(0) & 0xff);
+}
+
 interface Session {
   readonly token: string;
   readonly userId: string;
@@ -616,7 +628,7 @@ describe("uploading a case folder", () => {
         "X-File-Name": encodeURIComponent(name),
         "X-File-Folder": encodeURIComponent(folder),
       },
-      body: content,
+      body: asFile(name, content),
     });
     const body: any = await response.json();
     expect(response.status, JSON.stringify(body)).toBe(200);
@@ -802,7 +814,7 @@ describe("the document drop reads, renames and unpacks", () => {
     const response = await fetch(`${baseUrl}/api/work/cases/${caseId}/upload`, {
       method: "POST",
       headers: { Authorization: `Bearer ${session.token}`, "X-File-Name": encodeURIComponent(name), "Content-Type": contentType },
-      body: content,
+      body: asFile(name, content),
     });
     const body: any = await response.json();
     expect(response.status, JSON.stringify(body)).toBe(200);
@@ -891,7 +903,11 @@ describe("the document drop reads, renames and unpacks", () => {
     const session = await signInAs("telecaller");
     const logged = await logCase(session);
     const enc = (v: string) => new TextEncoder().encode(v);
-    const zip = zipSync({ "KYC/PAN - Demo.pdf": enc("pan"), "KYC/Aadhaar - Demo.jpeg": enc("aadhaar"), "Pending Documents.txt": enc("x") });
+    const zip = zipSync({
+      "KYC/PAN - Demo.pdf": asFile("PAN - Demo.pdf", "pan"),
+      "KYC/Aadhaar - Demo.jpeg": asFile("Aadhaar - Demo.jpeg", "aadhaar"),
+      "Pending Documents.txt": enc("x"),
+    });
     const answer = await post(session, logged.id, "Documents.zip", zip, "application/zip");
     expect(answer.result).toBe("archive");
     expect(answer.files.map((f: any) => f.result).sort()).toEqual(["filed", "filed", "skipped"]);
@@ -1228,7 +1244,7 @@ describe("sending to lenders by email", () => {
         "X-File-Name": encodeURIComponent("PAN - Demo.pdf"),
         "X-File-Folder": "",
       },
-      body: "bytes of the PAN card",
+      body: asFile("PAN - Demo.pdf", "bytes of the PAN card"),
     });
     expect(response.status).toBe(200);
     return logged.id as string;
