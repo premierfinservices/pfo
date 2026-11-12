@@ -16,7 +16,7 @@ Written 30 October 2026 for a Claude session (or a person) that has **no memory 
 
 Decision: ADR-051, a hardening pass. **Not yet deployed.** No migration; the next number is still 0055.
 
-The work is on branch `claude/pfo-vibe-coding-check-mlks2g`, not yet merged into `main`. To put it live, on the Unfold PC after it reaches `main`:
+The work is on `main` (pushed 12 Nov). To put it live, on the Unfold PC:
 1. `npm run backup`.
 2. Stop `PFO Server`, `git pull --ff-only`, `npm install` (the lockfile changed), `npm run build`, start `PFO Server`.
 3. Check: sign in, open a document, upload a PDF. `Backend\supervisor.log` should show one JSON line per request.
