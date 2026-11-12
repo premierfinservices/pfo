@@ -1,0 +1,50 @@
+# Runs the checks a person would otherwise have to remember to run (ADR-051).
+# It deploys nothing: production is still pull, build and restart on the office server.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        # Throwaway, for this run only. The password is not a secret.
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PFO_DB_HOST: 127.0.0.1
+      PFO_DB_USER: postgres
+      PFO_DB_PASSWORD: ci-only
+      PFO_STORAGE_ROOT: ${{ runner.temp }}/pfo-storage
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run typecheck:frontend
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:integration
+      # Runtime dependencies only: these are what the office server runs.
+      - run: npm audit --omit=dev --audit-level=high
