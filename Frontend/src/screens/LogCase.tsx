@@ -14,7 +14,7 @@ import { amountInWords, normaliseMobile, parseAmount } from "@domain/work/intake
 import { api } from "../api/client.js";
 import { useApiQuery, useMutation } from "../api/hooks.js";
 import { useSession } from "../session.js";
-import { Button, Card, Empty, Field, Input, Select } from "../ui/index.js";
+import { Button, Card, Empty, Field, Input, PageHeader, Select } from "../ui/index.js";
 
 export interface WorkLists {
   readonly loanTypes: readonly string[];
@@ -129,10 +129,7 @@ export function LogCase(): ReactNode {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink-900">Log a Case</h1>
-        <p className="mt-1 text-sm text-ink-500">For a customer who has promised to send documents.</p>
-      </div>
+      <PageHeader title="Log a Case" subtitle="For a customer who has promised to send documents." />
 
       <Card>
         <div className="grid gap-4 sm:grid-cols-2">

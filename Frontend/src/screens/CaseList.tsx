@@ -37,6 +37,7 @@ import {
   Empty,
   Input,
   Select,
+  PageHeader,
   StageBadge,
   TABLE_ROW,
   Table,
@@ -108,18 +109,18 @@ export function CaseList(): ReactNode {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Cases</h1>
-          <p className="mt-1 text-sm text-ink-500">
+      <PageHeader
+        title="Cases"
+        subtitle={
+          <>
             {seesEverything
               ? "Every case."
               : "Cases you own. A colleague's cases are not yours to browse."}
             {createdWithinDays !== null && ` Created in the last ${createdWithinDays} days.`}
-          </p>
-        </div>
-
-        <div className="flex items-end gap-2">
+          </>
+        }
+        actions={
+          <>
           <Input
             type="search"
             value={query}
@@ -174,8 +175,9 @@ export function CaseList(): ReactNode {
               <Button variant="primary">New case</Button>
             </Link>
           )}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <Card>
         {cases.loading ? (

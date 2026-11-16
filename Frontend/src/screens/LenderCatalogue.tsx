@@ -10,7 +10,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 
 import { useLenders } from "../api/lenders.js";
-import { Badge, Card, Empty, Input } from "../ui/index.js";
+import { Badge, Card, Empty, Input, PageHeader } from "../ui/index.js";
 
 const LENDER_TYPES: Record<string, string> = { bank: "Bank", nbfc: "NBFC", hfc: "Housing finance" };
 
@@ -34,17 +34,17 @@ export function LenderCatalogue(): ReactNode {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink-900">Lenders</h1>
-        <p className="mt-1 text-sm text-ink-500">
-          The lenders Send to lenders offers, with their branches and bankers. Bankers are added on the Bankers screen.
-        </p>
-      </div>
-      <Input
-        placeholder="Search by lender, branch or city"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        className="max-w-md"
+      <PageHeader
+        title="Lenders"
+        subtitle="The lenders Send to lenders offers, with their branches and bankers. Bankers are added on the Bankers screen."
+        actions={
+          <Input
+            placeholder="Search by lender, branch or city"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="w-80"
+          />
+        }
       />
       <Card title={`${visible.length} of ${lenders.lenders.length} lenders`}>
         {visible.length === 0 ? (

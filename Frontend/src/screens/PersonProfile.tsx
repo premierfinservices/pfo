@@ -42,6 +42,7 @@ import {
   Field,
   Input,
   Modal,
+  PageHeader,
   PermissionCode,
   Select,
   StageBadge,
@@ -82,15 +83,21 @@ export function PersonProfile(): ReactNode {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">{person.fullName}</h1>
-          <p className="tnum mt-1 text-sm text-ink-500">
+      <PageHeader
+        title={person.fullName}
+        subtitle={
+          <span className="tnum">
             {primaryPhone ?? "No number"}
             {" · "}
             {pan ? (seesFullIdentifiers ? pan : maskPan(pan)) : "No PAN"}
             {person.locality && ` · ${person.locality}, ${person.city ?? ""}`}
-          </p>
+          </span>
+        }
+        actions={canEdit && <Button onClick={() => setEditOpen(true)}>Edit</Button>}
+      />
+      {/* The rest of what is known about them, on the page rather than the backdrop. */}
+      <div>
+        <div>
           {(person.addressLine || person.pincode || person.district || person.state) && (
             <p className="mt-0.5 text-xs text-ink-500">
               {[person.addressLine, person.district, person.state, person.pincode]
@@ -116,11 +123,6 @@ export function PersonProfile(): ReactNode {
             </div>
           )}
         </div>
-        {canEdit && (
-          <div className="flex shrink-0 gap-1.5">
-            <Button onClick={() => setEditOpen(true)}>Edit</Button>
-          </div>
-        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

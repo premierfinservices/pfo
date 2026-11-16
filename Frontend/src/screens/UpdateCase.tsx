@@ -22,7 +22,7 @@ import type { ApiPreparedPackage, ApiSendResult, ApiSendableDocument, ApiTimelin
 import { exactly } from "../lib.js";
 import { useSession } from "../session.js";
 import { ViewDocumentDialog } from "../ui/document-preview.js";
-import { Badge, Button, Card, Empty, Field, Input, Modal, Select, StageBadge, cx } from "../ui/index.js";
+import { Badge, Button, Card, Empty, Field, Input, Modal, PageHeader, Select, StageBadge, cx } from "../ui/index.js";
 import { CoApplicantFields, dateFromToday, type WorkLists } from "./LogCase.js";
 import { FinancialSummary, FinancialsOrEmpty, SummarySkeleton } from "./FinancialSummary.js";
 import { SentDocuments } from "./SentDocuments.js";
@@ -151,9 +151,10 @@ export function UpdateCase(): ReactNode {
   );
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[20rem_1fr]">
+    <div className="space-y-6">
+      <PageHeader title="Update Case" />
+      <div className="grid gap-6 lg:grid-cols-[20rem_1fr]">
       <div className="space-y-3">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink-900">Update Case</h1>
         <Input
           placeholder="Name, mobile or case number"
           value={search}
@@ -179,7 +180,7 @@ export function UpdateCase(): ReactNode {
         ) : (list.data ?? []).length === 0 ? (
           <Empty>{ended ? "No cases found." : "No open cases found."}</Empty>
         ) : (
-          <ul className="max-h-[75vh] divide-y divide-ink-100 overflow-y-auto rounded-lg bg-white ring-1 ring-ink-150">
+          <ul className="max-h-[75vh] divide-y divide-ink-100 overflow-y-auto rounded-xl bg-white shadow-soft ring-1 ring-ink-900/5">
             {(list.data ?? []).map((row) => {
               const overdue = row.nextDue !== null && row.nextDue < TODAY();
               return (
@@ -215,6 +216,7 @@ export function UpdateCase(): ReactNode {
       ) : (
         <Empty>Choose the customer. Your cases are listed with the most urgent first.</Empty>
       )}
+      </div>
     </div>
   );
 }

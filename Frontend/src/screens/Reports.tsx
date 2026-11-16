@@ -13,7 +13,7 @@ import { FIRMS } from "@domain/work/intake.js";
 
 import { useApiQuery } from "../api/hooks.js";
 import { lakhs } from "../lib.js";
-import { Card, Empty, Input, Select, TABLE_ROW, Td, Th, cx } from "../ui/index.js";
+import { Card, Empty, Input, PageHeader, Select, TABLE_ROW, Td, Th, cx } from "../ui/index.js";
 
 interface ReportAnswer extends MisReport {
   readonly periods: readonly { code: string; label: string }[];
@@ -66,9 +66,9 @@ function Tile({ label, note, cell, onPick, money, previous }: {
 }): ReactNode {
   const arrow = previous === undefined ? null : cell.n > previous ? "▲" : cell.n < previous ? "▼" : "▬";
   return (
-    <div className="rounded-lg bg-white p-3 ring-1 ring-ink-150">
+    <div className="rounded-xl bg-white p-4 shadow-soft ring-1 ring-ink-900/5">
       <p className="text-xs font-medium text-ink-500">{label}</p>
-      <p className="mt-1 text-2xl">
+      <p className="font-display mt-1 text-3xl font-light">
         <Num cell={cell} title={label} onPick={onPick} {...(money ? { money } : {})} />
       </p>
       <p className="mt-1 text-xs text-ink-500">
@@ -116,7 +116,8 @@ function Grouped({ title, heading, rows, onPick, withAmount }: {
   );
 }
 
-export function Reports(): ReactNode {
+/** `embedded` is the copy under the home screen's "Full reports", which already has a title. */
+export function Reports({ embedded = false }: { embedded?: boolean }): ReactNode {
   const [period, setPeriod] = useState("month");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -129,48 +130,52 @@ export function Reports(): ReactNode {
   const data = report.data;
   const pick = (next: Picked): void => setPicked(next);
 
+  const explanation = "Counted the way the MIS counts them. Practice cases are left out. Click a number to see its cases.";
+  const filters = (
+    <>
+      <Select value={period} onChange={(event) => setPeriod(event.target.value)} className="w-48" aria-label="Period">
+        {(data?.periods ?? [{ code: "month", label: "This Month" }]).map((item) => (
+          <option key={item.code} value={item.code}>
+            {item.label}
+          </option>
+        ))}
+        <option value="custom">Choose dates</option>
+      </Select>
+      {period === "custom" && (
+        <>
+          <Input type="date" value={from} onChange={(event) => setFrom(event.target.value)} aria-label="From" className="w-auto" />
+          <Input type="date" value={to} onChange={(event) => setTo(event.target.value)} aria-label="To" className="w-auto" />
+        </>
+      )}
+      <Select value={firm} onChange={(event) => setFirm(event.target.value)} className="w-52" aria-label="Firm">
+        <option value="all">Both firms</option>
+        {FIRMS.map((item) => (
+          <option key={item.code} value={item.code}>
+            {item.label}
+          </option>
+        ))}
+      </Select>
+      <Select value={who} onChange={(event) => setWho(event.target.value)} className="w-48" aria-label="View as">
+        <option value="">Everyone</option>
+        {(data?.people ?? []).map((person) => (
+          <option key={person.id} value={person.id}>
+            {person.name}
+          </option>
+        ))}
+      </Select>
+    </>
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink-900">Reports</h1>
-          <p className="mt-1 text-sm text-ink-500">
-            Counted the way the MIS counts them. Practice cases are left out. Click a number to see its cases.
-          </p>
+      {embedded ? (
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <p className="text-sm text-ink-500">{explanation}</p>
+          <div className="flex flex-wrap items-end gap-2">{filters}</div>
         </div>
-        <div className="flex flex-wrap items-end gap-2">
-          <Select value={period} onChange={(event) => setPeriod(event.target.value)} className="w-48" aria-label="Period">
-            {(data?.periods ?? [{ code: "month", label: "This Month" }]).map((item) => (
-              <option key={item.code} value={item.code}>
-                {item.label}
-              </option>
-            ))}
-            <option value="custom">Choose dates</option>
-          </Select>
-          {period === "custom" && (
-            <>
-              <Input type="date" value={from} onChange={(event) => setFrom(event.target.value)} aria-label="From" />
-              <Input type="date" value={to} onChange={(event) => setTo(event.target.value)} aria-label="To" />
-            </>
-          )}
-          <Select value={firm} onChange={(event) => setFirm(event.target.value)} className="w-52" aria-label="Firm">
-            <option value="all">Both firms</option>
-            {FIRMS.map((item) => (
-              <option key={item.code} value={item.code}>
-                {item.label}
-              </option>
-            ))}
-          </Select>
-          <Select value={who} onChange={(event) => setWho(event.target.value)} className="w-48" aria-label="View as">
-            <option value="">Everyone</option>
-            {(data?.people ?? []).map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-      </div>
+      ) : (
+        <PageHeader title="Reports" subtitle={explanation} actions={filters} />
+      )}
 
       {report.loading && !data ? (
         <Empty>Loading…</Empty>

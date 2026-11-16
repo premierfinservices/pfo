@@ -270,6 +270,15 @@ export function computeMisReport(input: ReportInput) {
     })
     .filter((row) => row.open.n + row.activeCases.n + row.activeApplications.n > 0);
 
+  // Not in the MIS: the home screen's trend. Twelve Monday-start weeks ending
+  // with this one, whatever the period, counted like every other lead table.
+  const thisWeek = Date.parse(`${periodRange("week", today)!.from}T00:00:00Z`);
+  const leadsByWeek = Array.from({ length: 12 }, (_, index) => {
+    const start = thisWeek - (11 - index) * 7 * 86_400_000;
+    const day = (offset: number): string => new Date(start + offset * 86_400_000).toISOString().slice(0, 10);
+    return { weekStart: day(0), ...ofCases(input.cases.filter((c) => between(c.leadOn, day(0), day(6)))) };
+  });
+
   return {
     from,
     to,
@@ -280,6 +289,7 @@ export function computeMisReport(input: ReportInput) {
     activeVsClosed: { active: ofCases(active), closed: ofCases(cases.filter((c) => !isActive(c))) },
     leadsByLoanType: groupBy(leads, (c) => c.loanType ?? "Not recorded").sort((a, b) => b.n - a.n).slice(0, 10),
     leadsBySource: groupBy(leads, (c) => c.leadSource ?? "Not recorded"),
+    leadsByWeek,
     telecallers,
     loginTeam,
     workload,

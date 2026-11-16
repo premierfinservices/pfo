@@ -71,14 +71,15 @@ export function LoginScreen({
   }
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-canvas px-4">
-      <div className="w-full max-w-sm rounded-lg bg-white p-7 shadow-elevated ring-1 ring-ink-150">
+    <div className="pfo-backdrop-full flex min-h-full items-center justify-center px-4">
+      {/* Solid, not glass: this card holds a form. */}
+      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-elevated ring-1 ring-white/50">
         <div className="mb-6 flex items-center gap-3">
-          <span className="grid h-9 w-auto shrink-0 place-items-center rounded-md bg-brand-600 px-1.5 text-sm font-bold text-white">
+          <span className="grid h-9 w-auto shrink-0 place-items-center rounded-full bg-brand-600 px-3 text-sm font-bold text-white">
             PFONE
           </span>
           <div>
-            <p className="font-display text-sm font-semibold text-ink-900">
+            <p className="font-display text-base font-medium text-ink-900">
               Premier Finserv One
             </p>
             <p className="text-xs text-ink-500">

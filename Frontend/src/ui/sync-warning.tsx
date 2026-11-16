@@ -1,5 +1,5 @@
 /**
- * Under the top bar, for whoever may see office-wide reports: the MIS sync has
+ * Above the top bar, for whoever may see office-wide reports: the MIS sync has
  * failed or stopped (ADR-047). The server decides what to say; this only shows it.
  */
 

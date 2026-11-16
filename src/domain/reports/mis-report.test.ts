@@ -146,6 +146,24 @@ describe("the MIS's definitions", () => {
     expect(report.leadsByLoanType).toEqual([expect.objectContaining({ label: "Business Loan", n: 1, amount: 100 })]);
   });
 
+  it("counts leads per week for the twelve weeks ending this week, whatever the period", () => {
+    const report = computeMisReport({
+      ...base, // today is Thursday 15 Oct 2026; its week starts Monday 12 Oct
+      from: "2026-10-15",
+      to: "2026-10-15",
+      cases: [
+        aCase("c1", { leadOn: "2026-10-12" }),
+        aCase("c2", { leadOn: "2026-10-18", stage: "lost" }),
+        aCase("c3", { leadOn: "2026-10-11" }),
+        aCase("c4", { leadOn: "2026-07-26" }), // the day before the first week
+      ],
+    });
+    expect(report.leadsByWeek).toHaveLength(12);
+    expect(report.leadsByWeek[0]).toEqual({ weekStart: "2026-07-27", n: 0, caseIds: [] });
+    expect(report.leadsByWeek[10]).toEqual({ weekStart: "2026-10-05", n: 1, caseIds: ["c3"] });
+    expect(report.leadsByWeek[11]).toEqual({ weekStart: "2026-10-12", n: 2, caseIds: ["c1", "c2"] });
+  });
+
   it("narrows to one person: their cases, the applications they logged in, their follow-ups", () => {
     const report = computeMisReport({
       ...base,

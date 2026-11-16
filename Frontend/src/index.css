@@ -6,23 +6,26 @@
  * never decorative — a stage badge is coloured because the stage means
  * something, and nothing else competes with it.
  *
- * Design system, v2 (premium light SaaS). Two type roles: Space Grotesk for
- * page titles and the big numerals on a dashboard — the confident, slightly
- * technical face that gives the product a face of its own — and Inter for
- * everything a person reads or types all day (body copy, tables, forms,
- * navigation), because density and legibility win over personality there.
- * The ink and brand scales share one hue (258, a deep ledger blue) so text,
- * borders and interactive colour all feel like one material rather than a
- * palette bolted together from unrelated greys. Gold is the one deliberately
- * rare accent — never a status colour, only used where "this is the one
- * thing that matters on this screen" is true.
+ * Design system, v3 (ADR-053). Two type roles: Outfit, set light, for page
+ * titles and the big figures on a dashboard, and Inter for everything a person
+ * reads or types all day (body copy, tables, forms, navigation), because
+ * density and legibility win over personality there. The ink and brand scales
+ * share one hue (258, a deep ledger blue) so text, borders and interactive
+ * colour feel like one material.
+ *
+ * ADR-053 adds the one decorative thing in the product: the backdrop behind
+ * the navigation and each page's title, and the glass that floats on it. The
+ * rule above still holds everywhere a person reads data. Glass is for the
+ * navigation and the home screen's two headline cards only; tables, forms and
+ * every card that carries figures stay solid white. Gold is the backdrop's
+ * warm light and otherwise stays rare.
  */
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  --color-canvas: oklch(0.984 0.004 92);
+  --color-canvas: oklch(0.972 0.006 250);
 
   --color-ink-900: oklch(0.2 0.021 258);
   --color-ink-800: oklch(0.29 0.019 258);
@@ -52,14 +55,90 @@
   --radius-md: 0.625rem;
   --radius-lg: 0.875rem;
   --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
 
   /* Two elevation steps only: a barely-there lift for a surface that is
      merely hoverable, and the existing --shadow-elevated for the handful of
      surfaces (primary stat tiles, modals, the one open menu) that should
      visibly sit above the page. Anything needing a third step is a sign the
      hierarchy question should be answered with spacing or type, not shadow. */
-  --shadow-soft: 0 1px 3px oklch(0.2 0.02 258 / 0.06);
+  --shadow-soft: 0 1px 2px oklch(0.2 0.02 258 / 0.05), 0 6px 20px -12px oklch(0.2 0.04 258 / 0.18);
   --shadow-elevated: 0 4px 16px -4px oklch(0.2 0.02 258 / 0.12), 0 2px 6px -2px oklch(0.2 0.02 258 / 0.08);
+  /* Glass only: a deeper drop so it reads as floating, and a lit top edge. */
+  --shadow-glass: 0 10px 30px -12px oklch(0.22 0.07 258 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.55);
+}
+
+/*
+ * The backdrop (ADR-053). Deep ledger blue on the left, where the page title
+ * sits in white, opening to a pale sheen and one warm light on the right. The
+ * two arcs are the folds in the glass: a crisp inner edge and a soft falloff.
+ * It is a still image made of gradients: no file to load, nothing that moves.
+ */
+:root {
+  --pfo-backdrop:
+    radial-gradient(95% 150% at 58% 140%, transparent 55.7%, oklch(1 0 0 / 0.2) 56%, transparent 67%),
+    radial-gradient(75% 130% at 100% -35%, transparent 61.7%, oklch(1 0 0 / 0.14) 62%, transparent 73%),
+    radial-gradient(26% 46% at 60% 96%, oklch(0.8 0.13 72 / 0.85), transparent 72%),
+    radial-gradient(56% 100% at 82% 4%, oklch(0.85 0.055 228 / 0.75), transparent 72%),
+    linear-gradient(112deg, oklch(0.31 0.08 258) 0%, oklch(0.43 0.1 253) 44%, oklch(0.6 0.085 238) 100%);
+}
+
+/* The app's outer box. `isolate` keeps the backdrop (z-index -1) behind the
+   page and in front of the canvas; `clip` hides its 100vw overhang without
+   breaking the sticky navigation the way `hidden` would. */
+.pfo-shell {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+}
+
+/* A page's title block paints the backdrop behind itself: up under the
+   floating navigation and down to its own bottom edge, where it ends in a
+   clean rounded line. Its height is the header's own, so a header that wraps
+   onto three lines never leaves white text on a white page, and whatever
+   follows the header starts on the plain canvas. Only the home screen pulls
+   its first row of cards up over the edge. */
+.page-header {
+  position: relative;
+}
+
+.page-header::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -9rem;
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  translate: -50% 0;
+  border-radius: 0 0 2rem 2rem;
+  background: var(--pfo-backdrop);
+}
+
+/* Signed-out screens: the same backdrop, whole. */
+.pfo-backdrop-full {
+  background: var(--pfo-backdrop);
+}
+
+/* Light glass: dark text, readable over the backdrop and over a white page
+   alike, which the navigation needs once the page has scrolled. */
+.glass {
+  background: oklch(1 0 0 / 0.62);
+  border: 1px solid oklch(1 0 0 / 0.55);
+  box-shadow: var(--shadow-glass);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+}
+
+/* Tinted glass: white text. The dark tint is what keeps that text readable
+   where the backdrop turns pale. */
+.glass-tint {
+  background: linear-gradient(150deg, oklch(0.36 0.08 258 / 0.5), oklch(0.3 0.07 258 / 0.34));
+  border: 1px solid oklch(1 0 0 / 0.24);
+  box-shadow: var(--shadow-glass);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
 }
 
 html,
@@ -82,7 +161,7 @@ body {
    appears. Restrained on purpose: everything else stays on Inter. */
 .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
 }
 
 /* A quiet entrance for content that replaces itself in place — a dashboard

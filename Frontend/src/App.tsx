@@ -32,10 +32,11 @@ import { SyncWarning } from "./ui/sync-warning.js";
 
 export function App(): ReactNode {
   return (
-    <div className="flex min-h-full flex-col">
-      <TopBar />
+    <div className="pfo-shell flex min-h-full flex-col">
+      {/* Above the navigation, so the backdrop starts exactly under it. */}
       <SyncWarning />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
+      <TopBar />
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-2 pb-10">
         <Routes>
           <Route path="/" element={<WorkspaceHome />} />
           <Route path="/cases" element={<CaseList />} />
@@ -66,15 +67,42 @@ function OldCaseLink(): ReactNode {
 
 // ---------------------------------------------------------------------------
 // Top bar: identity, workspace, one search box
+//
+// It floats (ADR-053): glass capsules over the backdrop at the top of a page,
+// and over the page itself once it scrolls. The text in them is dark so it
+// reads in both places.
 // ---------------------------------------------------------------------------
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {
   return cx(
-    "rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1",
-    isActive ? "bg-brand-50 text-brand-700" : "text-ink-700 hover:bg-ink-50",
+    "flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors duration-150",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
+    isActive ? "bg-white text-ink-900 shadow-soft" : "text-ink-800 hover:bg-white/55",
   );
 }
+
+/** The navigation's few icons. Every one sits beside its word, never instead of it. */
+function NavIcon({ d }: { d: string }): ReactNode {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className="h-4 w-4 shrink-0"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={d} />
+    </svg>
+  );
+}
+
+const ICON_HOME = "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z";
+const ICON_UPDATE = "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z";
+const ICON_CASES = "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01";
+const ICON_PLUS = "M12 5v14M5 12h14";
 
 /**
  * A case list scoped to "own" reads as "My Cases"; Manager and Managing
@@ -90,39 +118,48 @@ function TopBar(): ReactNode {
   const session = useSession();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-ink-150 bg-white">
-      <div className="mx-auto flex w-full max-w-7xl items-center gap-4 px-4 py-2.5">
-        <Link to="/" className="flex shrink-0 items-center gap-2">
-          <span className="grid h-7 w-auto shrink-0 place-items-center rounded-md bg-brand-600 px-1.5 text-xs font-bold text-white">
+    <header className="sticky top-0 z-40 px-4 pt-3 pb-2">
+      <div className="mx-auto flex w-full max-w-7xl items-center gap-2.5">
+        <Link
+          to="/"
+          className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-white/90 pr-4 pl-1.5 shadow-soft ring-1 ring-white/60"
+        >
+          <span className="grid h-8 w-auto shrink-0 place-items-center rounded-full bg-brand-600 px-2.5 text-xs font-bold text-white">
             PFONE
           </span>
-          <span className="font-display text-sm font-semibold tracking-tight">Premier Finserv One</span>
+          <span className="hidden font-display text-sm font-medium lg:block">Premier Finserv One</span>
         </Link>
 
-        <GlobalSearch />
-
-        <nav className="ml-auto flex shrink-0 items-center gap-1">
+        <nav className="glass flex h-11 shrink-0 items-center gap-0.5 rounded-full p-1">
           {/* One home for everyone (ADR-050): the work queue, and for managers the
               MIS reports under it. */}
           <NavLink to="/" end className={navLinkClass}>
+            <NavIcon d={ICON_HOME} />
             Home
           </NavLink>
           <NavLink to="/update-case" className={navLinkClass}>
+            <NavIcon d={ICON_UPDATE} />
             Update Case
           </NavLink>
           <NavLink to="/cases" className={navLinkClass}>
+            <NavIcon d={ICON_CASES} />
             {casesLabel(session)}
           </NavLink>
-          {session.can("case.create", "all") && (
-            <Link to="/cases/new">
-              <Button variant="primary">Log a Case</Button>
-            </Link>
-          )}
         </nav>
 
-        <IdentityMenu />
+        <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2.5">
+          <GlobalSearch />
+          {session.can("case.create", "all") && (
+            <Link to="/cases/new" className="shrink-0">
+              <Button variant="primary" className="h-11 px-5 shadow-soft">
+                <NavIcon d={ICON_PLUS} />
+                Log a Case
+              </Button>
+            </Link>
+          )}
+          <IdentityMenu />
+        </div>
       </div>
-
     </header>
   );
 }
@@ -211,14 +248,14 @@ function GlobalSearch(): ReactNode {
   };
 
   return (
-    <div ref={container} className="relative w-full max-w-md">
+    <div ref={container} className="relative w-full max-w-sm">
       {/* The one icon on the whole nav bar — a search box reads as a search
           box faster with the glass in it, and nowhere else in this bar needs
           the help. */}
       <svg
         aria-hidden
         viewBox="0 0 16 16"
-        className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-ink-400"
+        className="pointer-events-none absolute top-1/2 left-4 z-10 h-3.5 w-3.5 -translate-y-1/2 text-ink-600"
         fill="none"
       >
         <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.4" />
@@ -233,11 +270,11 @@ function GlobalSearch(): ReactNode {
         }}
         onFocus={() => setOpen(true)}
         placeholder="Search cases, people, phone numbers…"
-        className="w-full rounded-md bg-ink-50 py-1.5 pr-3 pl-8 text-sm ring-1 ring-ink-150 transition-shadow duration-150 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+        className="glass h-11 w-full rounded-full pr-4 pl-10 text-sm text-ink-900 transition-shadow duration-150 placeholder:text-ink-600 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
       />
 
       {open && trimmed.length >= 2 && (
-        <div className="aos-animate-pop absolute top-full left-0 mt-1 w-full overflow-hidden rounded-lg bg-white shadow-elevated ring-1 ring-ink-150">
+        <div className="aos-animate-pop absolute top-full right-0 mt-2 w-full min-w-80 overflow-hidden rounded-2xl bg-white shadow-elevated ring-1 ring-ink-900/5">
           {hits.length === 0 ? (
             <p className="px-3 py-4 text-sm text-ink-500">
               Nothing found. Try a fragment — a first name, a locality, four digits of a phone.
@@ -296,12 +333,12 @@ function IdentityMenu(): ReactNode {
     <div ref={container} className="relative shrink-0">
       <button
         onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-ink-50"
+        className="flex h-11 items-center gap-2 rounded-full bg-white/90 py-1 pr-1.5 pl-1.5 shadow-soft ring-1 ring-white/60 transition-colors duration-150 hover:bg-white xl:pr-4"
       >
-        <span className="grid h-7 w-7 place-items-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
           {session.displayName.slice(0, 2).toUpperCase()}
         </span>
-        <span className="hidden text-left sm:block">
+        <span className="hidden text-left xl:block">
           <span className="block text-xs leading-tight font-medium">{session.displayName}</span>
           <span className="block text-xs leading-tight text-ink-500">
             {session.roles.map((role) => ROLE_LABELS[role as Role]).join(" + ")}
@@ -310,7 +347,7 @@ function IdentityMenu(): ReactNode {
       </button>
 
       {open && (
-        <div className="aos-animate-pop absolute top-full right-0 mt-1 w-64 rounded-lg bg-white p-2 shadow-elevated ring-1 ring-ink-150">
+        <div className="aos-animate-pop absolute top-full right-0 mt-2 w-64 rounded-2xl bg-white p-2 shadow-elevated ring-1 ring-ink-900/5">
           <div className="px-2 py-1.5">
             <p className="text-sm font-medium">{session.displayName}</p>
             <p className="text-xs text-ink-500">

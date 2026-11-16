@@ -30,6 +30,7 @@ import {
   Field,
   Input,
   Modal,
+  PageHeader,
   PermissionCode,
   Select,
   useToast,
@@ -80,13 +81,10 @@ export function Bankers(): ReactNode {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Bankers</h1>
-        <p className="mt-1 text-sm text-ink-500">
-          Bank contacts used across cases. Add a banker once here, and every case's "Add bank" step
-          can pick them from a list instead of typing them in again.
-        </p>
-      </div>
+      <PageHeader
+        title="Bankers"
+        subtitle={`Bank contacts used across cases. Add a banker once here, and every case's "Add bank" step can pick them from a list instead of typing them in again.`}
+      />
 
       <Card
         title={`${visible.length} of ${bankers.data?.length ?? 0} bankers`}

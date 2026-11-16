@@ -16,7 +16,7 @@ import { useSession } from "../session.js";
 import { Empty, Select } from "../ui/index.js";
 import { dateFromToday, type WorkLists } from "./LogCase.js";
 
-interface QueueRow {
+export interface QueueRow {
   readonly id: string;
   readonly caseId: string;
   readonly caseNumber: string;
@@ -44,7 +44,7 @@ const ACTION_BY_KIND: Readonly<Record<string, string>> = {
   resolve_query: "Resolve lender query",
   present_offer: "Present offer",
 };
-const actionOf = (row: QueueRow): string =>
+export const actionOf = (row: QueueRow): string =>
   (row.kind ? ACTION_BY_KIND[row.kind] : undefined) ?? row.title.replace(/ from .+$/, "");
 const detailOf = (title: string): string => /^.+? from (.+)$/.exec(title)?.[1] ?? "";
 
@@ -54,11 +54,11 @@ function ActionCard({ action, rows, today }: { action: string; rows: readonly Qu
   const shown = open ? rows : rows.slice(0, PREVIEW);
 
   return (
-    <section className="flex flex-col rounded-xl bg-white p-4 ring-1 ring-ink-150">
+    <section className="flex flex-col rounded-xl bg-white p-5 shadow-soft ring-1 ring-ink-900/5">
       <header className="flex items-start justify-between gap-3">
         <h3 className="text-sm font-semibold text-ink-900">{action}</h3>
         <div className="text-right">
-          <p className="tnum text-2xl font-semibold leading-none text-ink-900">{rows.length}</p>
+          <p className="font-display tnum text-3xl leading-none font-light text-ink-900">{rows.length}</p>
           {overdue > 0 && <p className="mt-1 text-xs font-medium text-red-700">{overdue} overdue</p>}
         </div>
       </header>
@@ -111,7 +111,7 @@ export function WorkQueue(): ReactNode {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-500">What needs doing</h2>
+        <h2 className="font-display text-xl text-ink-900">What needs doing</h2>
         <div className="flex gap-2">
           <Select className="max-w-48" value={firm} onChange={(event) => setFirm(event.target.value)} aria-label="Firm">
             <option value="all">Both firms</option>

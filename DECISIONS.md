@@ -2047,3 +2047,31 @@ A review of PFO against a general production checklist. No database migration.
 - **A failed send is logged and the form still shows the normal reply**, so a mail fault cannot be used to tell which usernames exist. The employee is told to ask a manager if nothing arrives.
 - **Not exercised in a browser yet.** The routes are covered by 13 integration tests; the screens are typechecked and built.
 - **Found at deploy: Google refuses the saved Gmail refresh token** ("Bad Request" on refresh). Every email PFO sends fails, not only reset links. Not caused by this change. Renewing it is an interactive Google sign-in as the mailbox (`Docs/Email and WhatsApp Integration.md`, steps 3 and 5). If the OAuth consent screen is still in "Testing", tokens expire every 7 days, so publish it.
+
+## ADR-053 — A new look: a backdrop, glass on it, and a dashboard home
+
+**Decision (Tarun, 16 Nov 2026).** PFO takes the look of a reference Tarun chose (a "liquid glass" finance dashboard), toned down: a deep-blue backdrop behind the navigation and each page's title, floating glass navigation, and a home screen laid out as a dashboard with small charts. Design note: `Docs/superpowers/specs/2026-11-16-glass-dashboard-design.md`.
+
+**What it reverses.** `Frontend/src/index.css` said colour "is never decorative". The backdrop is decorative. The rule still holds wherever a person reads data: status colours keep their meanings, and every table, form and figure card stays solid white at the old text sizes.
+
+**What was built.**
+- **Backdrop.** CSS gradients only (no image file, nothing animated), in the existing ledger blue with the existing gold as one warm light. Each screen's `PageHeader` paints it behind itself, so its height follows the header and whatever comes after the header starts on the plain page.
+- **Glass.** Only the navigation, the period toggle, the system-health line and the home screen's two headline cards. Navigation text is dark so it reads over the backdrop and over the page once scrolled. Every navigation item keeps its word; icons sit beside the words.
+- **Home.** The greeting; money disbursed in the chosen period (Today, This week, This month) with a link to Reports; this week's follow-ups day by day with what is due today; four figures with what each is out of; leads per week; active cases by stage; leads by source; team load; then the work queue and the full reports as before. A person without office-wide figures sees their own open follow-ups, the week, and the queue.
+- **One server addition.** `computeMisReport` returns `leadsByWeek`: twelve Monday-start weeks ending with this one, whatever the period, counted like the other lead tables. It is not an MIS figure and the sync does not compare it. No migration.
+- **Every screen** opens with `PageHeader`. The Reports screen is now reachable from the home screen's headline card.
+- **Type.** Outfit (light) replaces Space Grotesk for titles and large figures; Inter stays for everything else.
+
+**Why not otherwise.**
+- *Tokens only (colours and radii):* changes the paint, not the layout; it would not look like the reference.
+- *A component or chart library:* three small one-colour charts and a handful of components do not earn one.
+- *Categorical colours in the charts:* each chart uses one hue and prints its labels and counts, so nothing depends on telling colours apart and no colour changes meaning when a filter changes.
+- *An "ask anything" bar as in the reference:* PFO has nothing behind it. Search stays in the navigation.
+- *Shortcuts to Log a Case and Update Case on the home card:* removed by Tarun the same day; both are already in the top bar.
+
+**Known and left.**
+- **Blur costs something on an old PC.** It is limited to the elements above. If the office PC stutters, remove `backdrop-filter` from `.glass` and `.glass-tint` in `index.css`; both have enough tint to read without it.
+- **Checked in a browser on practice data only** (a throwaway database, invented names): Home as a manager, and the Cases list. The other screens are typechecked and built, not looked at one by one. Telecaller and login-executive homes were not opened.
+- **Playwright was not run** on the server PC. The names the suite looks for ("All Cases", "Users", "Sign in", the "Bankers", "Document rules" and "User Management" headings) are unchanged.
+- **The frontend and the API must go live together**: the home screen reads `leadsByWeek`. A normal deploy (build, restart) does that.
+- **Screens with no header while loading** show the navigation on the plain page for a moment.

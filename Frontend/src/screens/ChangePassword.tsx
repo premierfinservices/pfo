@@ -15,7 +15,7 @@ import { useState, type ReactNode } from "react";
 
 import { api } from "../api/client.js";
 import { useMutation } from "../api/hooks.js";
-import { Button, Card, Field, Input, useToast } from "../ui/index.js";
+import { Button, Card, Field, Input, PageHeader, useToast } from "../ui/index.js";
 
 import { passwordFormProblem } from "./change-password.js";
 
@@ -49,8 +49,9 @@ export function ChangePassword(): ReactNode {
   const message = problem ?? mutation.error;
 
   return (
-    <div className="mx-auto max-w-md">
-      <Card title="Change my password" subtitle="Use something only you know. At least 8 characters.">
+    <div className="mx-auto max-w-md space-y-4">
+      <PageHeader title="Change my password" subtitle="Use something only you know. At least 8 characters." />
+      <Card>
         <form
           className="space-y-3 p-4 sm:p-5"
           onSubmit={(event) => {

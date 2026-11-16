@@ -10,7 +10,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 
 import { useReference } from "../api/catalogue.js";
-import { Badge, Card, Empty, Input, TABLE_ROW, Table, Td, Th } from "../ui/index.js";
+import { Badge, Card, Empty, Input, PageHeader, TABLE_ROW, Table, Td, Th } from "../ui/index.js";
 
 const NEEDS: Record<string, string> = {
   mandatory: "Needed",
@@ -37,15 +37,17 @@ export function LendingProducts(): ReactNode {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink-900">Products</h1>
-        <p className="mt-1 text-sm text-ink-500">The loan products cases are logged under, and what each one asks for.</p>
-      </div>
-      <Input
-        placeholder="Search by name, code or category"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        className="max-w-md"
+      <PageHeader
+        title="Products"
+        subtitle="The loan products cases are logged under, and what each one asks for."
+        actions={
+          <Input
+            placeholder="Search by name, code or category"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="w-80"
+          />
+        }
       />
       <Card title={`${visible.length} of ${reference.loanProducts.length} products`}>
         {visible.length === 0 ? (

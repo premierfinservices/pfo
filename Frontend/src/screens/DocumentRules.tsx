@@ -47,6 +47,7 @@ import {
   Field,
   Input,
   Modal,
+  PageHeader,
   Select,
   Textarea,
   useToast,
@@ -157,10 +158,11 @@ export function DocumentRules(): ReactNode {
 
   return (
     <div className="space-y-6">
-      <Card
+      <PageHeader
         title="Document rules"
         subtitle={`${active} rules in service — reads and writes Premier Finserv One's office database.`}
-      >
+      />
+      <Card>
         <div className="flex flex-wrap items-center gap-3">
           <input
             value={query}

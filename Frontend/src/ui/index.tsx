@@ -43,7 +43,7 @@ export function Button({
     <button
       {...props}
       className={cx(
-        "inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-1.5",
+        "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-4 py-1.5 whitespace-nowrap",
         "text-sm font-medium transition-[background-color,box-shadow,transform] duration-150",
         "active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white",
@@ -51,6 +51,88 @@ export function Button({
         className,
       )}
     />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PageHeader — a screen's title, on the backdrop (ADR-053)
+// ---------------------------------------------------------------------------
+
+/**
+ * Every screen opens with one. The backdrop behind it is this element's own
+ * (`.page-header` in index.css), so the text here is white and anything put in
+ * `actions` must read on a dark ground: inputs, selects and solid buttons do,
+ * a ghost button does not. `children` sit under the title, still on the
+ * backdrop: the home screen's glass cards.
+ */
+export function PageHeader({
+  title,
+  subtitle,
+  eyebrow,
+  actions,
+  children,
+  overlap = false,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  /** A line above the title. Only for something the title needs, like today's date. */
+  eyebrow?: ReactNode;
+  actions?: ReactNode;
+  children?: ReactNode;
+  /** Leaves room at the bottom for the next block to be pulled up over the backdrop's edge. */
+  overlap?: boolean;
+}): ReactNode {
+  return (
+    <header className={cx("page-header pt-3", overlap ? "pb-24" : "pb-8")}>
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          {eyebrow && <p className="mb-1 text-sm text-white/75">{eyebrow}</p>}
+          <h1 className="font-display text-3xl font-light text-white sm:text-4xl">{title}</h1>
+          {subtitle && <p className="mt-2 max-w-2xl text-sm text-white/80">{subtitle}</p>}
+        </div>
+        {/* One row that shrinks, never wraps: the shared controls are full-width
+            by default, so a wrapping row would give each of them a line to itself. */}
+        {actions && <div className="flex max-w-full min-w-0 items-end gap-2">{actions}</div>}
+      </div>
+      {children}
+    </header>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Segmented — choose one of a few, all visible
+// ---------------------------------------------------------------------------
+
+export function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: T;
+  options: readonly { value: T; label: string }[];
+  onChange: (value: T) => void;
+  /** What is being chosen, for a screen reader. */
+  label: string;
+}): ReactNode {
+  return (
+    <div role="group" aria-label={label} className="glass inline-flex rounded-full p-1">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={option.value === value}
+          onClick={() => onChange(option.value)}
+          className={cx(
+            "rounded-full px-3.5 py-1 text-sm font-medium transition-colors duration-150",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
+            option.value === value ? "bg-white text-ink-900 shadow-soft" : "text-ink-700 hover:bg-white/50",
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -87,8 +169,8 @@ export function Card({
   return (
     <section
       className={cx(
-        "rounded-lg bg-white transition-shadow duration-200",
-        elevated ? "shadow-elevated ring-1 ring-ink-150" : "ring-1 ring-ink-150",
+        "rounded-xl bg-white transition-shadow duration-200",
+        elevated ? "shadow-elevated ring-1 ring-ink-900/5" : "shadow-soft ring-1 ring-ink-900/5",
         className,
       )}
     >
@@ -136,7 +218,7 @@ const STAGE_STYLES: Record<CaseStage, string> = {
 };
 
 const BADGE_BASE =
-  "inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap";
+  "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap";
 
 export function StageBadge({ stage, label }: { stage: CaseStage; label: string }): ReactNode {
   return <span className={cx(BADGE_BASE, STAGE_STYLES[stage])}>{label}</span>;
@@ -355,11 +437,11 @@ export function Modal({
         aria-modal="true"
         aria-labelledby="modal-title"
         className={cx(
-          "aos-animate-pop w-full rounded-lg bg-white shadow-elevated ring-1 ring-ink-150",
+          "aos-animate-pop w-full rounded-2xl bg-white shadow-elevated ring-1 ring-ink-900/5",
           size === "wide" ? "max-w-3xl" : "max-w-lg",
         )}
       >
-        <header className="flex items-center justify-between border-b border-ink-100 px-4 py-3">
+        <header className="flex items-center justify-between border-b border-ink-100 py-3 pr-3 pl-5">
           <h2 id="modal-title" className="text-sm font-semibold">
             {title}
           </h2>
@@ -367,7 +449,7 @@ export function Modal({
             ✕
           </Button>
         </header>
-        <div className="p-4">{children}</div>
+        <div className="p-5">{children}</div>
       </div>
     </div>
   );
@@ -404,7 +486,7 @@ export function ToastProvider({ children }: { children: ReactNode }): ReactNode 
         <div
           role="status"
           className={cx(
-            "aos-animate-pop fixed bottom-4 left-1/2 z-50 max-w-lg -translate-x-1/2 rounded-lg px-4 py-2.5 text-sm shadow-elevated",
+            "aos-animate-pop fixed bottom-5 left-1/2 z-50 max-w-lg -translate-x-1/2 rounded-2xl px-5 py-2.5 text-sm shadow-elevated",
             toast.tone === "bad" ? "bg-red-600 text-white" : "bg-ink-900 text-white",
           )}
         >

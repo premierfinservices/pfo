@@ -60,6 +60,7 @@ import {
   Field,
   Input,
   Modal,
+  PageHeader,
   PermissionCode,
   Select,
   cx,
@@ -99,7 +100,7 @@ export function UserManagement(): ReactNode {
 
   return (
     <div className="space-y-4">
-      <Card
+      <PageHeader
         title="User Management"
         subtitle="Employee accounts, roles, and access. Changes take effect immediately, everywhere."
         actions={
@@ -107,7 +108,8 @@ export function UserManagement(): ReactNode {
             Create user
           </Button>
         }
-      >
+      />
+      <Card>
         {users.loading && <Empty>Loading…</Empty>}
         {users.error && <Empty>{users.error.message}</Empty>}
         {users.data && users.data.length === 0 && <Empty>No accounts yet.</Empty>}
